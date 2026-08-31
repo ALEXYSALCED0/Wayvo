@@ -22,13 +22,22 @@ export class EventService {
 
   /**
    * Confirm booking for an event.
-   * IMPORTANT: reservationStatus becomes CONFIRMED, but status remains PENDING!
+   * One-time action: reservationStatus becomes CONFIRMED, status remains PENDING.
+   * Rejects if already CONFIRMED, COMPLETED, or in ISSUE state.
    */
   async reserveEvent(tripId: string, eventId: string): Promise<Event> {
     const event = await this.getEvent(tripId, eventId);
 
     if (event.status === EventStatus.COMPLETED) {
       throw new Error(`Cannot reserve an event that is already COMPLETED`);
+    }
+
+    if (event.status === EventStatus.ISSUE) {
+      throw new Error(`Cannot reserve an event that has an active ISSUE`);
+    }
+
+    if (event.reservationStatus === ReservationStatus.CONFIRMED) {
+      throw new Error(`Event reservation/payment is already CONFIRMED`);
     }
 
     event.reservationStatus = ReservationStatus.CONFIRMED;
@@ -53,6 +62,10 @@ export class EventService {
       throw new Error(`Event is already COMPLETED and finalized`);
     }
 
+    if (event.status === EventStatus.ISSUE) {
+      throw new Error(`Cannot complete an event that has an active/unresolved ISSUE`);
+    }
+
     event.status = EventStatus.COMPLETED;
     event.statusLabel = 'Completed';
     return this.repo.updateEvent(tripId, event);
@@ -60,7 +73,7 @@ export class EventService {
 
   /**
    * Marks an event as affected by an issue.
-   * Rejects if the event is already COMPLETED!
+   * Locked: Rejects if event is already COMPLETED or already in ISSUE state.
    */
   async markEventAsIssue(
     tripId: string,
@@ -74,6 +87,10 @@ export class EventService {
       throw new Error(`Cannot report an issue on an event that is already COMPLETED`);
     }
 
+    if (event.status === EventStatus.ISSUE) {
+      throw new Error(`Event is already in ISSUE state and cannot be reported again`);
+    }
+
     event.status = EventStatus.ISSUE;
     event.statusLabel = issueType === IssueType.MISSED ? 'Missed' : 'Needs Rescheduling';
     event.issueReason = reason || `Reported ${issueType.toLowerCase().replace('_', ' ')}`;
@@ -83,6 +100,7 @@ export class EventService {
 
   /**
    * Applies selected alternative by updating the affected event and injecting the new route events.
+   * New alternative starts with reservationStatus: NOT_RESERVED and status: PENDING so user can pay & complete it.
    */
   async applyAlternative(
     tripId: string,
@@ -101,7 +119,7 @@ export class EventService {
 
     const affectedEvent = trip.events[affectedIndex];
 
-    // Mark previous affected event as replaced/warning
+    // Mark previous affected event as replaced/warning and lock it
     affectedEvent.status = EventStatus.ISSUE;
     affectedEvent.statusLabel = 'Missed / Replaced';
     await this.repo.updateEvent(tripId, affectedEvent);
@@ -123,11 +141,11 @@ export class EventService {
         startDateTime: affectedEvent.startDateTime,
         time: preview.time,
         status: EventStatus.PENDING,
-        statusLabel: 'Confirmed Alternative',
-        reservationStatus: ReservationStatus.CONFIRMED,
+        statusLabel: 'Upcoming',
+        reservationStatus: ReservationStatus.NOT_RESERVED,
         order: baseOrder + (i + 1) * 0.1,
         isAlternative: true,
-        alternativeBadge: alternative.isFastest ? 'Fastest Route' : 'Curated Choice',
+        alternativeBadge: 'ITINERARY CHANGED',
         details: {
           provider: alternative.provider,
           bookingRef: `ALT-${Math.floor(1000 + Math.random() * 9000)}`,

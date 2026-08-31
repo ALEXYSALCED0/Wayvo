@@ -1,5 +1,5 @@
 /**
- * DetailedTimelineScreen - Interactive Itinerary Timeline connected to Backend Mediator
+ * DetailedTimelineScreen - Interactive Itinerary Timeline with Inline Alternatives
  * Source of Truth: Stitch Detailed Timeline Screens (Rubik)
  */
 
@@ -41,6 +41,7 @@ export const DetailedTimelineScreen: React.FC = () => {
     activeTrip,
     timeline,
     phase,
+    affectedItemId,
     alternatives,
     selectedAlternative,
     isRecalculating,
@@ -62,7 +63,6 @@ export const DetailedTimelineScreen: React.FC = () => {
   }, [phase, isRecalculating, timeline.length]);
 
   const handleOpenReportIssue = (item?: TimelineItem) => {
-    // If specific item selected, target it; otherwise target the pending train
     const target = item || timeline.find((t) => t.id === 'node-train' || t.status === 'pending') || timeline[2];
     setSelectedTargetItem(target || null);
     setIssueSheetVisible(true);
@@ -118,7 +118,7 @@ export const DetailedTimelineScreen: React.FC = () => {
       />
 
       <ScreenTransition style={styles.flexOne}>
-        {isLoading && !isRecalculating ? (
+        {isLoading && !isRecalculating && timeline.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Loading itinerary...</Text>
@@ -148,55 +148,6 @@ export const DetailedTimelineScreen: React.FC = () => {
               </Text>
             </View>
 
-            {/* STATE 2: RECALCULATING BANNER */}
-            {isRecalculating && (
-              <RecalculatingCard
-                message={recalculatingMessage}
-                subMessage="Wayvo is dynamically evaluating routes and availability..."
-              />
-            )}
-
-            {/* STATE 3: PROPOSED ALTERNATIVE ROUTES */}
-            {phase === 'alternatives_ready' && !isRecalculating && (
-              <View style={styles.alternativesSection}>
-                <View style={styles.alternativesHeaderRow}>
-                  <View style={styles.aiBadge}>
-                    <MaterialIcons name="auto-awesome" size={14} color={colors.secondary} />
-                    <Text style={styles.aiBadgeText}>ALTERNATIVES GENERATED</Text>
-                  </View>
-                  <Text style={styles.alternativesCount}>{alternatives.length} options</Text>
-                </View>
-
-                <Text style={styles.alternativesTitle}>Alternative Routes Proposed</Text>
-                <Text style={styles.alternativesSubtitle}>
-                  Select a new connection or extended itinerary to update your journey.
-                </Text>
-
-                {/* List of Alternative Cards */}
-                <View style={styles.alternativesList}>
-                  {alternatives.map((alt) => (
-                    <AlternativeCard
-                      key={alt.id}
-                      option={alt}
-                      isSelected={selectedAlternative?.id === alt.id}
-                      onSelect={handleSelectAlternative}
-                    />
-                  ))}
-                </View>
-
-                {/* Confirm Choice CTA */}
-                <CustomButton
-                  title="Choose this route & Update Timeline"
-                  variant="havelock"
-                  iconName="arrow-forward"
-                  iconRight
-                  size="lg"
-                  onPress={handleApplyRoute}
-                  style={styles.confirmRouteBtn}
-                />
-              </View>
-            )}
-
             {/* STATE UPDATED NOTICE */}
             {phase === 'updated' && (
               <View style={styles.updatedNotice}>
@@ -207,24 +158,82 @@ export const DetailedTimelineScreen: React.FC = () => {
               </View>
             )}
 
-            {/* MAIN TIMELINE CONTAINER */}
+            {/* MAIN TIMELINE CONTAINER WITH INLINE ALTERNATIVES */}
             <View style={styles.timelineSection}>
               <Text style={styles.timelineSectionTitle}>Current Itinerary Axis</Text>
 
               <View style={styles.timelineList}>
-                {timeline.map((item, index) => (
-                  <TimelineNodeItem
-                    key={item.id}
-                    item={item}
-                    isFirst={index === 0}
-                    isLast={index === timeline.length - 1}
-                    onPressCard={handleViewDetails}
-                    onReportIssue={handleOpenReportIssue}
-                    onViewTicket={handleViewDetails}
-                    onCompleteEvent={handleCompleteEvent}
-                    isRecalculating={isRecalculating}
-                  />
-                ))}
+                {timeline.map((item, index) => {
+                  const isAffected = affectedItemId === item.id;
+                  const showInlineRecalculating = isRecalculating && isAffected;
+                  const showInlineAlternatives = phase === 'alternatives_ready' && !isRecalculating && isAffected && alternatives.length > 0;
+
+                  return (
+                    <React.Fragment key={item.id}>
+                      <TimelineNodeItem
+                        item={item}
+                        isFirst={index === 0}
+                        isLast={index === timeline.length - 1 && !showInlineRecalculating && !showInlineAlternatives}
+                        onPressCard={handleViewDetails}
+                        onReportIssue={handleOpenReportIssue}
+                        onViewTicket={handleViewDetails}
+                        onCompleteEvent={handleCompleteEvent}
+                        isRecalculating={isRecalculating}
+                      />
+
+                      {/* INLINE RECALCULATING STATE (Positioned directly below affected event) */}
+                      {showInlineRecalculating && (
+                        <View style={styles.inlineRecalculatingWrapper}>
+                          <RecalculatingCard
+                            message={recalculatingMessage}
+                            subMessage="Wayvo is evaluating alternatives directly for this connection..."
+                          />
+                        </View>
+                      )}
+
+                      {/* INLINE ALTERNATIVE OPTIONS (Positioned directly below affected event) */}
+                      {showInlineAlternatives && (
+                        <View style={styles.inlineAlternativesContainer}>
+                          <View style={styles.alternativesHeaderRow}>
+                            <View style={styles.aiBadge}>
+                              <MaterialIcons name="auto-awesome" size={14} color={colors.secondary} />
+                              <Text style={styles.aiBadgeText}>ALTERNATIVES PROPOSED</Text>
+                            </View>
+                            <Text style={styles.alternativesCount}>{alternatives.length} options</Text>
+                          </View>
+
+                          <Text style={styles.alternativesTitle}>Alternative Routes Generated</Text>
+                          <Text style={styles.alternativesSubtitle}>
+                            Select a replacement option directly for this connection:
+                          </Text>
+
+                          {/* List of Alternative Cards */}
+                          <View style={styles.alternativesList}>
+                            {alternatives.map((alt) => (
+                              <AlternativeCard
+                                key={alt.id}
+                                option={alt}
+                                isSelected={selectedAlternative?.id === alt.id}
+                                onSelect={handleSelectAlternative}
+                              />
+                            ))}
+                          </View>
+
+                          {/* Confirm Choice CTA */}
+                          <CustomButton
+                            title="Choose this route & Update Timeline"
+                            variant="havelock"
+                            iconName="arrow-forward"
+                            iconRight
+                            size="lg"
+                            onPress={handleApplyRoute}
+                            style={styles.confirmRouteBtn}
+                          />
+                        </View>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </View>
             </View>
 
@@ -344,13 +353,19 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontSize: 13,
   },
-  alternativesSection: {
+  inlineRecalculatingWrapper: {
+    marginLeft: 36,
+    marginBottom: spacing.md + 4,
+  },
+  inlineAlternativesContainer: {
+    marginLeft: 36,
     backgroundColor: '#ffffff',
-    borderRadius: radii.xxl,
+    borderRadius: radii.xl,
     padding: spacing.cardPadding,
     borderWidth: 1.5,
     borderColor: colors.primary,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md + 4,
+    ...shadows.card,
   },
   alternativesHeaderRow: {
     flexDirection: 'row',
@@ -382,7 +397,7 @@ const styles = StyleSheet.create({
   alternativesTitle: {
     ...typography.headlineMd,
     color: colors.primary,
-    fontSize: 19,
+    fontSize: 18,
     marginBottom: 2,
   },
   alternativesSubtitle: {

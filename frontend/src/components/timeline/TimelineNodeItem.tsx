@@ -48,18 +48,19 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
   const isCompleted = item.status === 'completed';
   const isWarning = item.status === 'warning';
   const isPending = item.status === 'pending';
+  const isChanged = item.isAlternative;
 
   const getNodeIcon = () => {
     if (isCompleted) return <MaterialIcons name="check" size={16} color={colors.onPrimary} />;
     if (isWarning) return <MaterialIcons name="warning" size={15} color={colors.statusError} />;
-    if (item.isAlternative) return <MaterialIcons name="auto-awesome" size={15} color={colors.secondary} />;
+    if (isChanged) return <MaterialIcons name="alt-route" size={14} color="#475569" />;
     return <View style={styles.pendingDot} />;
   };
 
   const getNodeStyle = () => {
     if (isCompleted) return styles.nodeCompleted;
     if (isWarning) return styles.nodeWarning;
-    if (item.isAlternative) return styles.nodeAlternative;
+    if (isChanged) return styles.nodeChanged;
     return styles.nodePending;
   };
 
@@ -71,16 +72,18 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
 
   const getCardBorderStyle = () => {
     if (isWarning) return styles.cardWarningBorder;
-    if (item.isAlternative) return styles.cardAlternativeBorder;
+    if (isChanged) return styles.cardChangedBorder;
     return styles.cardNormalBorder;
   };
 
   const getBadgeVariant = () => {
     if (isCompleted) return 'success';
     if (isWarning) return 'warning';
-    if (item.isAlternative) return 'secondary';
+    if (isChanged) return 'secondary';
     return 'pending';
   };
+
+  const isReserved = item.reservationStatus === 'CONFIRMED';
 
   return (
     <View style={styles.rowContainer}>
@@ -105,12 +108,12 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
           onPress={toggleExpand}
           activeOpacity={0.88}
         >
-          {/* Alternative Pill Badge */}
-          {item.isAlternative && (
-            <View style={styles.alternativePill}>
-              <MaterialIcons name="auto-awesome" size={12} color={colors.secondary} />
-              <Text style={styles.alternativePillText}>
-                {item.alternativeBadge || 'Alternative Route Confirmed'}
+          {/* Alternative / Changed Pill Badge */}
+          {isChanged && (
+            <View style={styles.changedPill}>
+              <MaterialIcons name="alt-route" size={12} color="#475569" />
+              <Text style={styles.changedPillText}>
+                {item.alternativeBadge || 'ITINERARY CHANGED'}
               </Text>
             </View>
           )}
@@ -118,11 +121,11 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
           {/* Card Header: Type Label + Time + Status Badge */}
           <View style={styles.cardHeader}>
             <View style={styles.typeRow}>
-              <Text style={[styles.typeLabel, isWarning && styles.warningTypeLabel]}>
+              <Text style={[styles.typeLabel, isWarning && styles.warningTypeLabel, isChanged && styles.changedTypeLabel]}>
                 {item.typeLabel}
               </Text>
               <Badge
-                label={item.statusLabel || (isCompleted ? 'Completed' : isWarning ? 'Missed' : item.reservationStatus === 'CONFIRMED' ? 'Confirmed' : 'Pending')}
+                label={item.statusLabel || (isCompleted ? 'Completed' : isWarning ? 'Missed' : isReserved ? 'Confirmed' : 'Upcoming')}
                 variant={getBadgeVariant()}
               />
             </View>
@@ -130,7 +133,7 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
           </View>
 
           {/* Title */}
-          <Text style={[styles.title, isWarning && styles.warningTitle]}>
+          <Text style={[styles.title, isWarning && styles.warningTitle, isChanged && styles.changedTitle]}>
             {item.title}
           </Text>
 
@@ -190,12 +193,14 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
                     activeOpacity={0.8}
                   >
                     <MaterialIcons name="qr-code" size={15} color={colors.primary} />
-                    <Text style={styles.viewTicketText}>Details / Booking</Text>
+                    <Text style={styles.viewTicketText}>
+                      {isReserved ? 'View Details' : 'Details / Booking'}
+                    </Text>
                   </TouchableOpacity>
                 )}
 
-                {/* Manual Completion Button (if not completed) */}
-                {onCompleteEvent && !isCompleted && (
+                {/* Manual Completion Button (only if not completed and not in active issue) */}
+                {onCompleteEvent && !isCompleted && !isWarning && (
                   <TouchableOpacity
                     style={styles.completeButton}
                     onPress={() => onCompleteEvent(item)}
@@ -206,8 +211,8 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
                   </TouchableOpacity>
                 )}
 
-                {/* Report Issue Button (locked if completed) */}
-                {onReportIssue && !isCompleted && (
+                {/* Report Issue Button (locked if completed or already in issue) */}
+                {onReportIssue && !isCompleted && !isWarning && (
                   <TouchableOpacity
                     style={styles.reportIssueButton}
                     onPress={() => onReportIssue(item)}
@@ -218,6 +223,15 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
                   </TouchableOpacity>
                 )}
 
+                {/* Locked in Issue state notice */}
+                {isWarning && (
+                  <View style={styles.lockedIssueBadge}>
+                    <MaterialIcons name="lock" size={13} color="#c2410c" />
+                    <Text style={styles.lockedIssueText}>Disruption Reported (Locked)</Text>
+                  </View>
+                )}
+
+                {/* Completed and locked notice */}
                 {isCompleted && (
                   <View style={styles.lockedCompletedBadge}>
                     <MaterialIcons name="lock" size={13} color="#2e7d32" />
@@ -297,10 +311,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.statusError,
   },
-  nodeAlternative: {
-    backgroundColor: colors.primaryFixed,
+  nodeChanged: {
+    backgroundColor: '#f1f5f9',
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor: '#94a3b8',
   },
   nodePending: {
     backgroundColor: '#ffffff',
@@ -330,14 +344,14 @@ const styles = StyleSheet.create({
     borderColor: '#ffb74d',
     backgroundColor: '#fffcf7',
   },
-  cardAlternativeBorder: {
-    borderColor: colors.primary,
-    backgroundColor: '#f6f9fc',
+  cardChangedBorder: {
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
   },
-  alternativePill: {
+  changedPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryFixed,
+    backgroundColor: '#e2e8f0',
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radii.full,
@@ -345,11 +359,12 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: spacing.xs,
   },
-  alternativePillText: {
+  changedPillText: {
     ...typography.labelSm,
-    color: colors.primary,
+    color: '#334155',
     fontWeight: '700',
     fontSize: 10,
+    letterSpacing: 0.5,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -373,6 +388,9 @@ const styles = StyleSheet.create({
   warningTypeLabel: {
     color: '#e65100',
   },
+  changedTypeLabel: {
+    color: '#475569',
+  },
   timeText: {
     ...typography.labelSm,
     color: colors.onSurfaceVariant,
@@ -386,6 +404,9 @@ const styles = StyleSheet.create({
   },
   warningTitle: {
     color: '#b71c1c',
+  },
+  changedTitle: {
+    color: '#1e293b',
   },
   locationRow: {
     flexDirection: 'row',
@@ -490,6 +511,21 @@ const styles = StyleSheet.create({
     color: colors.statusError,
     fontWeight: '700',
     fontSize: 11,
+  },
+  lockedIssueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffedd5',
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.full,
+    gap: 3,
+  },
+  lockedIssueText: {
+    ...typography.labelSm,
+    color: '#c2410c',
+    fontSize: 10,
+    fontWeight: '600',
   },
   lockedCompletedBadge: {
     flexDirection: 'row',

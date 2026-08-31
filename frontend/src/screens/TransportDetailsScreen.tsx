@@ -1,6 +1,7 @@
 /**
  * TransportDetailsScreen - Generic Event & Booking Details Screen
  * Adapts to any EventType (Transport, Flight, Museum, Meal, Tour, Hotel, Activity)
+ * Enforces one-time payment locking and issue locking
  * Source of Truth: Stitch Detailed Screens (Rubik)
  */
 
@@ -77,7 +78,7 @@ export const TransportDetailsScreen: React.FC = () => {
     navigation.navigate('DetailedTimeline');
   };
 
-  const title = targetEvent?.title || 'High-Speed Train to Paris';
+  const title = targetEvent?.title || 'Event Details';
   const provider = targetEvent?.details?.provider || 'Eurostar Continental';
   const price = targetEvent?.details?.price || 168.5;
   const bookingRef = targetEvent?.details?.bookingRef || 'WAY-9241-EUR';
@@ -96,7 +97,7 @@ export const TransportDetailsScreen: React.FC = () => {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Section with FULL-COVER Background Image (Fixed Sizing) */}
+        {/* Hero Section with FULL-COVER Background Image */}
         <View style={styles.heroCard}>
           <Image
             source={{ uri: getImageForType() }}
@@ -113,10 +114,10 @@ export const TransportDetailsScreen: React.FC = () => {
                 <Text style={styles.typeBadgeText}>{targetEvent?.typeLabel || eventType}</Text>
               </View>
 
-              <View style={[styles.statusBadge, isCompleted && styles.completedBadge, isIssue && styles.issueBadge]}>
-                <View style={[styles.statusDot, isCompleted && styles.completedDot, isIssue && styles.issueDot]} />
-                <Text style={[styles.statusText, isCompleted && styles.completedText, isIssue && styles.issueText]}>
-                  {isCompleted ? 'Completed' : isIssue ? 'Missed' : isReserved ? 'Confirmed' : 'Upcoming'}
+              <View style={[styles.statusBadge, isCompleted && styles.completedBadge, isIssue && styles.issueBadge, isReserved && !isCompleted && !isIssue && styles.confirmedBadge]}>
+                <View style={[styles.statusDot, isCompleted && styles.completedDot, isIssue && styles.issueDot, isReserved && !isCompleted && !isIssue && styles.confirmedDot]} />
+                <Text style={[styles.statusText, isCompleted && styles.completedText, isIssue && styles.issueText, isReserved && !isCompleted && !isIssue && styles.confirmedText]}>
+                  {isCompleted ? 'Completed' : isIssue ? 'Missed / Replaced' : isReserved ? 'Confirmed' : 'Upcoming'}
                 </Text>
               </View>
             </View>
@@ -172,7 +173,7 @@ export const TransportDetailsScreen: React.FC = () => {
           <View style={styles.glassCard}>
             <View style={styles.cardHeaderRow}>
               <MaterialIcons name="confirmation-number" size={20} color={colors.primary} />
-              <Text style={styles.cardSectionTitle}>Booking & Seat Details</Text>
+              <Text style={styles.cardSectionTitle}>Booking & Details</Text>
             </View>
 
             <View style={styles.grid2x2}>
@@ -183,7 +184,7 @@ export const TransportDetailsScreen: React.FC = () => {
 
               <View style={styles.gridItem}>
                 <Text style={styles.gridLabel}>BOOKING REF</Text>
-                <Text style={styles.gridValue}>{bookingRef}</Text>
+                <Text style={styles.gridValue}>{isReserved ? bookingRef : 'Not Reserved'}</Text>
               </View>
 
               {targetEvent?.details?.seat && (
@@ -195,7 +196,7 @@ export const TransportDetailsScreen: React.FC = () => {
 
               {targetEvent?.details?.classType && (
                 <View style={styles.gridItem}>
-                  <Text style={styles.gridLabel}>CLASS</Text>
+                  <Text style={styles.gridLabel}>CLASS / CATEGORY</Text>
                   <Text style={styles.gridValue}>{targetEvent.details.classType}</Text>
                 </View>
               )}
@@ -210,19 +211,34 @@ export const TransportDetailsScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Actions */}
+        {/* Actions & Lifecycle Notices */}
         <View style={styles.actionButtons}>
-          {!isReserved && !isCompleted && (
+          {/* 1. ONE-TIME PAYMENT: Only available if NOT reserved, not completed, and not in issue */}
+          {!isReserved && !isCompleted && !isIssue && (
             <CustomButton
-              title="Confirm Reservation"
+              title="Pay & Confirm Reservation"
               variant="havelock"
-              iconName="check-circle"
+              iconName="lock"
               size="lg"
               onPress={() => navigation.navigate('ReservationConfirmation', { itemId })}
             />
           )}
 
-          {!isCompleted && (
+          {/* 2. ALREADY PAID & CONFIRMED NOTICE */}
+          {isReserved && !isCompleted && !isIssue && (
+            <View style={styles.confirmedNoticeBox}>
+              <MaterialIcons name="check-circle" size={18} color="#2e7d32" />
+              <View style={styles.confirmedNoticeTextWrapper}>
+                <Text style={styles.confirmedNoticeTitle}>Reservation Confirmed & Paid</Text>
+                <Text style={styles.confirmedNoticeSub}>
+                  Pass is active. Event remains upcoming until you complete it.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* 3. REPORT ISSUE: Available as long as event is PENDING and not already in ISSUE state */}
+          {!isCompleted && !isIssue && (
             <CustomButton
               title={`Report Issue / Adjust ${targetEvent?.typeLabel || 'Event'}`}
               variant="danger"
@@ -233,6 +249,20 @@ export const TransportDetailsScreen: React.FC = () => {
             />
           )}
 
+          {/* 4. LOCKED IN ISSUE STATE */}
+          {isIssue && (
+            <View style={styles.issueNoticeBox}>
+              <MaterialIcons name="warning" size={18} color="#c2410c" />
+              <View style={styles.confirmedNoticeTextWrapper}>
+                <Text style={styles.issueNoticeTitle}>Disruption Reported (Locked)</Text>
+                <Text style={styles.issueNoticeSub}>
+                  This event is in recalculation or has been replaced by an alternative. Conflicting bookings and edits are locked.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* 5. LOCKED IN COMPLETED STATE */}
           {isCompleted && (
             <View style={styles.completedNotice}>
               <MaterialIcons name="lock" size={16} color="#2e7d32" />
@@ -315,6 +345,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     gap: 4,
   },
+  confirmedBadge: {
+    backgroundColor: '#e8f5e9',
+  },
   completedBadge: {
     backgroundColor: '#e8f5e9',
   },
@@ -327,6 +360,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     backgroundColor: colors.primary,
   },
+  confirmedDot: {
+    backgroundColor: '#2e7d32',
+  },
   completedDot: {
     backgroundColor: '#2e7d32',
   },
@@ -337,6 +373,9 @@ const styles = StyleSheet.create({
     ...typography.labelSm,
     color: colors.primary,
     fontWeight: '700',
+  },
+  confirmedText: {
+    color: '#2e7d32',
   },
   completedText: {
     color: '#2e7d32',
@@ -482,6 +521,53 @@ const styles = StyleSheet.create({
   },
   reportButton: {
     marginTop: spacing.xs,
+  },
+  confirmedNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#e8f5e9',
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: '#c8e6c9',
+  },
+  confirmedNoticeTextWrapper: {
+    flex: 1,
+  },
+  confirmedNoticeTitle: {
+    ...typography.labelMd,
+    color: '#2e7d32',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  confirmedNoticeSub: {
+    ...typography.bodySm,
+    color: '#388e3c',
+    fontSize: 12,
+    marginTop: 1,
+  },
+  issueNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff7ed',
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  issueNoticeTitle: {
+    ...typography.labelMd,
+    color: '#c2410c',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  issueNoticeSub: {
+    ...typography.bodySm,
+    color: '#9a3412',
+    fontSize: 12,
+    marginTop: 1,
   },
   completedNotice: {
     flexDirection: 'row',
