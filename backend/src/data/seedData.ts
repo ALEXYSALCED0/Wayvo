@@ -70,7 +70,7 @@ export const initialTrips: Trip[] = [
         time: '10:00 - 12:30',
         status: EventStatus.PENDING,
         statusLabel: 'Upcoming',
-        reservationStatus: ReservationStatus.CONFIRMED,
+        reservationStatus: ReservationStatus.NOT_RESERVED,
         order: 2,
         details: {
           provider: 'Vatican Heritage Services',
@@ -90,10 +90,9 @@ export const initialTrips: Trip[] = [
         startDateTime: '2024-10-15T14:15:00Z',
         endDateTime: '2024-10-15T17:30:00Z',
         time: '14:15 - 17:30',
-        // KEY DEMO STATE: CONFIRMED RESERVATION, BUT PENDING EVENT!
         status: EventStatus.PENDING,
         statusLabel: 'Upcoming',
-        reservationStatus: ReservationStatus.CONFIRMED,
+        reservationStatus: ReservationStatus.NOT_RESERVED,
         order: 3,
         details: {
           platform: 'Platform 4B',
@@ -118,7 +117,7 @@ export const initialTrips: Trip[] = [
         time: '18:30 Check-in',
         status: EventStatus.PENDING,
         statusLabel: 'Upcoming',
-        reservationStatus: ReservationStatus.CONFIRMED,
+        reservationStatus: ReservationStatus.NOT_RESERVED,
         order: 4,
         details: {
           provider: 'Le Marais Heritage Hotels',
@@ -347,7 +346,7 @@ export const tripTemplates: TripTemplate[] = [
         startDateTime: '2024-10-15T14:15:00Z',
         time: '14:15 - 17:30',
         status: EventStatus.PENDING,
-        reservationStatus: ReservationStatus.CONFIRMED,
+        reservationStatus: ReservationStatus.NOT_RESERVED,
         order: 3,
         details: {
           platform: 'Platform 4B',
@@ -365,7 +364,7 @@ export const tripTemplates: TripTemplate[] = [
         startDateTime: '2024-10-15T18:30:00Z',
         time: '18:30 Check-in',
         status: EventStatus.PENDING,
-        reservationStatus: ReservationStatus.CONFIRMED,
+        reservationStatus: ReservationStatus.NOT_RESERVED,
         order: 4,
       },
       {

@@ -29,6 +29,12 @@ interface TripContextType {
   reportIssue: (eventId: string, issueType: string, reason?: string) => Promise<void>;
   selectAlternative: (alt: AlternativeOption) => void;
   applySelectedAlternative: () => Promise<void>;
+  confirmIssueAndAlternative: (
+    eventId: string,
+    issueType: string,
+    reason: string,
+    alternative: AlternativeOption
+  ) => Promise<void>;
   confirmReservation: (eventId: string) => Promise<{ success: boolean; bookingRef: string }>;
   completeEvent: (eventId: string) => Promise<{ success: boolean }>;
   resetDemo: () => Promise<void>;
@@ -217,6 +223,49 @@ export const TripProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  /**
+   * Atomic commit flow for in-modal issue & alternative selection
+   */
+  const confirmIssueAndAlternative = async (
+    eventId: string,
+    issueType: string,
+    reason: string,
+    alternative: AlternativeOption
+  ) => {
+    if (!activeTrip) return;
+
+    setIsRecalculating(true);
+    setPhase('recalculating');
+    setAffectedItemId(eventId);
+
+    try {
+      // 1. Report Issue to Mediator
+      await eventApi.reportIssue(activeTrip.id, eventId, issueType, reason);
+
+      // 2. Commit selected alternative
+      const selectResponse = await eventApi.selectAlternative(
+        activeTrip.id,
+        eventId,
+        alternative.id
+      );
+
+      if (selectResponse.trip) {
+        setActiveTrip(selectResponse.trip);
+        setTrips((prev) =>
+          prev.map((t) => (t.id === selectResponse.trip.id ? selectResponse.trip : t))
+        );
+        const mapped = (selectResponse.trip.events || []).map(mapEventToTimelineItem);
+        setTimeline(mapped);
+      }
+
+      setPhase('updated');
+    } catch (err: any) {
+      console.warn('[TripProvider] Error committing issue and alternative:', err.message);
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
   const selectAlternative = (alt: AlternativeOption) => {
     setSelectedAlternative(alt);
   };
@@ -357,6 +406,7 @@ export const TripProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         reportIssue,
         selectAlternative,
         applySelectedAlternative,
+        confirmIssueAndAlternative,
         confirmReservation,
         completeEvent,
         resetDemo,

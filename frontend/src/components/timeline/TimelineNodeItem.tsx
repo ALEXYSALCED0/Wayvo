@@ -1,10 +1,19 @@
 /**
- * TimelineNodeItem - Centered vertical axis timeline node with activity card
+ * TimelineNodeItem - Animated Timeline Node with Progressive Green Line
  * Source of Truth: Stitch Detailed Timeline Screens
  */
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+  Animated,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { TimelineItem } from '../../types/trip';
 import { colors } from '../../theme/colors';
@@ -39,16 +48,47 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
 
-  const toggleExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpanded(!expanded);
-  };
-
-  // Node visual states
   const isCompleted = item.status === 'completed';
   const isWarning = item.status === 'warning';
   const isPending = item.status === 'pending';
   const isChanged = item.isAlternative;
+  const isReserved = item.reservationStatus === 'CONFIRMED';
+
+  // Animation values for progressive green line & node pop
+  const lineProgress = useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
+  const nodeScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isCompleted) {
+      Animated.parallel([
+        Animated.timing(lineProgress, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: false,
+        }),
+        Animated.sequence([
+          Animated.timing(nodeScale, {
+            toValue: 1.25,
+            duration: 120,
+            useNativeDriver: true,
+          }),
+          Animated.spring(nodeScale, {
+            toValue: 1,
+            friction: 4,
+            tension: 50,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    } else {
+      lineProgress.setValue(0);
+    }
+  }, [isCompleted]);
+
+  const toggleExpand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded(!expanded);
+  };
 
   const getNodeIcon = () => {
     if (isCompleted) return <MaterialIcons name="check" size={16} color={colors.onPrimary} />;
@@ -64,12 +104,6 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
     return styles.nodePending;
   };
 
-  const getLineStyle = () => {
-    if (isCompleted) return styles.lineCompleted;
-    if (isWarning) return styles.lineWarning;
-    return styles.linePending;
-  };
-
   const getCardBorderStyle = () => {
     if (isWarning) return styles.cardWarningBorder;
     if (isChanged) return styles.cardChangedBorder;
@@ -83,22 +117,41 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
     return 'pending';
   };
 
-  const isReserved = item.reservationStatus === 'CONFIRMED';
+  // Interpolated height percentage for bottom connecting line
+  const animatedLineHeight = lineProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
     <View style={styles.rowContainer}>
       {/* Vertical Axis Column */}
       <View style={styles.axisColumn}>
-        {/* Top Connecting Line */}
-        {!isFirst && <View style={[styles.connectingLineTop, getLineStyle()]} />}
+        {/* Top Connecting Line (Static connecting to previous) */}
+        {!isFirst && <View style={[styles.connectingLineTop, isCompleted ? styles.lineCompleted : styles.linePending]} />}
 
-        {/* Timeline Node Circle */}
-        <View style={[styles.nodeCircle, getNodeStyle()]}>
+        {/* Timeline Node Circle with Spring Pop */}
+        <Animated.View
+          style={[
+            styles.nodeCircle,
+            getNodeStyle(),
+            { transform: [{ scale: nodeScale }] },
+          ]}
+        >
           {getNodeIcon()}
-        </View>
+        </Animated.View>
 
-        {/* Bottom Connecting Line */}
-        {!isLast && <View style={[styles.connectingLineBottom, getLineStyle()]} />}
+        {/* Bottom Connecting Line: Gray background track + Animated Green overlay */}
+        {!isLast && (
+          <View style={styles.connectingLineBottomTrack}>
+            <Animated.View
+              style={[
+                styles.connectingLineBottomFill,
+                { height: animatedLineHeight as any },
+              ]}
+            />
+          </View>
+        )}
       </View>
 
       {/* Activity Card Container */}
@@ -121,11 +174,26 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
           {/* Card Header: Type Label + Time + Status Badge */}
           <View style={styles.cardHeader}>
             <View style={styles.typeRow}>
-              <Text style={[styles.typeLabel, isWarning && styles.warningTypeLabel, isChanged && styles.changedTypeLabel]}>
+              <Text
+                style={[
+                  styles.typeLabel,
+                  isWarning && styles.warningTypeLabel,
+                  isChanged && styles.changedTypeLabel,
+                ]}
+              >
                 {item.typeLabel}
               </Text>
               <Badge
-                label={item.statusLabel || (isCompleted ? 'Completed' : isWarning ? 'Missed' : isReserved ? 'Confirmed' : 'Upcoming')}
+                label={
+                  item.statusLabel ||
+                  (isCompleted
+                    ? 'Completed'
+                    : isWarning
+                    ? 'Missed'
+                    : isReserved
+                    ? 'Confirmed'
+                    : 'Upcoming')
+                }
                 variant={getBadgeVariant()}
               />
             </View>
@@ -133,7 +201,13 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
           </View>
 
           {/* Title */}
-          <Text style={[styles.title, isWarning && styles.warningTitle, isChanged && styles.changedTitle]}>
+          <Text
+            style={[
+              styles.title,
+              isWarning && styles.warningTitle,
+              isChanged && styles.changedTitle,
+            ]}
+          >
             {item.title}
           </Text>
 
@@ -278,18 +352,21 @@ const styles = StyleSheet.create({
     width: 2,
     zIndex: 0,
   },
-  connectingLineBottom: {
+  connectingLineBottomTrack: {
     position: 'absolute',
     top: '50%',
     bottom: -spacing.md - 4,
     width: 2,
+    backgroundColor: colors.border,
     zIndex: 0,
+    overflow: 'hidden',
+  },
+  connectingLineBottomFill: {
+    width: '100%',
+    backgroundColor: colors.statusSuccess,
   },
   lineCompleted: {
     backgroundColor: colors.statusSuccess,
-  },
-  lineWarning: {
-    backgroundColor: colors.outlineVariant,
   },
   linePending: {
     backgroundColor: colors.border,

@@ -1,7 +1,7 @@
 /**
  * TransportDetailsScreen - Generic Event & Booking Details Screen
  * Adapts to any EventType (Transport, Flight, Museum, Meal, Tour, Hotel, Activity)
- * Enforces one-time payment locking and issue locking
+ * Enforces one-time payment locking and 2-step in-modal issue & alternative selection
  * Source of Truth: Stitch Detailed Screens (Rubik)
  */
 
@@ -23,11 +23,12 @@ import { TopAppBar } from '../components/common/TopAppBar';
 import { CustomButton } from '../components/common/CustomButton';
 import { ReportIssueSheet } from '../components/timeline/ReportIssueSheet';
 import { useTrip } from '../context/TripContext';
+import { AlternativeOption } from '../types/issue';
 
 export const TransportDetailsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { activeTrip, timeline, reportIssue } = useTrip();
+  const { activeTrip, timeline, confirmIssueAndAlternative } = useTrip();
   const [issueSheetVisible, setIssueSheetVisible] = useState(false);
 
   const itemId = route.params?.itemId || 'node-train';
@@ -73,8 +74,13 @@ export const TransportDetailsScreen: React.FC = () => {
     }
   };
 
-  const handleReportIssue = (issueType: string, reason: string) => {
-    reportIssue(itemId, issueType, reason);
+  const handleConfirmAlternative = async (
+    issueType: string,
+    reason: string,
+    alternative: AlternativeOption
+  ) => {
+    setIssueSheetVisible(false);
+    await confirmIssueAndAlternative(itemId, issueType, reason, alternative);
     navigation.navigate('DetailedTimeline');
   };
 
@@ -256,7 +262,7 @@ export const TransportDetailsScreen: React.FC = () => {
               <View style={styles.confirmedNoticeTextWrapper}>
                 <Text style={styles.issueNoticeTitle}>Disruption Reported (Locked)</Text>
                 <Text style={styles.issueNoticeSub}>
-                  This event is in recalculation or has been replaced by an alternative. Conflicting bookings and edits are locked.
+                  This event has been replaced by an alternative. Conflicting bookings and edits are locked.
                 </Text>
               </View>
             </View>
@@ -272,11 +278,11 @@ export const TransportDetailsScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Report Issue Sheet */}
+      {/* 2-Step In-Modal Report Issue Sheet */}
       <ReportIssueSheet
         visible={issueSheetVisible}
         onClose={() => setIssueSheetVisible(false)}
-        onSubmit={handleReportIssue}
+        onConfirmAlternative={handleConfirmAlternative}
         targetItemTitle={title}
         eventType={eventType}
       />

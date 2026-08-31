@@ -1,5 +1,5 @@
 /**
- * DetailedTimelineScreen - Interactive Itinerary Timeline with Inline Alternatives
+ * DetailedTimelineScreen - Interactive Itinerary Timeline with 2-Step In-Modal Issue Flow
  * Source of Truth: Stitch Detailed Timeline Screens (Rubik)
  */
 
@@ -22,8 +22,6 @@ import { typography } from '../theme/typography';
 import { spacing, radii, shadows } from '../theme/spacing';
 import { TopAppBar } from '../components/common/TopAppBar';
 import { TimelineNodeItem } from '../components/timeline/TimelineNodeItem';
-import { RecalculatingCard } from '../components/timeline/RecalculatingCard';
-import { AlternativeCard } from '../components/timeline/AlternativeCard';
 import { ReportIssueSheet } from '../components/timeline/ReportIssueSheet';
 import { CustomButton } from '../components/common/CustomButton';
 import { ScreenTransition } from '../components/common/ScreenTransition';
@@ -41,16 +39,10 @@ export const DetailedTimelineScreen: React.FC = () => {
     activeTrip,
     timeline,
     phase,
-    affectedItemId,
-    alternatives,
-    selectedAlternative,
     isRecalculating,
-    recalculatingMessage,
     isLoading,
     errorMessage,
-    reportIssue,
-    selectAlternative,
-    applySelectedAlternative,
+    confirmIssueAndAlternative,
     completeEvent,
     resetDemo,
   } = useTrip();
@@ -68,20 +60,14 @@ export const DetailedTimelineScreen: React.FC = () => {
     setIssueSheetVisible(true);
   };
 
-  const handleScenarioSubmit = (issueType: string, reason: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  const handleConfirmAlternative = async (
+    issueType: string,
+    reason: string,
+    alternative: AlternativeOption
+  ) => {
+    setIssueSheetVisible(false);
     const targetId = selectedTargetItem?.id || 'node-train';
-    reportIssue(targetId, issueType, reason);
-  };
-
-  const handleSelectAlternative = (option: AlternativeOption) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    selectAlternative(option);
-  };
-
-  const handleApplyRoute = async () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    await applySelectedAlternative();
+    await confirmIssueAndAlternative(targetId, issueType, reason, alternative);
   };
 
   const handleCompleteEvent = async (item: TimelineItem) => {
@@ -158,106 +144,46 @@ export const DetailedTimelineScreen: React.FC = () => {
               </View>
             )}
 
-            {/* MAIN TIMELINE CONTAINER WITH INLINE ALTERNATIVES */}
+            {/* MAIN TIMELINE CONTAINER */}
             <View style={styles.timelineSection}>
               <Text style={styles.timelineSectionTitle}>Current Itinerary Axis</Text>
 
               <View style={styles.timelineList}>
-                {timeline.map((item, index) => {
-                  const isAffected = affectedItemId === item.id;
-                  const showInlineRecalculating = isRecalculating && isAffected;
-                  const showInlineAlternatives = phase === 'alternatives_ready' && !isRecalculating && isAffected && alternatives.length > 0;
-
-                  return (
-                    <React.Fragment key={item.id}>
-                      <TimelineNodeItem
-                        item={item}
-                        isFirst={index === 0}
-                        isLast={index === timeline.length - 1 && !showInlineRecalculating && !showInlineAlternatives}
-                        onPressCard={handleViewDetails}
-                        onReportIssue={handleOpenReportIssue}
-                        onViewTicket={handleViewDetails}
-                        onCompleteEvent={handleCompleteEvent}
-                        isRecalculating={isRecalculating}
-                      />
-
-                      {/* INLINE RECALCULATING STATE (Positioned directly below affected event) */}
-                      {showInlineRecalculating && (
-                        <View style={styles.inlineRecalculatingWrapper}>
-                          <RecalculatingCard
-                            message={recalculatingMessage}
-                            subMessage="Wayvo is evaluating alternatives directly for this connection..."
-                          />
-                        </View>
-                      )}
-
-                      {/* INLINE ALTERNATIVE OPTIONS (Positioned directly below affected event) */}
-                      {showInlineAlternatives && (
-                        <View style={styles.inlineAlternativesContainer}>
-                          <View style={styles.alternativesHeaderRow}>
-                            <View style={styles.aiBadge}>
-                              <MaterialIcons name="auto-awesome" size={14} color={colors.secondary} />
-                              <Text style={styles.aiBadgeText}>ALTERNATIVES PROPOSED</Text>
-                            </View>
-                            <Text style={styles.alternativesCount}>{alternatives.length} options</Text>
-                          </View>
-
-                          <Text style={styles.alternativesTitle}>Alternative Routes Generated</Text>
-                          <Text style={styles.alternativesSubtitle}>
-                            Select a replacement option directly for this connection:
-                          </Text>
-
-                          {/* List of Alternative Cards */}
-                          <View style={styles.alternativesList}>
-                            {alternatives.map((alt) => (
-                              <AlternativeCard
-                                key={alt.id}
-                                option={alt}
-                                isSelected={selectedAlternative?.id === alt.id}
-                                onSelect={handleSelectAlternative}
-                              />
-                            ))}
-                          </View>
-
-                          {/* Confirm Choice CTA */}
-                          <CustomButton
-                            title="Choose this route & Update Timeline"
-                            variant="havelock"
-                            iconName="arrow-forward"
-                            iconRight
-                            size="lg"
-                            onPress={handleApplyRoute}
-                            style={styles.confirmRouteBtn}
-                          />
-                        </View>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
+                {timeline.map((item, index) => (
+                  <TimelineNodeItem
+                    key={item.id}
+                    item={item}
+                    isFirst={index === 0}
+                    isLast={index === timeline.length - 1}
+                    onPressCard={handleViewDetails}
+                    onReportIssue={handleOpenReportIssue}
+                    onViewTicket={handleViewDetails}
+                    onCompleteEvent={handleCompleteEvent}
+                    isRecalculating={isRecalculating}
+                  />
+                ))}
               </View>
             </View>
 
-            {/* Quick Report Issue Bar at Bottom if in Normal state */}
-            {phase === 'normal' && (
-              <View style={styles.quickIssueBar}>
-                <CustomButton
-                  title="Report an Issue / Adjust Schedule"
-                  variant="danger"
-                  iconName="warning"
-                  size="md"
-                  onPress={() => handleOpenReportIssue()}
-                />
-              </View>
-            )}
+            {/* Quick Report Issue Bar at Bottom */}
+            <View style={styles.quickIssueBar}>
+              <CustomButton
+                title="Report an Issue / Adjust Schedule"
+                variant="danger"
+                iconName="warning"
+                size="md"
+                onPress={() => handleOpenReportIssue()}
+              />
+            </View>
           </ScrollView>
         )}
       </ScreenTransition>
 
-      {/* Report Issue Modal Sheet */}
+      {/* 2-Step In-Modal Report Issue Sheet */}
       <ReportIssueSheet
         visible={issueSheetVisible}
         onClose={() => setIssueSheetVisible(false)}
-        onSubmit={handleScenarioSubmit}
+        onConfirmAlternative={handleConfirmAlternative}
         targetItemTitle={selectedTargetItem?.title || 'Selected Activity'}
         eventType={selectedTargetItem?.rawEvent?.type || selectedTargetItem?.type || 'TRANSPORT'}
       />
@@ -352,65 +278,6 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     lineHeight: 20,
     fontSize: 13,
-  },
-  inlineRecalculatingWrapper: {
-    marginLeft: 36,
-    marginBottom: spacing.md + 4,
-  },
-  inlineAlternativesContainer: {
-    marginLeft: 36,
-    backgroundColor: '#ffffff',
-    borderRadius: radii.xl,
-    padding: spacing.cardPadding,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    marginBottom: spacing.md + 4,
-    ...shadows.card,
-  },
-  alternativesHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs + 2,
-  },
-  aiBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceContainerHigh,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-    gap: 4,
-  },
-  aiBadgeText: {
-    ...typography.labelSm,
-    color: colors.secondary,
-    fontWeight: '700',
-    fontSize: 10,
-    letterSpacing: 0.6,
-  },
-  alternativesCount: {
-    ...typography.labelSm,
-    color: colors.onSurfaceVariant,
-    fontSize: 12,
-  },
-  alternativesTitle: {
-    ...typography.headlineMd,
-    color: colors.primary,
-    fontSize: 18,
-    marginBottom: 2,
-  },
-  alternativesSubtitle: {
-    ...typography.bodySm,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.md,
-    fontSize: 12,
-  },
-  alternativesList: {
-    marginBottom: spacing.sm,
-  },
-  confirmRouteBtn: {
-    marginTop: spacing.xs,
   },
   updatedNotice: {
     flexDirection: 'row',

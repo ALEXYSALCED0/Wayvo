@@ -16,20 +16,33 @@ export interface IssueScenario {
   iconName: string;
 }
 
-export type AlternativeType = 'transit' | 'activity' | 'accommodation' | 'combined';
+export type AlternativeType =
+  | 'transit'
+  | 'activity'
+  | 'accommodation'
+  | 'combined'
+  | 'flight'
+  | 'train'
+  | 'bus'
+  | 'museum'
+  | 'tour'
+  | 'meal';
 
 export interface AlternativeOption {
   id: string;
   type: AlternativeType;
+  typeLabel?: string;
   title: string;
-  subtitle: string;
-  iconName: string;
+  subtitle?: string;
+  provider?: string;
+  iconName?: string;
   isFastest?: boolean;
   isRecommended?: boolean;
+  isEco?: boolean;
   departureTime?: string;
   arrivalTime?: string;
   duration?: string;
-  price?: string;
+  price?: string | number;
   priceDiff?: string;
   description: string;
   additionalActivities?: string[];
