@@ -1,5 +1,6 @@
 /**
- * TimelineNodeItem - Animated Timeline Node with Progressive Green Line
+ * TimelineNodeItem - Animated Timeline Node with Green & Yellow Progressive Connecting Line
+ * Enforces linear sequential locks and smooth issue animation
  * Source of Truth: Stitch Detailed Timeline Screens
  */
 
@@ -29,6 +30,7 @@ interface TimelineNodeItemProps {
   item: TimelineItem;
   isFirst: boolean;
   isLast: boolean;
+  canBeCompleted?: boolean;
   onPressCard?: (item: TimelineItem) => void;
   onReportIssue?: (item: TimelineItem) => void;
   onViewTicket?: (item: TimelineItem) => void;
@@ -40,6 +42,7 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
   item,
   isFirst,
   isLast,
+  canBeCompleted = true,
   onPressCard,
   onReportIssue,
   onViewTicket,
@@ -54,12 +57,13 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
   const isChanged = item.isAlternative;
   const isReserved = item.reservationStatus === 'CONFIRMED';
 
-  // Animation values for progressive green line & node pop
-  const lineProgress = useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
+  // Animation values for progressive connecting line & node pop
+  const isResolved = isCompleted || isWarning;
+  const lineProgress = useRef(new Animated.Value(isResolved ? 1 : 0)).current;
   const nodeScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (isCompleted) {
+    if (isResolved) {
       Animated.parallel([
         Animated.timing(lineProgress, {
           toValue: 1,
@@ -83,7 +87,7 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
     } else {
       lineProgress.setValue(0);
     }
-  }, [isCompleted]);
+  }, [isCompleted, isWarning]);
 
   const toggleExpand = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -92,7 +96,7 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
 
   const getNodeIcon = () => {
     if (isCompleted) return <MaterialIcons name="check" size={16} color={colors.onPrimary} />;
-    if (isWarning) return <MaterialIcons name="warning" size={15} color={colors.statusError} />;
+    if (isWarning) return <MaterialIcons name="warning" size={15} color="#b45309" />;
     if (isChanged) return <MaterialIcons name="alt-route" size={14} color="#475569" />;
     return <View style={styles.pendingDot} />;
   };
@@ -123,12 +127,25 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
     outputRange: ['0%', '100%'],
   });
 
+  const lineColor = isWarning ? '#f59e0b' : colors.statusSuccess;
+
   return (
     <View style={styles.rowContainer}>
       {/* Vertical Axis Column */}
       <View style={styles.axisColumn}>
-        {/* Top Connecting Line (Static connecting to previous) */}
-        {!isFirst && <View style={[styles.connectingLineTop, isCompleted ? styles.lineCompleted : styles.linePending]} />}
+        {/* Top Connecting Line */}
+        {!isFirst && (
+          <View
+            style={[
+              styles.connectingLineTop,
+              isCompleted
+                ? styles.lineCompleted
+                : isWarning
+                ? styles.lineWarning
+                : styles.linePending,
+            ]}
+          />
+        )}
 
         {/* Timeline Node Circle with Spring Pop */}
         <Animated.View
@@ -141,13 +158,16 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
           {getNodeIcon()}
         </Animated.View>
 
-        {/* Bottom Connecting Line: Gray background track + Animated Green overlay */}
+        {/* Bottom Connecting Line: Gray track + Animated Green/Yellow fill */}
         {!isLast && (
           <View style={styles.connectingLineBottomTrack}>
             <Animated.View
               style={[
                 styles.connectingLineBottomFill,
-                { height: animatedLineHeight as any },
+                {
+                  height: animatedLineHeight as any,
+                  backgroundColor: lineColor,
+                },
               ]}
             />
           </View>
@@ -189,7 +209,7 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
                   (isCompleted
                     ? 'Completed'
                     : isWarning
-                    ? 'Missed'
+                    ? 'Missed / Cancelled'
                     : isReserved
                     ? 'Confirmed'
                     : 'Upcoming')
@@ -273,8 +293,8 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
                   </TouchableOpacity>
                 )}
 
-                {/* Manual Completion Button (only if not completed and not in active issue) */}
-                {onCompleteEvent && !isCompleted && !isWarning && (
+                {/* Manual Completion Button: ONLY if canBeCompleted is true */}
+                {onCompleteEvent && !isCompleted && !isWarning && canBeCompleted && (
                   <TouchableOpacity
                     style={styles.completeButton}
                     onPress={() => onCompleteEvent(item)}
@@ -283,6 +303,16 @@ export const TimelineNodeItem: React.FC<TimelineNodeItemProps> = ({
                     <MaterialIcons name="check-circle" size={15} color="#2e7d32" />
                     <Text style={styles.completeButtonText}>Mark as completed</Text>
                   </TouchableOpacity>
+                )}
+
+                {/* Sequential Lock Notice when predecessor is not yet resolved */}
+                {!isCompleted && !isWarning && !canBeCompleted && (
+                  <View style={styles.lockedSequenceBadge}>
+                    <MaterialIcons name="lock-outline" size={13} color={colors.outline} />
+                    <Text style={styles.lockedSequenceText}>
+                      Locked until previous activity is completed
+                    </Text>
+                  </View>
                 )}
 
                 {/* Report Issue Button (locked if completed or already in issue) */}
@@ -363,10 +393,12 @@ const styles = StyleSheet.create({
   },
   connectingLineBottomFill: {
     width: '100%',
-    backgroundColor: colors.statusSuccess,
   },
   lineCompleted: {
     backgroundColor: colors.statusSuccess,
+  },
+  lineWarning: {
+    backgroundColor: '#f59e0b',
   },
   linePending: {
     backgroundColor: colors.border,
@@ -384,9 +416,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.statusSuccess,
   },
   nodeWarning: {
-    backgroundColor: '#fff3e0',
+    backgroundColor: '#fef3c7',
     borderWidth: 2,
-    borderColor: colors.statusError,
+    borderColor: '#f59e0b',
   },
   nodeChanged: {
     backgroundColor: '#f1f5f9',
@@ -418,8 +450,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   cardWarningBorder: {
-    borderColor: '#ffb74d',
-    backgroundColor: '#fffcf7',
+    borderColor: '#fbbf24',
+    backgroundColor: '#fffdf5',
   },
   cardChangedBorder: {
     borderColor: '#cbd5e1',
@@ -463,7 +495,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   warningTypeLabel: {
-    color: '#e65100',
+    color: '#b45309',
   },
   changedTypeLabel: {
     color: '#475569',
@@ -480,7 +512,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   warningTitle: {
-    color: '#b71c1c',
+    color: '#92400e',
   },
   changedTitle: {
     color: '#1e293b',
@@ -570,6 +602,20 @@ const styles = StyleSheet.create({
     ...typography.labelSm,
     color: '#2e7d32',
     fontWeight: '700',
+    fontSize: 11,
+  },
+  lockedSequenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceContainerLow,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radii.full,
+    gap: 4,
+  },
+  lockedSequenceText: {
+    ...typography.labelSm,
+    color: colors.outline,
     fontSize: 11,
   },
   reportIssueButton: {

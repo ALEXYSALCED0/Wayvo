@@ -1,6 +1,7 @@
 /**
  * EventService - Manages Event Lifecycle (Reservation, Completion, Issue marking)
  * Modular boundary corresponding to the future Event Microservice
+ * Enforces strict linear progression rules and one-time payment locking
  */
 import { ITripRepository } from '../repositories/ITripRepository';
 import { Event } from '../domain/models/Event';
@@ -53,10 +54,21 @@ export class EventService {
 
   /**
    * Explicitly marks an event as completed.
-   * Locked against any future issue/recalculation modifications.
+   * Enforces Linear Itinerary: rejects if the previous event in sequence is not resolved.
    */
   async completeEvent(tripId: string, eventId: string): Promise<Event> {
-    const event = await this.getEvent(tripId, eventId);
+    const trip = await this.repo.getTripById(tripId);
+    if (!trip) {
+      throw new Error(`Trip ${tripId} not found`);
+    }
+
+    const sortedEvents = [...trip.events].sort((a, b) => a.order - b.order);
+    const eventIndex = sortedEvents.findIndex((e) => e.id === eventId);
+    if (eventIndex === -1) {
+      throw new Error(`Event ${eventId} not found in trip ${tripId}`);
+    }
+
+    const event = sortedEvents[eventIndex];
 
     if (event.status === EventStatus.COMPLETED) {
       throw new Error(`Event is already COMPLETED and finalized`);
@@ -64,6 +76,20 @@ export class EventService {
 
     if (event.status === EventStatus.ISSUE) {
       throw new Error(`Cannot complete an event that has an active/unresolved ISSUE`);
+    }
+
+    // LINEAR ITINERARY RULE: Previous event must be RESOLVED (COMPLETED or ISSUE/CANCELLED)
+    if (eventIndex > 0) {
+      const prevEvent = sortedEvents[eventIndex - 1];
+      const isPrevResolved =
+        prevEvent.status === EventStatus.COMPLETED ||
+        prevEvent.status === EventStatus.ISSUE;
+
+      if (!isPrevResolved) {
+        throw new Error(
+          `EVENT_NOT_AVAILABLE: Complete or resolve the previous event (${prevEvent.title}) first.`
+        );
+      }
     }
 
     event.status = EventStatus.COMPLETED;

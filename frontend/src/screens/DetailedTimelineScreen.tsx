@@ -149,19 +149,30 @@ export const DetailedTimelineScreen: React.FC = () => {
               <Text style={styles.timelineSectionTitle}>Current Itinerary Axis</Text>
 
               <View style={styles.timelineList}>
-                {timeline.map((item, index) => (
-                  <TimelineNodeItem
-                    key={item.id}
-                    item={item}
-                    isFirst={index === 0}
-                    isLast={index === timeline.length - 1}
-                    onPressCard={handleViewDetails}
-                    onReportIssue={handleOpenReportIssue}
-                    onViewTicket={handleViewDetails}
-                    onCompleteEvent={handleCompleteEvent}
-                    isRecalculating={isRecalculating}
-                  />
-                ))}
+                {timeline.map((item, index) => {
+                  const isFirst = index === 0;
+                  const prevItem = index > 0 ? timeline[index - 1] : null;
+                  const isPrevResolved =
+                    isFirst ||
+                    (prevItem &&
+                      (prevItem.status === 'completed' || prevItem.status === 'warning'));
+                  const canBeCompleted = !!isPrevResolved && item.status === 'pending';
+
+                  return (
+                    <TimelineNodeItem
+                      key={item.id}
+                      item={item}
+                      isFirst={isFirst}
+                      isLast={index === timeline.length - 1}
+                      canBeCompleted={canBeCompleted}
+                      onPressCard={handleViewDetails}
+                      onReportIssue={handleOpenReportIssue}
+                      onViewTicket={handleViewDetails}
+                      onCompleteEvent={handleCompleteEvent}
+                      isRecalculating={isRecalculating}
+                    />
+                  );
+                })}
               </View>
             </View>
 
