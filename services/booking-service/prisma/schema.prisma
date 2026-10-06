@@ -1,0 +1,93 @@
+// Esquema de la Booking DB (PostgreSQL). Solo booking-service la usa:
+// en microservicios cada servicio es dueño de su propia base de datos.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum BookingItemType {
+  TRANSPORT
+  ACCOMMODATION
+  ACTIVITY
+}
+
+enum SagaStep {
+  CREATE_TRIP
+  CREATE_BOOKING
+  RESERVE_PROVIDER
+  CONFIRM
+  COMPENSATE_BOOKING
+  COMPENSATE_TRIP
+}
+
+enum StepOutcome {
+  SUCCEEDED
+  FAILED
+}
+
+model Booking {
+  id                 String        @id
+  tripId             String        @map("trip_id")
+  userId             String        @map("user_id")
+  currency           String        @db.VarChar(3)
+  status             BookingStatus
+  cancellationReason String?       @map("cancellation_reason")
+  createdAt          DateTime      @map("created_at")
+  updatedAt          DateTime      @map("updated_at")
+  items              BookingItem[]
+
+  @@index([tripId])
+  @@map("bookings")
+}
+
+model BookingItem {
+  id          String          @id
+  bookingId   String          @map("booking_id")
+  type        BookingItemType
+  providerId  String          @map("provider_id")
+  offerId     String          @map("offer_id")
+  description String
+  quantity    Int
+  unitPrice   Decimal         @map("unit_price") @db.Decimal(14, 2)
+  booking     Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("booking_items")
+}
+
+model CompensationLog {
+  id            String                 @id
+  correlationId String                 @unique @map("correlation_id")
+  tripId        String?                @map("trip_id")
+  bookingId     String?                @map("booking_id")
+  failedStep    SagaStep               @map("failed_step")
+  reason        String
+  createdAt     DateTime               @map("created_at")
+  entries       CompensationLogEntry[]
+
+  @@map("compensation_logs")
+}
+
+model CompensationLogEntry {
+  id       Int             @id @default(autoincrement())
+  logId    String          @map("log_id")
+  position Int
+  step     SagaStep
+  outcome  StepOutcome
+  detail   String?
+  at       DateTime
+  log      CompensationLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@unique([logId, position])
+  @@map("compensation_log_entries")
+}
