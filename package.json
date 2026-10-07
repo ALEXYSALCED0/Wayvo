@@ -3,10 +3,18 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:contracts": "npm --prefix shared/contracts run build",
+    "typecheck:contracts": "npm --prefix shared/contracts run typecheck",
+    "test:contracts": "npm --prefix shared/contracts test",
+    "test": "npm run test:contracts"
   },
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "shared/*"
+  ],
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "Wayvo Multi-Platform Microservices Monorepo"
 }

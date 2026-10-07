@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wayvo.app/schemas/providers.schema.json",
+  "title": "Wayvo Providers Contracts Schema",
+  "description": "Schemas for Providers, Service Offers, External Adapters (Target IProveedorExterno), and Mock Server",
+  "definitions": {
+    "VerificationStatus": {
+      "type": "string",
+      "enum": ["VERIFIED", "PENDING", "REJECTED"]
+    },
+    "ProviderType": {
+      "type": "string",
+      "enum": ["TRANSPORT", "ACCOMMODATION", "ACTIVITY", "TOUR_GUIDE"]
+    },
+    "Provider": {
+      "type": "object",
+      "required": ["id", "name", "type", "verificationStatus", "contactEmail"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/ProviderType" },
+        "verificationStatus": { "$ref": "#/definitions/VerificationStatus" },
+        "contactEmail": { "type": "string", "format": "email" },
+        "contactPhone": { "type": "string" },
+        "rating": { "type": "number", "minimum": 0, "maximum": 5 },
+        "websiteUrl": { "type": "string" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ServiceOffer": {
+      "type": "object",
+      "required": [
+        "id",
+        "providerId",
+        "type",
+        "title",
+        "unitPrice",
+        "currency",
+        "availableCapacity",
+        "active"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "providerId": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["TRANSPORT", "ACCOMMODATION", "ACTIVITY"]
+        },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "unitPrice": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+        "availableCapacity": { "type": "integer", "minimum": 0 },
+        "active": { "type": "boolean" },
+        "metadata": { "type": "object" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "CheckAvailabilityItemInput": {
+      "type": "object",
+      "required": ["type", "providerId", "offerId", "quantity"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["TRANSPORT", "ACCOMMODATION", "ACTIVITY"]
+        },
+        "providerId": { "type": "string" },
+        "offerId": { "type": "string" },
+        "quantity": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "CheckAvailabilityRequest": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/CheckAvailabilityItemInput" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "CheckAvailabilityResponse": {
+      "type": "object",
+      "required": ["available"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "reason": { "type": "string" },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["offerId", "providerId", "available"],
+            "properties": {
+              "offerId": { "type": "string" },
+              "providerId": { "type": "string" },
+              "available": { "type": "boolean" },
+              "remainingCapacity": { "type": "integer" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ConfirmProviderReservationRequest": {
+      "type": "object",
+      "required": ["bookingId", "items"],
+      "properties": {
+        "bookingId": { "type": "string" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/CheckAvailabilityItemInput" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ConfirmProviderReservationResponse": {
+      "type": "object",
+      "required": ["reservationCode"],
+      "properties": {
+        "reservationCode": { "type": "string" },
+        "confirmationCode": { "type": "string" },
+        "confirmedAt": { "type": "string" },
+        "bookingId": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "DisponibilidadQuery": {
+      "type": "object",
+      "required": ["offerId", "quantity"],
+      "properties": {
+        "offerId": { "type": "string" },
+        "date": { "type": "string" },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "metadata": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "DisponibilidadResultado": {
+      "type": "object",
+      "required": ["available"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "remainingUnits": { "type": "integer" },
+        "unitPrice": { "type": "number" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ReservaDatos": {
+      "type": "object",
+      "required": ["bookingId", "offerId", "quantity"],
+      "properties": {
+        "bookingId": { "type": "string" },
+        "offerId": { "type": "string" },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "metadata": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "ConfirmacionResultado": {
+      "type": "object",
+      "required": ["success"],
+      "properties": {
+        "success": { "type": "boolean" },
+        "confirmationCode": { "type": "string" },
+        "reservationCode": { "type": "string" },
+        "reason": { "type": "string" },
+        "expiresAt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "MockSimulationQuery": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["normal", "unavailable", "slow", "error"]
+        },
+        "delayMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
+        "failureReason": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

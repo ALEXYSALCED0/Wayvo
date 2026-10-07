@@ -1,0 +1,28 @@
+{
+  "name": "@wayvo/contracts",
+  "version": "1.0.0",
+  "description": "Definición canónica de contratos, DTOs y esquemas de validación para Wayvo MVP",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "keywords": [
+    "wayvo",
+    "contracts",
+    "dtos",
+    "schemas",
+    "clean-architecture",
+    "microservices"
+  ],
+  "author": "Wayvo Engineering Team",
+  "license": "ISC",
+  "dependencies": {
+    "zod": "^3.24.2 || ^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
