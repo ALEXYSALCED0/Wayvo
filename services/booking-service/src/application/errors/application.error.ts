@@ -14,3 +14,11 @@ export class BookingNotFoundError extends ApplicationError {
     super(`Booking ${bookingId} not found`);
   }
 }
+
+export class CompensationLogNotFoundError extends ApplicationError {
+  readonly code = 'COMPENSATION_LOG_NOT_FOUND';
+
+  constructor(correlationId: string) {
+    super(`No compensation log for saga ${correlationId}`);
+  }
+}
