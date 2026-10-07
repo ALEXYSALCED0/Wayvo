@@ -1,12 +1,42 @@
 {
   "name": "wayvo",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "description": "Wayvo Multi-Platform Microservices Monorepo",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:contracts": "npm --prefix shared/contracts run build",
+    "typecheck:contracts": "npm --prefix shared/contracts run typecheck",
+    "test:contracts": "npm --prefix shared/contracts test",
+    "build": "npm run build:contracts && npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck:contracts && npm run typecheck --workspaces --if-present",
+    "test": "npm run test:contracts",
+    "dev:gateway": "npm --prefix services/api-gateway run dev",
+    "dev:booking": "npm --prefix services/booking-service run dev",
+    "dev:provider": "npm --prefix services/provider-service run dev",
+    "dev:trip": "npm --prefix services/trip-service run dev",
+    "dev:client": "npm --prefix apps/client run start",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:build": "docker compose build",
+    "docker:logs": "docker compose logs -f"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": ""
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "shared/*"
+  ],
+  "keywords": [
+    "microservices",
+    "clean-architecture",
+    "monorepo",
+    "saga-pattern",
+    "facade-pattern",
+    "adapter-pattern",
+    "mediator-pattern",
+    "langgraph",
+    "react-native",
+    "expo"
+  ],
+  "author": "Wayvo Engineering Team",
+  "license": "ISC"
 }
