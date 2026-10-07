@@ -1,5 +1,10 @@
+services:
+  # ==========================================
+  # BASES DE DATOS DE MICROSERVICIOS
+  # ==========================================
   booking-db:
-    image: postgres:16
+    image: postgres:16-alpine
+    container_name: wayvo-booking-db
     environment:
       POSTGRES_USER: wayvo
       POSTGRES_PASSWORD: wayvo
@@ -8,7 +13,182 @@
       - "5433:5432"
     volumes:
       - booking-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wayvo -d booking_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wayvo-network
 
-# y al final del archivo, en la sección volumes:
-  volumes:
-    booking-db-data:
+  provider-db:
+    image: postgres:16-alpine
+    container_name: wayvo-provider-db
+    environment:
+      POSTGRES_USER: wayvo
+      POSTGRES_PASSWORD: wayvo
+      POSTGRES_DB: provider_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - provider-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wayvo -d provider_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wayvo-network
+
+  trip-db:
+    image: postgres:16-alpine
+    container_name: wayvo-trip-db
+    environment:
+      POSTGRES_USER: wayvo
+      POSTGRES_PASSWORD: wayvo
+      POSTGRES_DB: trip_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - trip-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wayvo -d trip_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wayvo-network
+
+  # ==========================================
+  # SERVICIOS BACKEND & IA
+  # ==========================================
+  booking-service:
+    build:
+      context: ./services/booking-service
+      dockerfile: Dockerfile
+    container_name: wayvo-booking-service
+    environment:
+      PORT: 3001
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://wayvo:wayvo@booking-db:5432/booking_db?schema=public"
+      SERVICES_MODE: http
+      FAKE_PROVIDER_MODE: ok
+      TRIP_SERVICE_URL: http://trip-service:3003
+      PROVIDER_SERVICE_URL: http://provider-service:3002
+      HTTP_TIMEOUT_MS: 5000
+    ports:
+      - "3001:3001"
+    depends_on:
+      booking-db:
+        condition: service_healthy
+    networks:
+      - wayvo-network
+
+  provider-service:
+    build:
+      context: ./services/provider-service
+      dockerfile: Dockerfile
+    container_name: wayvo-provider-service
+    environment:
+      PORT: 3002
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://wayvo:wayvo@provider-db:5432/provider_db?schema=public"
+      SIMULATE_FAILURE_MODE: normal
+    ports:
+      - "3002:3002"
+    depends_on:
+      provider-db:
+        condition: service_healthy
+    networks:
+      - wayvo-network
+
+  trip-service:
+    build:
+      context: ./services/trip-service
+      dockerfile: Dockerfile
+    container_name: wayvo-trip-service
+    environment:
+      PORT: 3003
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://wayvo:wayvo@trip-db:5432/trip_db?schema=public"
+      AI_SERVICE_URL: http://ai-recommendation:8000
+    ports:
+      - "3003:3003"
+    depends_on:
+      trip-db:
+        condition: service_healthy
+    networks:
+      - wayvo-network
+
+  ai-recommendation:
+    build:
+      context: ./services/ai-recommendation
+      dockerfile: Dockerfile
+    container_name: wayvo-ai-recommendation
+    environment:
+      PORT: 8000
+      ENVIRONMENT: development
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "8000:8000"
+    networks:
+      - wayvo-network
+
+  # ==========================================
+  # API GATEWAY (FACADE)
+  # ==========================================
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: wayvo-api-gateway
+    environment:
+      PORT: 3000
+      NODE_ENV: development
+      BOOKING_SERVICE_URL: http://booking-service:3001
+      PROVIDER_SERVICE_URL: http://provider-service:3002
+      TRIP_SERVICE_URL: http://trip-service:3003
+      AI_SERVICE_URL: http://ai-recommendation:8000
+      CORS_ORIGIN: "*"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - booking-service
+      - provider-service
+      - trip-service
+      - ai-recommendation
+    networks:
+      - wayvo-network
+
+  # ==========================================
+  # CLIENTE MULTIPLATAFORMA (REACT NATIVE / EXPO)
+  # ==========================================
+  client:
+    build:
+      context: ./apps/client
+      dockerfile: Dockerfile
+    container_name: wayvo-client
+    environment:
+      EXPO_PUBLIC_API_URL: http://localhost:3000
+    ports:
+      - "8081:8081"
+      - "19006:19006"
+    depends_on:
+      - api-gateway
+    profiles:
+      - client
+      - full
+    networks:
+      - wayvo-network
+
+networks:
+  wayvo-network:
+    driver: bridge
+
+volumes:
+  booking-db-data:
+    driver: local
+  provider-db-data:
+    driver: local
+  trip-db-data:
+    driver: local
