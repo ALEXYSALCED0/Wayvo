@@ -1,7 +1,7 @@
 import json
 import os
 
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from domain.state import TravelState
 
@@ -28,18 +28,18 @@ Responde únicamente con un JSON válido con esta estructura:
 
 
 def personality_agent(state: TravelState) -> dict:
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("GOOGLE_API_KEY")
 
     if not api_key:
         return {
             "errors": state.get("errors", [])
-            + ["Falta configurar OPENAI_API_KEY para el personality_agent."]
+            + ["Falta configurar GOOGLE_API_KEY para el personality_agent."]
         }
 
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-        api_key=api_key,
+    llm = ChatGoogleGenerativeAI(
+    model="gemini-3.1-flash-lite",
+    temperature=0,
+    google_api_key=api_key,
     )
 
     user_context = {
