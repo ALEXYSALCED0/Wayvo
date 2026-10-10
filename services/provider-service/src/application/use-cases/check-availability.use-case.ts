@@ -87,7 +87,11 @@ export class CheckAvailabilityUseCase {
     try {
       external = await this.externals
         .resolve(offer.type)
-        .consultarDisponibilidad({ offerId: offer.id, quantity: item.quantity });
+        .consultarDisponibilidad({
+          offerId: offer.id,
+          quantity: item.quantity,
+          metadata: { ...offer.metadata },
+        });
     } catch (error) {
       this.logger.error('External provider failed while checking availability', {
         correlationId,

@@ -41,7 +41,22 @@ describe('CheckAvailabilityUseCase', () => {
     expect(output.details).toEqual([
       { offerId: 'offer-1', providerId: 'prov-1', available: true, remainingCapacity: 10 },
     ]);
-    expect(external.calls).toEqual([{ offerId: 'offer-1', quantity: 2 }]);
+    expect(external.calls).toEqual([{ offerId: 'offer-1', quantity: 2, metadata: {} }]);
+  });
+
+  it('le pasa al adapter la metadata de la oferta para que pueda ubicarla en la API externa', async () => {
+    const catalog = await seedCatalog();
+    await catalog.offers.save(makeOffer({ metadata: { flightNumber: 'AV123', originAirport: 'BAQ' } }));
+    const useCase = new CheckAvailabilityUseCase(
+      catalog.providers,
+      catalog.offers,
+      new FakeResolver({ [ServiceOfferType.TRANSPORT]: external }),
+      silentLogger,
+    );
+
+    await useCase.execute(request());
+
+    expect(external.calls[0].metadata).toEqual({ flightNumber: 'AV123', originAirport: 'BAQ' });
   });
 
   it('no reserva ni descuenta cupo: solo consulta', async () => {
