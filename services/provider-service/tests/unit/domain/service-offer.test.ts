@@ -57,3 +57,16 @@ describe('ServiceOffer', () => {
     expect(() => makeOffer({ title: ' ' })).toThrow(InvalidServiceOfferError);
   });
 });
+
+describe('ServiceOffer metadata', () => {
+  it('guarda la metadata y toPrimitives() devuelve una copia que no altera la oferta', () => {
+    const offer = makeOffer({ metadata: { flightNumber: 'AV123' } });
+    const copy = offer.toPrimitives();
+    copy.metadata.flightNumber = 'XX999';
+    expect(offer.metadata).toEqual({ flightNumber: 'AV123' });
+  });
+
+  it('sin metadata queda como objeto vacío', () => {
+    expect(makeOffer().metadata).toEqual({});
+  });
+});

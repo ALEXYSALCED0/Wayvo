@@ -11,6 +11,8 @@ export interface ServiceOfferProps {
   currency: string;
   availableCapacity: number;
   active: boolean;
+  // Datos para ubicar este servicio en la API externa, los adapters lo leen para traducir la consulta
+  metadata: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +27,7 @@ export interface CreateServiceOfferProps {
   currency: string;
   availableCapacity: number;
   active?: boolean;
+  metadata?: Record<string, unknown>;
   now?: Date;
 }
 
@@ -61,6 +64,7 @@ export class ServiceOffer {
       currency: input.currency,
       availableCapacity: input.availableCapacity,
       active: input.active ?? true,
+      metadata: { ...(input.metadata ?? {}) },
       createdAt: now,
       updatedAt: now,
     });
@@ -124,8 +128,10 @@ export class ServiceOffer {
     this.props.updatedAt = now;
   }
 
+  get metadata(): Readonly<Record<string, unknown>> { return this.props.metadata; }
+
   toPrimitives(): ServiceOfferPrimitives {
-    return { ...this.props };
+    return { ...this.props, metadata: { ...this.props.metadata } };
   }
 
   private assertValidQuantity(quantity: number): void {
