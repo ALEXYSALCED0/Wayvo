@@ -1,30 +1,24 @@
 import json
 import os
 
+from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from domain.state import TravelState
 
+load_dotenv()
 
-SYSTEM_PROMPT = """
-Eres un asistente especializado en preferencias de viaje.
 
-Debes clasificar el estilo de viaje del usuario en exactamente una
-de estas categorías:
-- Aventura
-- Relax
-- Cultural
-- Inversión
-
-Usa las preferencias explícitas del usuario y el contexto disponible.
-No inventes preferencias que no se hayan proporcionado.
-
-Responde únicamente con un JSON válido con esta estructura:
-{
-  "personality": "Cultural",
-  "reason": "Explicación breve de la clasificación"
+VALID_STYLES = {
+    "Aventura",
+    "Relax",
+    "Cultural",
+    "Inversión",
+    "Gastronómico",
+    "Eco-Turismo",
 }
-"""
+
+VALID_PACES = {"Relajado", "Moderado", "Intenso"}
 
 
 def personality_agent(state: TravelState) -> dict:
@@ -33,54 +27,91 @@ def personality_agent(state: TravelState) -> dict:
     if not api_key:
         return {
             "errors": state.get("errors", [])
-            + ["Falta configurar GOOGLE_API_KEY para el personality_agent."]
+            + ["Falta configurar GOOGLE_API_KEY para personality_agent."]
         }
 
-    llm = ChatGoogleGenerativeAI(
-    model="gemini-3.1-flash-lite",
-    temperature=0,
-    google_api_key=api_key,
-    )
+    assessment = state.get("psychologicalAssessment", {})
+    # Solo el estilo que eligió el usuario; si no eligió, lo deduce el LLM.
+    preferred_style = state.get("preferredStyle")
 
-    user_context = {
-        "origin": state.get("origin"),
-        "destination": state.get("destination"),
-        "start_date": state.get("start_date"),
-        "end_date": state.get("end_date"),
-        "personality": state.get("personality"),
-        "messages": state.get("messages", []),
-    }
+    prompt = f"""
+Analiza el perfil de este viajero y devuelve exclusivamente un objeto JSON válido.
 
-    response = llm.invoke(
-        [
-            ("system", SYSTEM_PROMPT),
-            ("human", json.dumps(user_context, ensure_ascii=False)),
-        ]
-    )
+Perfil psicológico:
+{json.dumps(assessment, ensure_ascii=False)}
+
+Estilo preferido: {preferred_style or "No especificado"}
+Destino: {state.get("destination", "No especificado")}
+Intereses: {assessment.get("interests", [])}
+
+El JSON debe tener exactamente estos campos:
+{{
+  "analyzedStyle": "Cultural",
+  "traitSummary": "Resumen breve de los rasgos del viajero",
+  "dominantPace": "Moderado",
+  "psychologicalNotes": "Observaciones sobre sus preferencias",
+  "recommendedVibe": "Descripción breve de la experiencia recomendada"
+}}
+
+Reglas:
+- analyzedStyle debe ser uno de:
+  Aventura, Relax, Cultural, Inversión, Gastronómico, Eco-Turismo.
+- dominantPace debe ser Relajado, Moderado o Intenso.
+- Si se proporciona un estilo preferido válido, respétalo.
+- No inventes información psicológica que no esté respaldada
+  por los datos recibidos.
+- Escribe los textos en español.
+"""
 
     try:
-        result = json.loads(response.content)
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-3.1-flash-lite",
+            temperature=0,
+            google_api_key=api_key,
+        )
 
-        valid_personalities = {
-            "Aventura",
-            "Relax",
-            "Cultural",
-            "Inversión",
+        response = llm.invoke(prompt)
+        content = response.content
+
+        if isinstance(content, list):
+            content = "".join(
+                item.get("text", "")
+                for item in content
+                if isinstance(item, dict)
+            )
+
+        result = json.loads(content)
+
+        style = result.get("analyzedStyle")
+        pace = result.get("dominantPace")
+
+        if style not in VALID_STYLES:
+            raise ValueError(f"Estilo no válido: {style}")
+
+        if pace not in VALID_PACES:
+            raise ValueError(f"Ritmo no válido: {pace}")
+
+        personality_result = {
+            "analyzedStyle": style,
+            "traitSummary": str(result["traitSummary"]),
+            "dominantPace": pace,
+            "recommendedVibe": str(result["recommendedVibe"]),
         }
 
-        personality = result["personality"]
-
-        if personality not in valid_personalities:
-            raise ValueError("Categoría de personalidad no válida.")
+        if result.get("psychologicalNotes"):
+            personality_result["psychologicalNotes"] = str(
+                result["psychologicalNotes"]
+            )
 
         return {
-            "personality": personality,
+            "personality_result": personality_result,
+            "personality": style,
             "messages": state.get("messages", [])
-            + [result.get("reason", "Perfil de viaje clasificado.")],
+            + ["Agente de personalidad ejecutado correctamente."],
         }
 
-    except (ValueError, TypeError, KeyError) as exc:
+    except Exception as exc:
         return {
             "errors": state.get("errors", [])
-            + [f"No se pudo interpretar la respuesta del agente: {exc}"]
+            + [f"Error en personality_agent: {exc}"]
         }

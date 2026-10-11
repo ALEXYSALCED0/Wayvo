@@ -6,37 +6,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from domain.state import TravelState
 
 
-SYSTEM_PROMPT = """
-Eres un asistente especializado en actividades turísticas y gastronomía.
-
-Recomienda actividades y comida considerando el destino, las fechas,
-la personalidad del viajero y su presupuesto.
-
-Las personalidades posibles son:
-- Aventura
-- Relax
-- Cultural
-- Inversión
-
-No inventes horarios, precios exactos ni disponibilidad real.
-Si falta información, indícalo en la descripción.
-
-Responde únicamente con un JSON válido con esta estructura:
-{
-  "activities": [
-    {
-      "name": "Nombre de la actividad",
-      "description": "Descripción breve"
-    }
-  ],
-  "food_recommendations": [
-    {
-      "name": "Nombre de la comida o lugar",
-      "description": "Descripción breve"
-    }
-  ]
-}
-"""
+VALID_MEAL_TYPES = {"breakfast", "lunch", "dinner", "snack"}
+VALID_TIMES = {"morning", "afternoon", "evening"}
 
 
 def activities_food_agent(state: TravelState) -> dict:
@@ -45,54 +16,159 @@ def activities_food_agent(state: TravelState) -> dict:
     if not api_key:
         return {
             "errors": state.get("errors", [])
-            + ["Falta configurar GOOGLE_API_KEY para el activities_food_agent."]
+            + ["Falta configurar GOOGLE_API_KEY para activities_food_agent."]
         }
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-3.1-flash-lite",
-        temperature=0,
-        api_key=api_key,
-    )
+    assessment = state.get("psychologicalAssessment", {})
+    destination = state.get("destination", "")
+    travelers = state.get("travelers", 1)
+    currency = state.get("currency", "COP")
 
-    user_context = {
-        "destination": state.get("destination"),
-        "start_date": state.get("start_date"),
-        "end_date": state.get("end_date"),
-        "travelers": state.get("travelers"),
-        "personality": state.get("personality"),
-        "budget_category": state.get("budget_category"),
-        "budget_amount": state.get("budget_amount"),
-        "messages": state.get("messages", []),
-    }
+    prompt = f"""
+Genera recomendaciones gastronómicas y actividades para un viaje.
 
-    response = llm.invoke(
-        [
-            ("system", SYSTEM_PROMPT),
-            ("human", json.dumps(user_context, ensure_ascii=False)),
-        ]
-    )
+Datos:
+- Destino: {destination}
+- Origen: {state.get("origin", "No especificado")}
+- Fechas: {state.get("startDate") or state.get("start_date", "No especificada")}
+  hasta {state.get("endDate") or state.get("end_date", "No especificada")}
+- Viajeros: {travelers}
+- Estilo: {state.get("preferredStyle") or state.get("personality", "Cultural")}
+- Intereses: {assessment.get("interests", [])}
+- Restricciones alimentarias: {state.get("dietaryRestrictions", [])}
+- Moneda: {currency}
+
+Devuelve exclusivamente JSON válido con esta estructura:
+{{
+  "gastronomy": [
+    {{
+      "dish": "Nombre del plato",
+      "typicalPlace": "Tipo de establecimiento",
+      "description": "Descripción breve",
+      "mealType": "lunch",
+      "estimatedCost": 30000,
+      "dietaryMatch": true
+    }}
+  ],
+  "activities": [
+    {{
+      "title": "Nombre de la actividad",
+      "category": "Cultural",
+      "description": "Descripción breve",
+      "duration": "2 horas",
+      "estimatedCost": 50000,
+      "bestTimeOfDay": "morning",
+      "bookingRequired": false
+    }}
+  ],
+  "culturalHighlights": ["Dato cultural relevante del destino"]
+}}
+
+Reglas:
+- Genera entre 3 y 5 recomendaciones gastronómicas y entre 3 y 5 actividades.
+- mealType debe ser breakfast, lunch, dinner o snack.
+- bestTimeOfDay debe ser morning, afternoon o evening.
+- estimatedCost debe ser numérico y representar el costo total
+  para todos los viajeros.
+- Respeta las restricciones alimentarias indicadas.
+- Si no puedes confirmar que un plato cumple una restricción,
+  no afirmes que es apto.
+- No inventes precios verificados ni disponibilidad de reservas.
+- Los costos son estimaciones orientativas en {currency}.
+- No incluyas markdown ni explicaciones fuera del JSON.
+"""
 
     try:
-        result = json.loads(response.content)
-        activities = result["activities"]
-        food_recommendations = result["food_recommendations"]
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-3.1-flash-lite",
+            temperature=0,
+            google_api_key=api_key,
+        )
 
-        if not isinstance(activities, list):
-            raise ValueError("activities debe ser una lista.")
+        response = llm.invoke(prompt)
+        content = response.content
 
-        if not isinstance(food_recommendations, list):
-            raise ValueError("food_recommendations debe ser una lista.")
+        if isinstance(content, list):
+            content = "".join(
+                item.get("text", "")
+                for item in content
+                if isinstance(item, dict)
+            )
 
-        return {
+        result = json.loads(content)
+
+        gastronomy = result.get("gastronomy", [])
+        activities = result.get("activities", [])
+
+        if not gastronomy:
+            raise ValueError("No se generaron recomendaciones gastronómicas.")
+
+        if not activities:
+            raise ValueError("No se generaron actividades.")
+
+        for item in gastronomy:
+            if item.get("mealType") not in VALID_MEAL_TYPES:
+                raise ValueError(
+                    f"Tipo de comida no válido: {item.get('mealType')}"
+                )
+
+            self_check_cost = item.get("estimatedCost")
+            if (
+                not isinstance(self_check_cost, (int, float))
+                or isinstance(self_check_cost, bool)
+                or self_check_cost < 0
+            ):
+                raise ValueError(
+                    "El costo gastronómico debe ser numérico y no negativo."
+                )
+
+            for field in ("dish", "typicalPlace", "description"):
+                if not item.get(field):
+                    raise ValueError(
+                        f"Falta '{field}' en una recomendación gastronómica."
+                    )
+
+        for item in activities:
+            if item.get("bestTimeOfDay") not in VALID_TIMES:
+                raise ValueError(
+                    f"Horario no válido: {item.get('bestTimeOfDay')}"
+                )
+
+            cost = item.get("estimatedCost")
+            if (
+                not isinstance(cost, (int, float))
+                or isinstance(cost, bool)
+                or cost < 0
+            ):
+                raise ValueError(
+                    "El costo de una actividad debe ser numérico y no negativo."
+                )
+
+            for field in ("title", "category", "description", "duration"):
+                if not item.get(field):
+                    raise ValueError(
+                        f"Falta '{field}' en una actividad."
+                    )
+
+            if not isinstance(item.get("bookingRequired"), bool):
+                raise ValueError("bookingRequired debe ser booleano.")
+
+        experiences_result = {
+            "gastronomy": gastronomy,
             "activities": activities,
-            "food_recommendations": food_recommendations,
+            "culturalHighlights": result.get("culturalHighlights", []),
         }
 
-    except (ValueError, TypeError, KeyError) as exc:
+        return {
+            "experiences_result": experiences_result,
+            "food_recommendations": gastronomy,
+            "activities": activities,
+            "messages": state.get("messages", [])
+            + ["Agente de actividades y gastronomía ejecutado correctamente."],
+        }
+
+    except Exception as exc:
         return {
             "errors": state.get("errors", [])
-            + [
-                "No se pudo interpretar la respuesta del "
-                f"activities_food_agent: {exc}"
-            ]
+            + [f"Error en activities_food_agent: {exc}"]
         }
