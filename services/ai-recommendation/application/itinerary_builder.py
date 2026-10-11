@@ -1,0 +1,424 @@
+from datetime import date, datetime, time, timedelta
+from uuid import uuid4
+import re
+
+from domain.state import TravelState
+
+
+DAY_START = time(8, 0)
+DAY_END = time(22, 0)
+
+MEAL_TIMES = {
+    "breakfast": time(8, 0),
+    "lunch": time(12, 30),
+    "snack": time(16, 0),
+    "dinner": time(19, 0),
+}
+
+ACTIVITY_TIMES = {
+    "morning": time(9, 0),
+    "afternoon": time(14, 0),
+    "evening": time(18, 0),
+}
+
+EVENT_TYPES = {
+    "transport": "TRANSPORT",
+    "flight": "FLIGHT",
+    "bus": "TRANSPORT",
+    "train": "TRANSPORT",
+    "car_rental": "TRANSPORT",
+    "ferry": "TRANSPORT",
+    "walking": "TRANSPORT",
+}
+
+
+def _duration_hours(duration: str, fallback: float = 1) -> float:
+    """Convierte duraciones como '2 horas', '90 minutos' o '1.5 hours'."""
+    if not isinstance(duration, str):
+        return fallback
+
+    text = duration.lower().replace(",", ".")
+    total = 0.0
+
+    hours = re.search(
+        r"(\d+(?:\.\d+)?)\s*(?:horas?|hours?|hrs?|h)\b",
+        text,
+    )
+    minutes = re.search(
+        r"(\d+(?:\.\d+)?)\s*(?:minutos?|minutes?|mins?)\b",
+        text,
+    )
+
+    if hours:
+        total += float(hours.group(1))
+
+    if minutes:
+        total += float(minutes.group(1)) / 60
+
+    return total if total > 0 else fallback
+
+
+def _make_event(
+    trip_id: str,
+    title: str,
+    description: str,
+    event_type: str,
+    event_date: date,
+    start_time: time,
+    duration_hours: float,
+    location: str,
+    cost: float,
+    order: int,
+) -> dict:
+    start = datetime.combine(event_date, start_time)
+    end = start + timedelta(hours=duration_hours)
+
+    return {
+        "id": str(uuid4()),
+        "tripId": trip_id,
+        "type": event_type,
+        "title": title,
+        "description": description,
+        "location": location,
+        "startDateTime": start.isoformat(),
+        "endDateTime": end.isoformat(),
+        "time": f"{start:%H:%M} - {end:%H:%M}",
+        "status": "PENDING",
+        "reservationStatus": "NOT_RESERVED",
+        "order": order,
+        "details": {"price": cost},
+    }
+
+
+def _fits_schedule(
+    day: dict,
+    start: datetime,
+    end: datetime,
+) -> bool:
+    """Comprueba que un evento no se solape con otro del mismo día."""
+    for event in day["events"]:
+        existing_start = datetime.fromisoformat(event["startDateTime"])
+        existing_end = datetime.fromisoformat(event["endDateTime"])
+
+        if start < existing_end and end > existing_start:
+            return False
+
+    return True
+
+
+def _schedule_event(
+    day: dict,
+    trip_id: str,
+    title: str,
+    description: str,
+    event_type: str,
+    location: str,
+    cost: float,
+    preferred_time: time,
+    duration_hours: float,
+    latest_end: time = DAY_END,
+) -> bool:
+    """Busca un horario libre a partir del horario preferido."""
+    event_date = date.fromisoformat(day["date"])
+    preferred_start = datetime.combine(event_date, preferred_time)
+    day_end = datetime.combine(event_date, latest_end)
+
+    duration = timedelta(hours=duration_hours)
+    step = timedelta(minutes=30)
+
+    candidate = preferred_start
+
+    while candidate + duration <= day_end:
+        end = candidate + duration
+
+        if _fits_schedule(day, candidate, end):
+            day["events"].append(
+                _make_event(
+                    trip_id=trip_id,
+                    title=title,
+                    description=description,
+                    event_type=event_type,
+                    event_date=event_date,
+                    start_time=candidate.time(),
+                    duration_hours=duration_hours,
+                    location=location,
+                    cost=cost,
+                    order=len(day["events"]) + 1,
+                )
+            )
+            return True
+
+        candidate += step
+
+    # Si no hay espacio desde el horario preferido, busca antes.
+    candidate = datetime.combine(event_date, DAY_START)
+
+    while candidate < preferred_start:
+        end = candidate + duration
+
+        if end <= day_end and _fits_schedule(day, candidate, end):
+            day["events"].append(
+                _make_event(
+                    trip_id=trip_id,
+                    title=title,
+                    description=description,
+                    event_type=event_type,
+                    event_date=event_date,
+                    start_time=candidate.time(),
+                    duration_hours=duration_hours,
+                    location=location,
+                    cost=cost,
+                    order=len(day["events"]) + 1,
+                )
+            )
+            return True
+
+        candidate += step
+
+    return False
+
+
+def itinerary_builder(state: TravelState) -> dict:
+    errors = list(state.get("errors", []))
+    # Lo que no cabe en el horario no daña el plan: queda como aviso.
+    warnings = []
+
+    try:
+        user_id = state.get("userId")
+        origin = state.get("origin", "")
+        destination = state.get("destination", "")
+
+        start_date = date.fromisoformat(
+            str(state.get("startDate") or state.get("start_date") or "")
+        )
+        end_date = date.fromisoformat(
+            str(state.get("endDate") or state.get("end_date") or "")
+        )
+
+        if not user_id:
+            raise ValueError("Falta userId.")
+
+        if not destination:
+            raise ValueError("Falta destination.")
+
+        if end_date < start_date:
+            raise ValueError("endDate no puede ser anterior a startDate.")
+
+        travelers = state.get("travelers", 1)
+        if (
+            isinstance(travelers, bool)
+            or not isinstance(travelers, int)
+            or travelers < 1
+        ):
+            raise ValueError("travelers debe ser un entero mayor que cero.")
+
+        # Se crea primero el planId y se reutiliza como tripId provisional
+        # de los eventos para mantener una referencia consistente.
+        plan_id = str(uuid4())
+        trip_id = plan_id
+
+        days = []
+        current = start_date
+        day_number = 1
+
+        while current <= end_date:
+            days.append({
+                "dayNumber": day_number,
+                "date": current.isoformat(),
+                "title": f"Día {day_number} en {destination}",
+                "events": [],
+            })
+            current += timedelta(days=1)
+            day_number += 1
+
+        transport = state.get("transport_result", {})
+        experiences = state.get("experiences_result", {})
+
+        outbound = transport.get("outbound", [])
+        inbound = transport.get("inbound", [])
+
+        # Transporte de ida: ocupa el primer día y bloquea el horario
+        # que necesitan las demás actividades.
+        if outbound:
+            route = outbound[0]
+            duration = _duration_hours(
+                route.get("estimatedDuration", ""),
+                fallback=2,
+            )
+            mode = route.get("mode", "transport")
+            event_type = EVENT_TYPES.get(mode, "TRANSPORT")
+            cost = route.get("estimatedCost", 0)
+
+            if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost < 0:
+                raise ValueError("El costo del transporte de ida no es válido.")
+
+            if not _schedule_event(
+                day=days[0],
+                trip_id=trip_id,
+                title=f"Viaje de {origin} a {destination}",
+                description=(
+                    f"Transporte sugerido: {mode}. "
+                    f"Duración estimada: {route.get('estimatedDuration', 'No especificada')}."
+                ),
+                event_type=event_type,
+                location=f"{origin} - {destination}",
+                cost=float(cost),
+                preferred_time=time(8, 0),
+                duration_hours=duration,
+            ):
+                raise ValueError(
+                    "No se pudo programar el transporte de ida en el primer día."
+                )
+
+        # Transporte de regreso: se programa en el último día.
+        if inbound:
+            route = inbound[0]
+            duration = _duration_hours(
+                route.get("estimatedDuration", ""),
+                fallback=2,
+            )
+            mode = route.get("mode", "transport")
+            event_type = EVENT_TYPES.get(mode, "TRANSPORT")
+            cost = route.get("estimatedCost", 0)
+
+            if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost < 0:
+                raise ValueError("El costo del transporte de regreso no es válido.")
+
+            if not _schedule_event(
+                day=days[-1],
+                trip_id=trip_id,
+                title=f"Regreso de {destination} a {origin}",
+                description=(
+                    f"Transporte sugerido: {mode}. "
+                    f"Duración estimada: {route.get('estimatedDuration', 'No especificada')}."
+                ),
+                event_type=event_type,
+                location=f"{destination} - {origin}",
+                cost=float(cost),
+                preferred_time=time(16, 0),
+                duration_hours=duration,
+            ):
+                raise ValueError(
+                    "No se pudo programar el transporte de regreso en el último día."
+                )
+
+        # Se utilizan las recomendaciones que dejó el budget_agent.
+        activities = experiences.get("activities", [])
+        gastronomy = experiences.get("gastronomy", [])
+
+        # Las actividades se distribuyen procurando respetar
+        # su franja horaria preferida.
+        for index, activity in enumerate(activities):
+            if not days:
+                break
+
+            day = days[index % len(days)]
+            preferred_time = ACTIVITY_TIMES.get(
+                activity.get("bestTimeOfDay"),
+                time(9, 0),
+            )
+
+            duration = _duration_hours(
+                activity.get("duration", ""),
+                fallback=2,
+            )
+
+            cost = activity.get("estimatedCost", 0)
+            if (
+                isinstance(cost, bool)
+                or not isinstance(cost, (int, float))
+                or cost < 0
+            ):
+                continue
+
+            scheduled = _schedule_event(
+                day=day,
+                trip_id=trip_id,
+                title=activity.get("title", "Actividad"),
+                description=activity.get("description", ""),
+                event_type="ACTIVITY",
+                location=destination,
+                cost=float(cost),
+                preferred_time=preferred_time,
+                duration_hours=duration,
+            )
+
+            if not scheduled:
+                warnings.append(
+                    f"No se pudo programar la actividad "
+                    f"'{activity.get('title', 'Actividad')}' por falta de horario."
+                )
+
+        # Las comidas se programan después de las actividades.
+        # Si hay conflicto, se busca el siguiente horario disponible.
+        for index, meal in enumerate(gastronomy):
+            if not days:
+                break
+
+            day = days[index % len(days)]
+            meal_type = meal.get("mealType", "lunch")
+            preferred_time = MEAL_TIMES.get(meal_type, time(12, 0))
+
+            cost = meal.get("estimatedCost", 0)
+            if (
+                isinstance(cost, bool)
+                or not isinstance(cost, (int, float))
+                or cost < 0
+            ):
+                continue
+
+            scheduled = _schedule_event(
+                day=day,
+                trip_id=trip_id,
+                title=meal.get("dish", "Comida"),
+                description=meal.get("description", ""),
+                event_type="MEAL",
+                location=meal.get("typicalPlace", destination),
+                cost=float(cost),
+                preferred_time=preferred_time,
+                duration_hours=1,
+            )
+
+            if not scheduled:
+                warnings.append(
+                    f"No se pudo programar la comida "
+                    f"'{meal.get('dish', 'Comida')}' por falta de horario."
+                )
+
+        for day in days:
+            day["events"].sort(key=lambda event: event["startDateTime"])
+
+            for order, event in enumerate(day["events"], start=1):
+                event["order"] = order
+
+        trip_draft = {
+            "userId": user_id,
+            "origin": origin,
+            "destination": destination,
+            "startDate": start_date.isoformat(),
+            "endDate": end_date.isoformat(),
+            "travelers": travelers,
+            "title": f"Viaje a {destination}",
+        }
+
+        messages = list(state.get("messages", []))
+        messages.append("Itinerario construido correctamente.")
+        messages.extend(warnings)
+
+        return {
+            "planId": plan_id,
+            "tripDraft": trip_draft,
+            "itinerary": {
+                "destination": destination,
+                "startDate": start_date.isoformat(),
+                "endDate": end_date.isoformat(),
+                "days": days,
+            },
+            "messages": messages,
+            "errors": errors,
+        }
+
+    except Exception as exc:
+        return {
+            "errors": errors + [f"Error en itinerary_builder: {exc}"]
+        }
