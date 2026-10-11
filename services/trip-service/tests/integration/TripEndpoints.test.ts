@@ -53,6 +53,56 @@ describe('Endpoints de viajes', () => {
     expect(body.data._status).toBeUndefined();
   });
 
+  it('POST /trips guarda los eventos del itinerario que genera la IA', async () => {
+    const aiEvent = (id: string, title: string, start: string, end: string, price: number) => ({
+      id,
+      tripId: 'plan-de-la-ia',
+      type: 'ACTIVITY',
+      title,
+      description: 'Sugerido por la IA',
+      location: 'Cartagena',
+      startDateTime: start,
+      endDateTime: end,
+      time: `${start.slice(11, 16)} - ${end.slice(11, 16)}`,
+      status: 'PENDING',
+      reservationStatus: 'NOT_RESERVED',
+      order: 1,
+      details: { price },
+    });
+
+    const response = await post('/api/v1/trips', {
+      userId: 'user-1',
+      destination: 'Cartagena',
+      startDate: '2026-11-15',
+      endDate: '2026-11-18',
+      events: [
+        // Llega desordenado: el viaje lo ordena por hora.
+        aiEvent('e2', 'Cena de despedida', '2026-11-18T21:00:00', '2026-11-18T22:00:00', 80000),
+        aiEvent('e1', 'Ciudad amurallada', '2026-11-15T09:00:00', '2026-11-15T11:00:00', 50000),
+      ],
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.data.events).toHaveLength(2);
+
+    const [first, last] = body.data.events;
+    expect(first.title).toBe('Ciudad amurallada');
+    expect(first.order).toBe(1);
+    expect(first.tripId).toBe(body.data.id); // el id lo asigna trip-service
+    expect(first.details.price).toBe(50000);
+    // 21:00 sin zona se interpreta como UTC: sigue dentro del último día.
+    expect(last.startDateTime).toBe('2026-11-18T21:00:00.000Z');
+    expect(last.time).toBe('21:00 - 22:00');
+  });
+
+  it('POST /trips sin los campos obligatorios responde 400', async () => {
+    const response = await post('/api/v1/trips', { destination: 'Cartagena' });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.code).toBe('INVALID_DATA');
+  });
+
   it('GET /trips/:id devuelve el viaje y 404 si no existe', async () => {
     const id = await createTrip();
 
