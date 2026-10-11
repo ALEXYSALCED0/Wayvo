@@ -15,8 +15,7 @@ def activities_food_agent(state: TravelState) -> dict:
 
     if not api_key:
         return {
-            "errors": state.get("errors", [])
-            + ["Falta configurar GOOGLE_API_KEY para activities_food_agent."]
+            "errors": ["Falta configurar GOOGLE_API_KEY para activities_food_agent."]
         }
 
     assessment = state.get("psychologicalAssessment", {})
@@ -33,7 +32,7 @@ Datos:
 - Fechas: {state.get("startDate") or state.get("start_date", "No especificada")}
   hasta {state.get("endDate") or state.get("end_date", "No especificada")}
 - Viajeros: {travelers}
-- Estilo: {state.get("preferredStyle") or state.get("personality", "Cultural")}
+- Estilo: {state.get("preferredStyle") or "No especificado (dedúcelo de los intereses)"}
 - Intereses: {assessment.get("interests", [])}
 - Restricciones alimentarias: {state.get("dietaryRestrictions", [])}
 - Moneda: {currency}
@@ -163,12 +162,10 @@ Reglas:
             "experiences_result": experiences_result,
             "food_recommendations": gastronomy,
             "activities": activities,
-            "messages": state.get("messages", [])
-            + ["Agente de actividades y gastronomía ejecutado correctamente."],
+            "messages": ["Agente de actividades y gastronomía ejecutado correctamente."],
         }
 
     except Exception as exc:
         return {
-            "errors": state.get("errors", [])
-            + [f"Error en activities_food_agent: {exc}"]
+            "errors": [f"Error en activities_food_agent: {exc}"]
         }

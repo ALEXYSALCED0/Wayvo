@@ -107,7 +107,8 @@ def _cheapest(
 
 
 def budget_agent(state: dict[str, Any]) -> dict[str, Any]:
-    errors = list(state.get("errors", []))
+    # Solo los errores nuevos de este nodo: LangGraph los suma al estado.
+    errors = []
     nights = _nights(state)
 
     budget = state.get("approximateBudgetAmount")

@@ -9,6 +9,11 @@ from application.budget_agent import budget_agent
 from application.itinerary_builder import itinerary_builder
 
 
+# Los tres agentes que consultan a Gemini. No dependen entre sí,
+# así que corren en paralelo (fan-out) para que el plan responda más rápido.
+LLM_AGENTS = ["personality_agent", "transport_agent", "activities_food_agent"]
+
+
 def has_errors(state: TravelState) -> bool:
     return bool(state.get("errors", []))
 
@@ -23,37 +28,22 @@ def build_graph():
     graph.add_node("budget_agent", budget_agent)
     graph.add_node("itinerary_builder", itinerary_builder)
 
-    graph.add_edge(START, "personality_agent")
+    # Fan-out: los tres agentes de Gemini arrancan al mismo tiempo.
+    for agent in LLM_AGENTS:
+        graph.add_edge(START, agent)
 
+    # Fan-in: provider_catalog espera a que terminen los tres.
+    graph.add_edge(LLM_AGENTS, "provider_catalog")
+
+    # Si algún agente de Gemini falló, se termina sin calcular el presupuesto.
     graph.add_conditional_edges(
-        "personality_agent",
+        "provider_catalog",
         has_errors,
         {
             True: END,
-            False: "transport_agent",
+            False: "budget_agent",
         },
     )
-
-    graph.add_conditional_edges(
-        "transport_agent",
-        has_errors,
-        {
-            True: END,
-            False: "activities_food_agent",
-        },
-    )
-
-    graph.add_conditional_edges(
-        "activities_food_agent",
-        has_errors,
-        {
-            True: END,
-            False: "provider_catalog",
-        },
-    )
-
-    # Ofertas reservables del catálogo antes de calcular el presupuesto.
-    graph.add_edge("provider_catalog", "budget_agent")
 
     graph.add_conditional_edges(
         "budget_agent",

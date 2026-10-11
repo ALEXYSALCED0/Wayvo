@@ -21,8 +21,7 @@ def transport_agent(state: TravelState) -> dict:
 
     if not api_key:
         return {
-            "errors": state.get("errors", [])
-            + ["Falta configurar GOOGLE_API_KEY para transport_agent."]
+            "errors": ["Falta configurar GOOGLE_API_KEY para transport_agent."]
         }
 
     origin = state.get("origin", "")
@@ -166,12 +165,10 @@ Reglas:
         return {
             "transport_result": transport_result,
             "transport_options": transport_options,
-            "messages": state.get("messages", [])
-            + ["Agente de transporte ejecutado correctamente."],
+            "messages": ["Agente de transporte ejecutado correctamente."],
         }
 
     except Exception as exc:
         return {
-            "errors": state.get("errors", [])
-            + [f"Error en transport_agent: {exc}"]
+            "errors": [f"Error en transport_agent: {exc}"]
         }

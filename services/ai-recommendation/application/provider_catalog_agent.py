@@ -133,6 +133,6 @@ def provider_catalog_agent(state: TravelState) -> dict:
         if found
         else "Catálogo de proveedores: no hay ofertas para esta ruta."
     )
-    updates["messages"] = state.get("messages", []) + [message]
+    updates["messages"] = [message]
 
     return updates
