@@ -36,11 +36,11 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json(response);
 });
 
-// Reportar incidencia
-app.post(
-  '/api/v1/trips/:id/incidents',
-  eventController.reportIncident,
-);
+// Incidencias (patrón Mediator)
+// Paso 1: reportar el problema y recibir alternativas
+app.post('/api/v1/trips/:id/incidents', eventController.reportIncident);
+// Paso 2: elegir una alternativa y actualizar el itinerario
+app.post('/api/v1/trips/:id/alternatives', eventController.selectAlternative);
 
 // Crear viaje
 app.post('/api/v1/trips', tripController.createTrip);
