@@ -4,7 +4,7 @@ import {
 } from '../errors';
 import { IssueType, ReservationStatus, TripStatus } from '../enums';
 import { AlternativeOption, EventDraft } from './AlternativeOption';
-import { Event } from './Event';
+import { Event, EventDetails } from './Event';
 import { Itinerary, dateKey } from './Itinerary';
 
 
@@ -134,7 +134,11 @@ export class Trip {
 
   // Eventos
 
-  addEvent(draft: EventDraft & { reservationStatus?: ReservationStatus; isAlternative?: boolean }): Event {
+  addEvent(draft: EventDraft & {
+    reservationStatus?: ReservationStatus;
+    isAlternative?: boolean;
+    details?: EventDetails;
+  }): Event {
     this.assertEditable();
     this.assertInRange(draft.startDateTime);
     const event = new Event({ ...draft, tripId: this.id });

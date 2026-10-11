@@ -48,6 +48,10 @@ app.post('/api/v1/trips', tripController.createTrip);
 // Consultar viaje
 app.get('/api/v1/trips/:id', tripController.getTrip);
 
+// Confirmar y cancelar (los usa la Saga de booking-service)
+app.post('/api/v1/trips/:id/confirm', tripController.confirmTrip);
+app.post('/api/v1/trips/:id/cancel', tripController.cancelTrip);
+
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
     console.log(`[Trip Service] Running on port ${port}`);
