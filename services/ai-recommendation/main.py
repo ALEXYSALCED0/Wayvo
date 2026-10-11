@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Literal
 
 from adapters.error_handlers import register_error_handlers
+from application.chat_agent import ChatAgentError, chat_agent
 from application.graph import travel_graph
 
 load_dotenv()
@@ -84,6 +85,26 @@ class AIPlanRequest(BaseModel):
             raise ValueError("endDate no puede ser anterior a startDate.")
 
         return end_date
+
+
+# Modelos del chat libre (AIChatRequest en shared/contracts).
+class ChatHistoryMessage(BaseModel):
+    sender: Literal["ai", "user"]
+    text: str
+
+
+class ChatContext(BaseModel):
+    currentDestination: str | None = None
+    budgetCategory: str | None = None
+    travelStyle: str | None = None
+
+
+class AIChatRequest(BaseModel):
+    userId: str = Field(min_length=1)
+    message: str = Field(min_length=1, max_length=1000)
+    tripId: str | None = None
+    conversationHistory: list[ChatHistoryMessage] = Field(default_factory=list)
+    context: ChatContext | None = None
 
 
 @app.get("/health")
@@ -258,6 +279,24 @@ def generate_plan(request: AIPlanRequest):
 def generate_recommendations_legacy(request: AIPlanRequest):
     """Mantiene la ruta anterior para compatibilidad."""
     return generate_plan(request)
+
+
+@app.post("/api/v1/ai/chat")
+def chat(request: AIChatRequest):
+    """Modo libre: chat directo con el asistente. No pasa por el grafo de agentes."""
+    try:
+        response = chat_agent(
+            message=request.message,
+            history=[m.model_dump() for m in request.conversationHistory],
+            context=request.context.model_dump() if request.context else None,
+        )
+    except ChatAgentError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="El asistente no pudo responder en este momento.",
+        ) from exc
+
+    return {"success": True, "data": response}
 
 
 if __name__ == "__main__":
