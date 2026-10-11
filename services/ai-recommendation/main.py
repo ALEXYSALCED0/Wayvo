@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Literal
 
+from adapters.error_handlers import register_error_handlers
 from application.graph import travel_graph
 
 load_dotenv()
@@ -14,6 +15,9 @@ app = FastAPI(
     description="LangGraph Multiagent Engine for Travel Recommendations",
     version="1.0.0",
 )
+
+# Todas las respuestas de error usan { success: false, error: { code, message, details } }.
+register_error_handlers(app)
 
 TravelStyle = Literal[
     "Aventura",
@@ -236,7 +240,7 @@ def generate_plan(request: AIPlanRequest):
     budget = result["budget_result"]
     validate_budget(budget, result["budget_amount"])
 
-    return {
+    plan = {
         "planId": result["planId"],
         "tripDraft": result["tripDraft"],
         "personality": result["personality_result"],
@@ -246,6 +250,8 @@ def generate_plan(request: AIPlanRequest):
         "itinerary": result["itinerary"],
         "suggestedBookingItems": result.get("suggestedBookingItems", []),
     }
+
+    return {"success": True, "data": plan}
 
 
 @app.post("/api/v1/recommendations")

@@ -254,6 +254,8 @@ def test_endpoint_plan_funciona_sin_monto_y_sin_estilo(monkeypatch):
 
     assert response.status_code == 200, response.json()
     body = response.json()
-    assert body["personality"]["analyzedStyle"] == "Relax"
+    assert body["success"] is True
+    plan = body["data"]
+    assert plan["personality"]["analyzedStyle"] == "Relax"
     # Económico en COP: 120.000 x 1 habitación x 2 noches.
-    assert body["budget"]["breakdown"]["accommodation"] == 240_000
+    assert plan["budget"]["breakdown"]["accommodation"] == 240_000
