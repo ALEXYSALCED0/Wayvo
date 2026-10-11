@@ -12,4 +12,11 @@ export class InMemoryServiceOfferRepository implements ServiceOfferRepository {
     const found = this.store.get(id);
     return found ? ServiceOffer.restore(found.toPrimitives()) : null;
   }
+
+  async findByProviderId(providerId: string): Promise<ServiceOffer[]> {
+    return [...this.store.values()]
+      .filter((o) => o.providerId === providerId)
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .map((o) => ServiceOffer.restore(o.toPrimitives()));
+  }
 }
