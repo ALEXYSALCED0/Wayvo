@@ -9,9 +9,16 @@
     "build": "tsc",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "start:prod": "prisma migrate deploy && node dist/infrastructure/persistence/seed/run-seed.js && node dist/main.js",
+    "postinstall": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "db:seed": "tsx src/infrastructure/persistence/seed/run-seed.ts"
   },
   "dependencies": {
+    "@prisma/client": "~6.19.0",
     "@wayvo/contracts": "*",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -22,6 +29,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^22.0.0",
+    "prisma": "~6.19.0",
     "tsx": "^4.19.0",
     "typescript": "~5.9.0",
     "vitest": "^3.2.0"
