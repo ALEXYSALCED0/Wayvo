@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
-import { ApiResponse, Trip as TripDTO, cancelTripSchema } from '@wayvo/contracts';
+import {
+  ApiResponse, Trip as TripDTO, cancelTripSchema, createTripSchema,
+} from '@wayvo/contracts';
 import { TripService } from '../../application/services/TripService';
-import { toTripDTO } from '../../application/mappers/TripMapper';
+import { parseUtcDate, toEventDraft, toTripDTO } from '../../application/mappers/TripMapper';
 import { sendError } from './httpError';
 
 export class TripController {
@@ -9,39 +11,21 @@ export class TripController {
 
   createTrip = async (req: Request, res: Response): Promise<void> => {
     try {
-      const {
-        userId,
-        destination,
-        startDate,
-        endDate,
-        origin,
-        title,
-        travelers,
-        description,
-        imageUrl,
-      } = req.body;
-
-      if (!userId || !destination || !startDate || !endDate) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: 'INVALID_TRIP_DATA',
-            message: 'userId, destination, startDate y endDate son obligatorios',
-          },
-        });
-        return;
-      }
+      // Se valida con el esquema del contrato. El viaje siempre nace en PENDING,
+      // así que el campo status del cuerpo no se usa.
+      const input = createTripSchema.parse(req.body ?? {});
 
       const trip = await this.tripService.createTrip({
-        userId,
-        destination,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        origin,
-        title,
-        travelers,
-        description,
-        imageUrl,
+        userId: input.userId,
+        destination: input.destination,
+        startDate: parseUtcDate(input.startDate),
+        endDate: parseUtcDate(input.endDate),
+        origin: input.origin,
+        title: input.title,
+        travelers: input.travelers,
+        description: input.description,
+        imageUrl: input.imageUrl,
+        events: (input.events ?? []).map(toEventDraft),
       });
 
       this.sendTrip(res, 201, toTripDTO(trip));

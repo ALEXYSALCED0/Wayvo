@@ -1,12 +1,19 @@
 import type {
   AlternativeOption as AlternativeOptionDTO,
+  CreateTripInput,
   Event as EventDTO,
   Trip as TripDTO,
 } from '@wayvo/contracts';
 import { AlternativeOption } from '../../domain/entities/AlternativeOption';
 import { Event } from '../../domain/entities/Event';
 import { Trip } from '../../domain/entities/Trip';
-import { EventStatus, EventType, IssueType } from '../../domain/enums';
+import { EventStatus, EventType, IssueType, ReservationStatus } from '../../domain/enums';
+
+// Campos de un evento entrante que usa el servicio.
+type CreateTripEventDTO = Pick<
+  NonNullable<CreateTripInput['events']>[number],
+  'type' | 'title' | 'description' | 'location' | 'startDateTime' | 'endDateTime' | 'details'
+> & { reservationStatus?: string };
 import { InvalidDataError } from '../../domain/errors';
 
 // Se traducen los objetos del dominio a los DTOs de @wayvo/contracts.
@@ -40,6 +47,37 @@ export function toDomainIssueType(value: string): IssueType {
     throw new InvalidDataError(`Tipo de incidente no válido: ${value}`);
   }
   return value as IssueType;
+}
+
+
+export function parseUtcDate(value: string): Date {
+  const hasZone = /(Z|[+-]\d{2}:?\d{2})$/.test(value);
+  const date = new Date(value.includes('T') && !hasZone ? `${value}Z` : value);
+  if (Number.isNaN(date.getTime())) {
+    throw new InvalidDataError(`Fecha no válida: ${value}`);
+  }
+  return date;
+}
+
+
+export function toEventDraft(dto: CreateTripEventDTO) {
+  return {
+    type: toDomainEventType(dto.type),
+    title: dto.title,
+    description: dto.description,
+    location: dto.location,
+    startDateTime: parseUtcDate(dto.startDateTime),
+    endDateTime: dto.endDateTime ? parseUtcDate(dto.endDateTime) : undefined,
+    reservationStatus: dto.reservationStatus as unknown as ReservationStatus | undefined,
+    details: dto.details,
+  };
+}
+
+function toDomainEventType(value: string): EventType {
+  if (!Object.values(EventType).includes(value as EventType)) {
+    throw new InvalidDataError(`Tipo de evento no válido: ${value}`);
+  }
+  return value as EventType;
 }
 
 export function toAlternativeDTO(a: AlternativeOption): AlternativeOptionDTO {

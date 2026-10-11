@@ -19,8 +19,13 @@ export class TripService {
     travelers?: number;
     description?: string;
     imageUrl?: string;
+    events?: Parameters<Trip['addEvent']>[0][];
   }): Promise<Trip> {
-    const trip = new Trip(input);
+    const { events = [], ...data } = input;
+    const trip = new Trip(data);
+    // Los eventos del itinerario entran uno a uno:
+    // el viaje valida que estén dentro de sus fechas y les asigna el orden.
+    events.forEach((event) => trip.addEvent(event));
     await this.trips.save(trip);
     return trip;
   }
