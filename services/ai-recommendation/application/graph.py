@@ -4,6 +4,7 @@ from domain.state import TravelState
 from application.personality_agent import personality_agent
 from application.transport_agent import transport_agent
 from application.activities_food_agent import activities_food_agent
+from application.provider_catalog_agent import provider_catalog_agent
 from application.budget_agent import budget_agent
 from application.itinerary_builder import itinerary_builder
 
@@ -18,6 +19,7 @@ def build_graph():
     graph.add_node("personality_agent", personality_agent)
     graph.add_node("transport_agent", transport_agent)
     graph.add_node("activities_food_agent", activities_food_agent)
+    graph.add_node("provider_catalog", provider_catalog_agent)
     graph.add_node("budget_agent", budget_agent)
     graph.add_node("itinerary_builder", itinerary_builder)
 
@@ -46,9 +48,12 @@ def build_graph():
         has_errors,
         {
             True: END,
-            False: "budget_agent",
+            False: "provider_catalog",
         },
     )
+
+    # Ofertas reservables del catálogo antes de calcular el presupuesto.
+    graph.add_edge("provider_catalog", "budget_agent")
 
     graph.add_conditional_edges(
         "budget_agent",

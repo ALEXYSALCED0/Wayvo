@@ -178,6 +178,49 @@ def _schedule_event(
     return False
 
 
+def _departure_time(route: dict, default: time) -> time:
+    """Usa la hora de salida de la ruta ("06:30") si viene y es válida."""
+    try:
+        return time.fromisoformat(str(route.get("departureTime")))
+    except ValueError:
+        return default
+
+
+def _booking_item(item_type: str, item: dict, description: str) -> dict:
+    return {
+        "type": item_type,
+        "providerId": item["providerId"],
+        "offerId": item["offerId"],
+        "description": description,
+        "quantity": item["quantity"],
+        "unitPrice": item["unitPrice"],
+    }
+
+
+def _suggested_booking_items(state: TravelState) -> list[dict]:
+    """Lo que quedó en el plan y viene del catálogo (tiene offerId) se puede reservar.
+
+    Sigue el contrato CreateBookingItemInput que usa la Saga en el checkout.
+    """
+    transport = state.get("transport_result", {})
+    experiences = state.get("experiences_result", {})
+    accommodation = state.get("selected_accommodation") or {}
+    items = []
+
+    for route in transport.get("outbound", [])[:1] + transport.get("inbound", [])[:1]:
+        if route.get("offerId"):
+            items.append(_booking_item("TRANSPORT", route, route.get("providerHint", "Transporte")))
+
+    if accommodation.get("offerId"):
+        items.append(_booking_item("ACCOMMODATION", accommodation, accommodation.get("name", "Alojamiento")))
+
+    for activity in experiences.get("activities", []):
+        if activity.get("offerId"):
+            items.append(_booking_item("ACTIVITY", activity, activity.get("title", "Actividad")))
+
+    return items
+
+
 def itinerary_builder(state: TravelState) -> dict:
     errors = list(state.get("errors", []))
     # Lo que no cabe en el horario no daña el plan: queda como aviso.
@@ -263,7 +306,7 @@ def itinerary_builder(state: TravelState) -> dict:
                 event_type=event_type,
                 location=f"{origin} - {destination}",
                 cost=float(cost),
-                preferred_time=time(8, 0),
+                preferred_time=_departure_time(route, time(8, 0)),
                 duration_hours=duration,
             ):
                 raise ValueError(
@@ -295,7 +338,7 @@ def itinerary_builder(state: TravelState) -> dict:
                 event_type=event_type,
                 location=f"{destination} - {origin}",
                 cost=float(cost),
-                preferred_time=time(16, 0),
+                preferred_time=_departure_time(route, time(16, 0)),
                 duration_hours=duration,
             ):
                 raise ValueError(
@@ -414,6 +457,7 @@ def itinerary_builder(state: TravelState) -> dict:
                 "endDate": end_date.isoformat(),
                 "days": days,
             },
+            "suggestedBookingItems": _suggested_booking_items(state),
             "messages": messages,
             "errors": errors,
         }
