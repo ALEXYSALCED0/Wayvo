@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import { IMediator } from '../../application/mediator/IMediator';
 import { TripMediatorIncidentInput } from '@wayvo/contracts';
+import { sendError } from './httpError';
 
 export class EventController {
   constructor(private readonly mediator: IMediator) {}
@@ -22,13 +23,7 @@ export class EventController {
         data: result,
       });
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INCIDENT_REPORT_FAILED',
-          message: error instanceof Error ? error.message : 'No se pudo reportar la incidencia',
-        },
-      });
+      sendError(res, error, 'INCIDENT_REPORT_FAILED');
     }
   };
 }
