@@ -10,14 +10,35 @@ export interface HttpOptions {
 
 export const DEFAULT_TIMEOUT_MS = 10_000;
 
-export async function getJson(
+export function getJson(
   url: string,
   headers: Record<string, string>,
-  { fetch: fetchFn = fetch, timeoutMs = DEFAULT_TIMEOUT_MS }: HttpOptions = {},
+  options: HttpOptions = {},
+): Promise<unknown> {
+  return requestJson(url, { method: 'GET', headers }, options);
+}
+
+export function postJson(
+  url: string,
+  body: unknown,
+  headers: Record<string, string>,
+  options: HttpOptions = {},
+): Promise<unknown> {
+  return requestJson(
+    url,
+    { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) },
+    options,
+  );
+}
+
+async function requestJson(
+  url: string,
+  init: RequestInit,
+  { fetch: fetchFn = fetch, timeoutMs = DEFAULT_TIMEOUT_MS }: HttpOptions,
 ): Promise<unknown> {
   let response: Response;
   try {
-    response = await fetchFn(url, { method: 'GET', headers, signal: AbortSignal.timeout(timeoutMs) });
+    response = await fetchFn(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
   } catch (error) {
     const reason = error instanceof Error ? error.name : 'unknown error';
     throw new Error(`request failed (${reason})`);
