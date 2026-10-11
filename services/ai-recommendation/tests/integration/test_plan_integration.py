@@ -151,7 +151,8 @@ def test_grafo_completo_genera_un_plan_sin_ofertas_de_alojamiento(monkeypatch):
     state = {
         "userId": "user-test-001",
         "origin": "Barranquilla",
-        "destination": "Cartagena",
+        # Destino sin ofertas en el catálogo de provider-service.
+        "destination": "Villa de Leyva",
         "startDate": "2026-11-15",
         "endDate": "2026-11-18",
         "travelers": 2,
@@ -237,7 +238,8 @@ def test_endpoint_plan_funciona_sin_monto_y_sin_estilo(monkeypatch):
     response = TestClient(main.app).post("/api/v1/ai/plan", json={
         "userId": "user-test-001",
         "origin": "Bogotá",
-        "destination": "Cartagena",
+        # Destino sin ofertas en el catálogo: el alojamiento se estima.
+        "destination": "Villa de Leyva",
         "startDate": "2026-11-15",
         "endDate": "2026-11-17",
         "travelers": 2,

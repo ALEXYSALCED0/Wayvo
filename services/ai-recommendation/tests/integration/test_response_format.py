@@ -9,7 +9,8 @@ client = TestClient(main.app)
 VALID_REQUEST = {
     "userId": "user-test-001",
     "origin": "Bogotá",
-    "destination": "Cartagena",
+    # Destino sin ofertas en el catálogo, para que se usen las rutas de prueba.
+    "destination": "Villa de Leyva",
     "startDate": "2026-11-15",
     "endDate": "2026-11-17",
     "travelers": 2,

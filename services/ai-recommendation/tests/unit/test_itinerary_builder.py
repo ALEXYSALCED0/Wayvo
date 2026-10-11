@@ -116,3 +116,41 @@ def test_lo_que_no_cabe_en_el_horario_es_aviso_y_no_error():
     assert result["errors"] == []
     assert result.get("itinerary")
     assert any("Playa" in message for message in result["messages"])
+
+
+def test_un_regreso_largo_o_nocturno_no_rompe_el_itinerario():
+    # Caso real con Gemini: el regreso era un bus largo que no cabía antes de las 22:00.
+    state = {
+        "userId": "user-test-001",
+        "origin": "Bogotá",
+        "destination": "Cartagena",
+        "startDate": "2026-12-10",
+        "endDate": "2026-12-13",
+        "travelers": 2,
+        "transport_result": {
+            "outbound": [
+                {
+                    "mode": "flight",
+                    "departureTime": "19:45",
+                    "estimatedDuration": "1 hora y 30 minutos",
+                    "estimatedCost": 580000,
+                }
+            ],
+            "inbound": [
+                {
+                    "mode": "bus",
+                    "departureTime": "21:30",
+                    "estimatedDuration": "20 horas",
+                    "estimatedCost": 300000,
+                }
+            ],
+        },
+        "experiences_result": {"activities": [], "gastronomy": []},
+    }
+
+    result = itinerary_builder(state)
+
+    assert result["errors"] == []
+    last_day = result["itinerary"]["days"][-1]["events"]
+    assert last_day[0]["startDateTime"] == "2026-12-13T21:30:00"
+    assert last_day[0]["endDateTime"] == "2026-12-14T17:30:00"

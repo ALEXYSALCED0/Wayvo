@@ -26,8 +26,7 @@ def personality_agent(state: TravelState) -> dict:
 
     if not api_key:
         return {
-            "errors": state.get("errors", [])
-            + ["Falta configurar GOOGLE_API_KEY para personality_agent."]
+            "errors": ["Falta configurar GOOGLE_API_KEY para personality_agent."]
         }
 
     assessment = state.get("psychologicalAssessment", {})
@@ -106,12 +105,10 @@ Reglas:
         return {
             "personality_result": personality_result,
             "personality": style,
-            "messages": state.get("messages", [])
-            + ["Agente de personalidad ejecutado correctamente."],
+            "messages": ["Agente de personalidad ejecutado correctamente."],
         }
 
     except Exception as exc:
         return {
-            "errors": state.get("errors", [])
-            + [f"Error en personality_agent: {exc}"]
+            "errors": [f"Error en personality_agent: {exc}"]
         }

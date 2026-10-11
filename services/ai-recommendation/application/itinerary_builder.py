@@ -178,8 +178,81 @@ def _schedule_event(
     return False
 
 
+def _add_transport_event(
+    day: dict,
+    trip_id: str,
+    title: str,
+    description: str,
+    event_type: str,
+    location: str,
+    cost: float,
+    start_time: time,
+    duration_hours: float,
+) -> None:
+    """El transporte tiene hora fija: se agrega a su hora de salida aunque
+    termine de noche o al día siguiente (no se limita a las 22:00 como las actividades)."""
+    day["events"].append(
+        _make_event(
+            trip_id=trip_id,
+            title=title,
+            description=description,
+            event_type=event_type,
+            event_date=date.fromisoformat(day["date"]),
+            start_time=start_time,
+            duration_hours=duration_hours,
+            location=location,
+            cost=cost,
+            order=len(day["events"]) + 1,
+        )
+    )
+
+
+def _departure_time(route: dict, default: time) -> time:
+    """Usa la hora de salida de la ruta ("06:30") si viene y es válida."""
+    try:
+        return time.fromisoformat(str(route.get("departureTime")))
+    except ValueError:
+        return default
+
+
+def _booking_item(item_type: str, item: dict, description: str) -> dict:
+    return {
+        "type": item_type,
+        "providerId": item["providerId"],
+        "offerId": item["offerId"],
+        "description": description,
+        "quantity": item["quantity"],
+        "unitPrice": item["unitPrice"],
+    }
+
+
+def _suggested_booking_items(state: TravelState) -> list[dict]:
+    """Lo que quedó en el plan y viene del catálogo (tiene offerId) se puede reservar.
+
+    Sigue el contrato CreateBookingItemInput que usa la Saga en el checkout.
+    """
+    transport = state.get("transport_result", {})
+    experiences = state.get("experiences_result", {})
+    accommodation = state.get("selected_accommodation") or {}
+    items = []
+
+    for route in transport.get("outbound", [])[:1] + transport.get("inbound", [])[:1]:
+        if route.get("offerId"):
+            items.append(_booking_item("TRANSPORT", route, route.get("providerHint", "Transporte")))
+
+    if accommodation.get("offerId"):
+        items.append(_booking_item("ACCOMMODATION", accommodation, accommodation.get("name", "Alojamiento")))
+
+    for activity in experiences.get("activities", []):
+        if activity.get("offerId"):
+            items.append(_booking_item("ACTIVITY", activity, activity.get("title", "Actividad")))
+
+    return items
+
+
 def itinerary_builder(state: TravelState) -> dict:
-    errors = list(state.get("errors", []))
+    # Solo los errores nuevos de este nodo: LangGraph los suma al estado.
+    errors = []
     # Lo que no cabe en el horario no daña el plan: queda como aviso.
     warnings = []
 
@@ -252,7 +325,7 @@ def itinerary_builder(state: TravelState) -> dict:
             if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost < 0:
                 raise ValueError("El costo del transporte de ida no es válido.")
 
-            if not _schedule_event(
+            _add_transport_event(
                 day=days[0],
                 trip_id=trip_id,
                 title=f"Viaje de {origin} a {destination}",
@@ -263,12 +336,9 @@ def itinerary_builder(state: TravelState) -> dict:
                 event_type=event_type,
                 location=f"{origin} - {destination}",
                 cost=float(cost),
-                preferred_time=time(8, 0),
+                start_time=_departure_time(route, time(8, 0)),
                 duration_hours=duration,
-            ):
-                raise ValueError(
-                    "No se pudo programar el transporte de ida en el primer día."
-                )
+            )
 
         # Transporte de regreso: se programa en el último día.
         if inbound:
@@ -284,7 +354,7 @@ def itinerary_builder(state: TravelState) -> dict:
             if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost < 0:
                 raise ValueError("El costo del transporte de regreso no es válido.")
 
-            if not _schedule_event(
+            _add_transport_event(
                 day=days[-1],
                 trip_id=trip_id,
                 title=f"Regreso de {destination} a {origin}",
@@ -295,12 +365,9 @@ def itinerary_builder(state: TravelState) -> dict:
                 event_type=event_type,
                 location=f"{destination} - {origin}",
                 cost=float(cost),
-                preferred_time=time(16, 0),
+                start_time=_departure_time(route, time(16, 0)),
                 duration_hours=duration,
-            ):
-                raise ValueError(
-                    "No se pudo programar el transporte de regreso en el último día."
-                )
+            )
 
         # Se utilizan las recomendaciones que dejó el budget_agent.
         activities = experiences.get("activities", [])
@@ -401,7 +468,7 @@ def itinerary_builder(state: TravelState) -> dict:
             "title": f"Viaje a {destination}",
         }
 
-        messages = list(state.get("messages", []))
+        messages = []
         messages.append("Itinerario construido correctamente.")
         messages.extend(warnings)
 
@@ -414,6 +481,7 @@ def itinerary_builder(state: TravelState) -> dict:
                 "endDate": end_date.isoformat(),
                 "days": days,
             },
+            "suggestedBookingItems": _suggested_booking_items(state),
             "messages": messages,
             "errors": errors,
         }

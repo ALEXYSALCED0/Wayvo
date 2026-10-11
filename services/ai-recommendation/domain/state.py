@@ -1,4 +1,5 @@
-from typing import Any, Literal, TypedDict
+import operator
+from typing import Annotated, Any, Literal, TypedDict
 
 
 TravelStyle = Literal[
@@ -72,6 +73,9 @@ class TravelState(TypedDict, total=False):
     itinerary: dict[str, Any]
     suggestedBookingItems: list[dict[str, Any]]
 
-    # Seguimiento de ejecución
-    messages: list[str]
-    errors: list[str]
+    # Seguimiento de ejecución.
+    # Varios agentes corren en paralelo y escriben estas listas al mismo tiempo:
+    # el reducer operator.add le dice a LangGraph que las concatene.
+    # Por eso cada agente devuelve solo sus mensajes/errores nuevos.
+    messages: Annotated[list[str], operator.add]
+    errors: Annotated[list[str], operator.add]
