@@ -94,6 +94,7 @@ services:
       NODE_ENV: development
       DATABASE_URL: "postgresql://wayvo:wayvo@provider-db:5432/provider_db?schema=public"
       SIMULATE_FAILURE_MODE: normal
+      EXTERNAL_PROVIDERS_MODE: mock
     ports:
       - "3002:3002"
     depends_on:
