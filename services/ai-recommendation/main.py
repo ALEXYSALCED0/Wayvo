@@ -98,6 +98,7 @@ class ChatHistoryMessage(BaseModel):
 
 class ChatContext(BaseModel):
     currentDestination: str | None = None
+    destination: str | None = None
     budgetCategory: str | None = None
     travelStyle: str | None = None
 

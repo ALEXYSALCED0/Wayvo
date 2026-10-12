@@ -39,43 +39,103 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     return 'Actividad / Tour Guiado';
   };
 
-  const getExternalLink = () => {
-    const title = encodeURIComponent(event.title || 'actividad');
-    const dest = encodeURIComponent(destination || '');
-    const type = (event as any).type;
-    if (type === 'FLIGHT' || type === 'TRANSPORT') {
-      return {
-        url: `https://www.google.com/travel/flights?q=vuelos+a+${dest}`,
-        label: 'Ver Vuelos en Google Flights',
-        icon: 'flight_takeoff',
-      };
-    }
+  const titleRaw = event.title || 'experiencia';
+  const tagSafe = titleRaw.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const type = (event as any).type;
+
+  // Enlaces directos según tipo: Booking.com, Hoteles.com, Web oficial o Redes Sociales (Instagram / Maps / TripAdvisor)
+  const getActionLinks = () => {
     if (type === 'HOTEL' || type === 'ACCOMMODATION') {
-      return {
-        url: `https://www.google.com/travel/hotels?q=${title}+${dest}`,
-        label: 'Ver en Google Travel Hotels',
-        icon: 'hotel',
-      };
+      return [
+        {
+          label: 'Reservar en Booking.com',
+          url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(titleRaw + ' ' + destination)}`,
+          icon: 'hotel',
+          color: 'bg-primary text-on-primary',
+        },
+        {
+          label: 'Ver en Hoteles.com',
+          url: `https://www.hoteles.com/Hotel-Search?destination=${encodeURIComponent(titleRaw + ' ' + destination)}`,
+          icon: 'travel_explore',
+          color: 'bg-surface-container text-primary',
+        },
+        {
+          label: 'Ver en Google Travel Hotels',
+          url: `https://www.google.com/travel/hotels/${encodeURIComponent(destination)}`,
+          icon: 'open_in_new',
+          color: 'bg-surface-container text-primary',
+        },
+      ];
     }
+
+    if (type === 'FLIGHT' || type === 'TRANSPORT') {
+      return [
+        {
+          label: 'Buscar Vuelo en Google Flights',
+          url: `https://www.google.com/travel/flights?q=vuelos+a+${encodeURIComponent(destination)}`,
+          icon: 'flight_takeoff',
+          color: 'bg-primary text-on-primary',
+        },
+        {
+          label: 'Comparar en Skyscanner',
+          url: `https://www.skyscanner.net/transport/flights/`,
+          icon: 'travel_explore',
+          color: 'bg-surface-container text-primary',
+        },
+      ];
+    }
+
     if (type === 'MEAL') {
-      return {
-        url: `https://www.google.com/maps/search/?api=1&query=${title}+${dest}`,
-        label: 'Ver Menú / Ubicación en Maps',
-        icon: 'restaurant',
-      };
+      return [
+        {
+          label: 'Menú y Reseñas en Google Maps',
+          url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(titleRaw + ' ' + destination)}`,
+          icon: 'restaurant',
+          color: 'bg-primary text-on-primary',
+        },
+        {
+          label: 'Ver en Instagram / Redes Sociales',
+          url: `https://www.instagram.com/explore/tags/${tagSafe}/`,
+          icon: 'photo_camera',
+          color: 'bg-secondary-fixed text-on-secondary-fixed',
+        },
+        {
+          label: 'Ficha en TripAdvisor',
+          url: `https://www.tripadvisor.co/Search?q=${encodeURIComponent(titleRaw + ' ' + destination)}`,
+          icon: 'reviews',
+          color: 'bg-surface-container text-primary',
+        },
+      ];
     }
-    return {
-      url: `https://www.google.com/search?q=${title}+${dest}+tickets+reservas`,
-      label: 'Ver Información y Reservas',
-      icon: 'open_in_new',
-    };
+
+    // Actividades, Tours y Museos
+    return [
+      {
+        label: 'Sitio Web Oficial & Entradas',
+        url: `https://www.google.com/search?q=${encodeURIComponent(titleRaw + ' ' + destination + ' sitio web oficial entradas tickets')}`,
+        icon: 'confirmation_number',
+        color: 'bg-primary text-on-primary',
+      },
+      {
+        label: 'Ver en Instagram / Redes Sociales',
+        url: `https://www.instagram.com/explore/tags/${tagSafe}/`,
+        icon: 'photo_camera',
+        color: 'bg-secondary-fixed text-on-secondary-fixed',
+      },
+      {
+        label: 'Ver Tours en TripAdvisor / Viator',
+        url: `https://www.tripadvisor.co/Search?q=${encodeURIComponent(titleRaw + ' ' + destination)}`,
+        icon: 'reviews',
+        color: 'bg-surface-container text-primary',
+      },
+    ];
   };
 
-  const externalLink = getExternalLink();
+  const actionLinks = getActionLinks();
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-outline-variant/30 flex flex-col">
+      <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-outline-variant/30 flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="p-5 bg-surface-container-low border-b border-outline-variant/20 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -100,12 +160,12 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[70vh] text-xs">
+        <div className="p-6 flex flex-col gap-4 overflow-y-auto text-xs">
           {/* Main Description */}
           <div className="p-3.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/20">
-            <span className="font-bold text-primary block mb-1">Descripción de la Experiencia:</span>
+            <span className="font-bold text-primary block mb-1">Descripción:</span>
             <p className="text-on-surface-variant leading-relaxed">
-              {event.description || 'Detalle reservado y coordinado por el motor de inteligencia de Wayvo.'}
+              {event.description || 'Experiencia organizada y sincronizada dentro de tu itinerario de viaje.'}
             </p>
           </div>
 
@@ -115,7 +175,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 flex flex-col gap-1">
               <span className="text-[11px] text-on-surface-variant flex items-center gap-1">
                 <span className="material-symbols-outlined text-[15px] text-secondary">schedule</span>
-                Horario Asignado
+                Horario
               </span>
               <span className="font-mono font-bold text-primary">
                 {event.time || (event as any).startTime || 'Horario Flexible'}
@@ -126,7 +186,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 flex flex-col gap-1">
               <span className="text-[11px] text-on-surface-variant flex items-center gap-1">
                 <span className="material-symbols-outlined text-[15px] text-secondary">payments</span>
-                Costo Estimado
+                Costo
               </span>
               <span className="font-mono font-bold text-primary">
                 {formatCOP(event.details?.price)}
@@ -139,8 +199,8 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                 <span className="material-symbols-outlined text-[15px] text-secondary">business</span>
                 Operador Verificado
               </span>
-              <span className="font-semibold text-primary">
-                {event.details?.provider || 'Wayvo Curated Partners'}
+              <span className="font-semibold text-primary truncate">
+                {event.details?.provider || 'Wayvo Verified Partners'}
               </span>
             </div>
 
@@ -153,6 +213,31 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
               <span className="font-semibold text-primary truncate" title={(event.details as any)?.location || destination}>
                 {(event.details as any)?.location || (event as any).location || destination}
               </span>
+            </div>
+          </div>
+
+          {/* Enlaces directos para reservar y redes sociales */}
+          <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2.5">
+            <span className="font-bold text-primary text-xs flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px] text-secondary">link</span>
+              Enlaces Directos de Reserva y Redes Oficiales
+            </span>
+            <div className="flex flex-col gap-2">
+              {actionLinks.map((link, idx) => (
+                <a
+                  key={idx}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center justify-between p-2.5 rounded-lg text-xs font-semibold transition-all hover:scale-[1.01] shadow-xs border border-outline-variant/30 ${link.color}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px]">{link.icon}</span>
+                    <span>{link.label}</span>
+                  </div>
+                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                </a>
+              ))}
             </div>
           </div>
 
@@ -185,21 +270,12 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 bg-surface-container-low border-t border-outline-variant/20 flex items-center justify-between gap-3">
-          <a
-            href={externalLink.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary hover:text-on-secondary text-xs font-semibold transition-all shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[16px]">{externalLink.icon}</span>
-            <span>{externalLink.label}</span>
-          </a>
+        <div className="p-4 bg-surface-container-low border-t border-outline-variant/20 flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-semibold hover:bg-secondary transition-colors"
+            className="px-6 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-semibold hover:bg-secondary transition-colors"
           >
-            Cerrar
+            Cerrar Ficha
           </button>
         </div>
       </div>

@@ -65,6 +65,6 @@ proxyRouter.use(
   createServiceProxy({
     serviceName: 'ai-recommendation',
     target: config.AI_SERVICE_URL,
-    mockFallbackHandler: aiMockFallback,
+    timeoutMs: 45000,
   }),
 );

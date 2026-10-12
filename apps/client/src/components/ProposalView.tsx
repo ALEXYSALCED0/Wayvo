@@ -261,11 +261,13 @@ export const ProposalView: React.FC = () => {
                 <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
                   <span className="text-on-surface-variant">{tripDraft.travelers || 2} Pasajeros</span>
                   <span className="font-mono font-bold text-primary">
-                    {formatCOP(Math.round((budget?.breakdown?.transport || 1200000) / 2))}
+                    {formatCOP(
+                      (tripDraft.destination.toLowerCase().includes('miami') ? 720000 : 320000) * (tripDraft.travelers || 2)
+                    )}
                   </span>
                 </div>
                 <a
-                  href={`https://www.google.com/travel/flights?q=vuelos+de+${encodeURIComponent(tripDraft.origin || 'Bogota')}+a+${encodeURIComponent(tripDraft.destination)}`}
+                  href={`https://www.google.com/travel/flights?q=vuelos+de+${encodeURIComponent(tripDraft.origin || 'Bogota')}+a+${encodeURIComponent(tripDraft.destination)}+del+${tripDraft.startDate}+al+${tripDraft.endDate}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all mt-3 w-full border border-outline-variant/30"
@@ -296,11 +298,13 @@ export const ProposalView: React.FC = () => {
                 <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
                   <span className="text-on-surface-variant">{tripDraft.travelers || 2} Pasajeros</span>
                   <span className="font-mono font-bold text-primary">
-                    {formatCOP(Math.round((budget?.breakdown?.transport || 1200000) / 2))}
+                    {formatCOP(
+                      (tripDraft.destination.toLowerCase().includes('miami') ? 720000 : 320000) * (tripDraft.travelers || 2)
+                    )}
                   </span>
                 </div>
                 <a
-                  href={`https://www.google.com/travel/flights?q=vuelos+de+${encodeURIComponent(tripDraft.destination)}+a+${encodeURIComponent(tripDraft.origin || 'Bogota')}`}
+                  href={`https://www.google.com/travel/flights?q=vuelos+de+${encodeURIComponent(tripDraft.destination)}+a+${encodeURIComponent(tripDraft.origin || 'Bogota')}+del+${tripDraft.startDate}+al+${tripDraft.endDate}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all mt-3 w-full border border-outline-variant/30"
@@ -329,19 +333,33 @@ export const ProposalView: React.FC = () => {
                 <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
                   <span className="text-on-surface-variant">{days.length > 1 ? days.length - 1 : 1} Noches</span>
                   <span className="font-mono font-bold text-primary">
-                    {formatCOP(budget?.breakdown?.accommodation || 1260000)}
+                    {formatCOP(
+                      (tripDraft.destination.toLowerCase().includes('miami') ? 480000 : 380000) * (days.length > 1 ? days.length - 1 : 1)
+                    )}
                   </span>
                 </div>
-                <a
-                  href={`https://www.google.com/travel/hotels?q=hoteles+en+${encodeURIComponent(tripDraft.destination)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all mt-3 w-full border border-outline-variant/30"
-                >
-                  <span className="material-symbols-outlined text-[15px] text-secondary">hotel</span>
-                  <span>Ver Hospedaje en Google Travel</span>
-                  <span className="material-symbols-outlined text-[13px] ml-auto">open_in_new</span>
-                </a>
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <a
+                    href={`https://www.booking.com/searchresults.html?ss=${encodeURIComponent(tripDraft.destination)}&checkin=${tripDraft.startDate}&checkout=${tripDraft.endDate}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-secondary text-xs font-semibold transition-all shadow-xs"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">hotel</span>
+                    <span>Booking.com</span>
+                    <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                  </a>
+                  <a
+                    href={`https://www.hoteles.com/Hotel-Search?destination=${encodeURIComponent(tripDraft.destination)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all border border-outline-variant/30"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">travel_explore</span>
+                    <span>Hoteles.com</span>
+                    <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                  </a>
+                </div>
               </div>
 
               {/* Experiences Card */}
@@ -365,16 +383,28 @@ export const ProposalView: React.FC = () => {
                     {formatCOP(budget?.breakdown?.activities || 700000)}
                   </span>
                 </div>
-                <a
-                  href={`https://www.google.com/search?q=tours+y+actividades+en+${encodeURIComponent(tripDraft.destination)}+tickets`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all mt-3 w-full border border-outline-variant/30"
-                >
-                  <span className="material-symbols-outlined text-[15px] text-secondary">confirmation_number</span>
-                  <span>Ver Entradas & Tours Oficiales</span>
-                  <span className="material-symbols-outlined text-[13px] ml-auto">open_in_new</span>
-                </a>
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <a
+                    href={`https://www.google.com/search?q=tours+y+actividades+en+${encodeURIComponent(tripDraft.destination)}+tickets`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-secondary text-xs font-semibold transition-all shadow-xs"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">confirmation_number</span>
+                    <span>Entradas Web</span>
+                    <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                  </a>
+                  <a
+                    href={`https://www.instagram.com/explore/tags/${encodeURIComponent(tripDraft.destination.toLowerCase().replace(/[^a-z0-9]/g, ''))}/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary-fixed hover:bg-secondary hover:text-on-secondary text-primary text-xs font-semibold transition-all border border-outline-variant/30"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">photo_camera</span>
+                    <span>Instagram</span>
+                    <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                  </a>
+                </div>
               </div>
             </div>
           </section>

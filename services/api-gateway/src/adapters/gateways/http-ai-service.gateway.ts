@@ -1,5 +1,4 @@
 import { AIPlanRecommendationInput, AIPlanRecommendationResult, CORRELATION_ID_HEADER } from '@wayvo/contracts';
-import { generateFallbackPlan } from '../../application/facades/fallback-plan.generator';
 import { AiServicePort } from '../../application/ports/ai-service.port';
 
 export class HttpAiServiceGateway implements AiServicePort {
@@ -30,15 +29,12 @@ export class HttpAiServiceGateway implements AiServicePort {
         return body.data || body;
       }
 
-      console.warn(
-        `[HttpAiServiceGateway] ai-recommendation returned status ${response.status}. Using contract-compliant fallback plan.`,
-      );
-      return generateFallbackPlan(input);
+      const errBody = (await response.json().catch(() => ({}))) as any;
+      const errMsg = errBody.error?.message || errBody.detail?.message || `Error ${response.status} en el servicio de IA`;
+      throw new Error(`[AI Service] ${errMsg}`);
     } catch (err: any) {
-      console.warn(
-        `[HttpAiServiceGateway] ai-recommendation is unreachable or in development (${err.message}). Using contract-compliant fallback plan.`,
-      );
-      return generateFallbackPlan(input);
+      console.error(`[HttpAiServiceGateway] ai-recommendation error: ${err.message}`);
+      throw new Error(`Error con el servidor: no se pudo completar la consulta de IA (${err.message})`);
     }
   }
 }

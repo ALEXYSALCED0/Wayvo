@@ -58,7 +58,7 @@ def chat_agent(
         raise ChatAgentError("Falta configurar GOOGLE_API_KEY para el chat.")
 
     context = context or {}
-    destination = context.get("currentDestination")
+    destination = context.get("currentDestination") or context.get("destination")
 
     prompt = f"""
 Eres el asistente de viajes de Wayvo. Das sugerencias e inspiración
@@ -85,7 +85,7 @@ Reglas:
 
     try:
         llm = ChatGoogleGenerativeAI(
-            model="gemini-3.8-flash",
+            model="gemini-3.5-flash",
             temperature=0.7,
             google_api_key=api_key,
         )

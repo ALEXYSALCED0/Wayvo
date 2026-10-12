@@ -21,7 +21,7 @@ export function createApp(deps: AppDependencies = {}): Express {
   const app = express();
 
   // Initialize TripFacade if not injected
-  const aiGateway = new HttpAiServiceGateway(config.AI_SERVICE_URL, config.HTTP_TIMEOUT_MS);
+  const aiGateway = new HttpAiServiceGateway(config.AI_SERVICE_URL, 45000);
   const bookingGateway = new HttpBookingServiceGateway(config.BOOKING_SERVICE_URL, config.HTTP_TIMEOUT_MS);
   const tripFacade = deps.tripFacade || new TripFacade(aiGateway, bookingGateway);
   const tripFacadeController = new TripFacadeController(tripFacade);

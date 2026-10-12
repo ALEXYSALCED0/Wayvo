@@ -25,7 +25,7 @@ export function createServiceProxy(options: ServiceProxyOptions): RequestHandler
     changeOrigin: true,
     timeout: timeoutMs,
     proxyTimeout: timeoutMs,
-    pathRewrite: pathRewrite || ((path, req) => req.originalUrl || path),
+    pathRewrite: pathRewrite || ((path, req) => (req as any).originalUrl || path),
     on: {
       proxyReq: (proxyReq, req, res) => {
         // 1. Inject distributed tracing correlation ID
@@ -43,29 +43,13 @@ export function createServiceProxy(options: ServiceProxyOptions): RequestHandler
           `[API Gateway] Connection error to ${serviceName} (${targetUrl}): ${err.message}`,
         );
 
-        // If mock fallback is enabled and available, delegate to it
-        if (config.ENABLE_MOCK_FALLBACK && mockFallbackHandler) {
-          console.log(`[API Gateway] Using mock fallback for ${serviceName}`);
-          return mockFallbackHandler(expressReq, expressRes, (nextErr) => {
-            const error = nextErr || new ServiceUnavailableError(serviceName, target, err.message);
-            expressRes.status(error.statusCode || 503).json({
-              success: false,
-              error: {
-                code: error.code || 'SERVICE_UNAVAILABLE',
-                message: error.message,
-                details: error.details,
-              },
-            });
-          });
-        }
-
-        // Return homogeneous 503 error
+        // Return homogeneous 503 Service Unavailable error
         const unavailableError = new ServiceUnavailableError(serviceName, target, err.message);
         expressRes.status(unavailableError.statusCode).json({
           success: false,
           error: {
             code: unavailableError.code,
-            message: unavailableError.message,
+            message: `Servicio no disponible: no fue posible conectar con ${serviceName}.`,
             details: unavailableError.details,
           },
         });

@@ -57,23 +57,6 @@ export class HttpBookingServiceGateway implements BookingServicePort {
       );
     } catch (err: any) {
       if (err instanceof BadGatewayError) throw err;
-
-      // If mock fallback is enabled and booking-service is offline, provide a valid fallback Saga
-      if (config.ENABLE_MOCK_FALLBACK) {
-        console.warn(
-          `[HttpBookingServiceGateway] booking-service is unreachable (${err.message}). Using fallback Saga response.`,
-        );
-        return {
-          correlationId: correlationId || `fallback-saga-${Date.now()}`,
-          status: 'CONFIRMED',
-          tripId: `trip-${Date.now()}`,
-          bookingId: `bk-${Date.now().toString(36)}`,
-          reservationCode: `RES-WAYVO-${Date.now().toString(36).toUpperCase()}`,
-          failedStep: null,
-          reason: null,
-        };
-      }
-
       throw new ServiceUnavailableError('booking-service', url, err.message);
     }
   }
