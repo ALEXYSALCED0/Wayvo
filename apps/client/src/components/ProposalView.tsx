@@ -275,67 +275,91 @@ export const ProposalView: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex flex-col gap-2 mt-3">
-                  <div className="grid grid-cols-2 gap-2">
+                  <a
+                    href={getKayakFlightUrl({
+                      origin: tripDraft.origin,
+                      destination: tripDraft.destination,
+                      startDate: tripDraft.startDate,
+                      endDate: tripDraft.endDate,
+                      travelers: tripDraft.travelers || 2,
+                      airline: 'ALL',
+                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-secondary text-xs font-bold transition-all shadow-xs"
+                    title="Buscar y comparar todas las aerolíneas en Kayak con ruta, fechas y pasajeros precargados"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">travel_explore</span>
+                    <span>Buscar Vuelos en Kayak (Todas las Aerolíneas)</span>
+                    <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                  </a>
+
+                  <div className="flex items-center justify-between text-[11px] text-on-surface-variant px-1 pt-0.5">
                     <a
-                      href={getKayakFlightUrl({
+                      href={getDespegarFlightUrl({
                         origin: tripDraft.origin,
                         destination: tripDraft.destination,
                         startDate: tripDraft.startDate,
                         endDate: tripDraft.endDate,
                         travelers: tripDraft.travelers || 2,
-                        airline: 'AVIANCA',
                       })}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-primary text-on-primary hover:bg-secondary text-xs font-semibold transition-all shadow-xs"
-                      title="Ver vuelos Avianca con ruta, fechas y pasajeros ya cargados en Kayak"
+                      className="hover:text-primary hover:underline flex items-center gap-0.5 font-medium"
                     >
-                      <span className="material-symbols-outlined text-[14px]">flight_takeoff</span>
-                      <span>Vuelos Avianca</span>
-                      <span className="material-symbols-outlined text-[12px]">open_in_new</span>
-                    </a>
-                    <a
-                      href={getKayakFlightUrl({
-                        origin: tripDraft.origin,
-                        destination: tripDraft.destination,
-                        startDate: tripDraft.startDate,
-                        endDate: tripDraft.endDate,
-                        travelers: tripDraft.travelers || 2,
-                        airline: 'LATAM',
-                      })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all border border-outline-variant/30"
-                      title="Ver vuelos LATAM con ruta, fechas y pasajeros ya cargados en Kayak"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">flight</span>
-                      <span>Vuelos LATAM</span>
-                      <span className="material-symbols-outlined text-[12px]">open_in_new</span>
-                    </a>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-on-surface-variant px-1">
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[13px] text-secondary">check_circle</span>
-                      <span>Ruta y fechas precargadas</span>
-                    </span>
-                    <a
-                      href={OFFICIAL_AIRLINE_PORTALS.AVIANCA.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-primary hover:underline flex items-center gap-0.5"
-                    >
-                      <span>Web Avianca</span>
+                      <span>Ver en Despegar</span>
                       <span className="material-symbols-outlined text-[11px]">open_in_new</span>
                     </a>
-                    <a
-                      href={OFFICIAL_AIRLINE_PORTALS.LATAM.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-primary hover:underline flex items-center gap-0.5"
-                    >
-                      <span>Web LATAM</span>
-                      <span className="material-symbols-outlined text-[11px]">open_in_new</span>
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <span className="text-secondary font-mono text-[10px]">Filtros:</span>
+                      <a
+                        href={getKayakFlightUrl({
+                          origin: tripDraft.origin,
+                          destination: tripDraft.destination,
+                          startDate: tripDraft.startDate,
+                          endDate: tripDraft.endDate,
+                          travelers: tripDraft.travelers || 2,
+                          airline: 'AVIANCA',
+                        })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-primary hover:underline text-[10px]"
+                      >
+                        Avianca
+                      </a>
+                      <span>•</span>
+                      <a
+                        href={getKayakFlightUrl({
+                          origin: tripDraft.origin,
+                          destination: tripDraft.destination,
+                          startDate: tripDraft.startDate,
+                          endDate: tripDraft.endDate,
+                          travelers: tripDraft.travelers || 2,
+                          airline: 'LATAM',
+                        })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-primary hover:underline text-[10px]"
+                      >
+                        LATAM
+                      </a>
+                      <span>•</span>
+                      <a
+                        href={getKayakFlightUrl({
+                          origin: tripDraft.origin,
+                          destination: tripDraft.destination,
+                          startDate: tripDraft.startDate,
+                          endDate: tripDraft.endDate,
+                          travelers: tripDraft.travelers || 2,
+                          airline: 'WINGO',
+                        })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-primary hover:underline text-[10px]"
+                      >
+                        Wingo
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -354,7 +378,7 @@ export const ProposalView: React.FC = () => {
                     {tripDraft.destination} ({resolveAirportCode(tripDraft.destination)}) ➔ {tripDraft.origin || 'Bogotá'} ({resolveAirportCode(tripDraft.origin)})
                   </h4>
                   <p className="text-xs text-on-surface-variant mb-4">
-                    Avianca / LATAM • Vuelo de retorno confirmado. Asientos contiguos reservados.
+                    Vuelo de retorno con todas las aerolíneas disponibles. Equipaje y asientos contiguos.
                   </p>
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
@@ -366,53 +390,29 @@ export const ProposalView: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex flex-col gap-2 mt-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <a
-                      href={getKayakFlightUrl({
-                        origin: tripDraft.origin,
-                        destination: tripDraft.destination,
-                        startDate: tripDraft.startDate,
-                        endDate: tripDraft.endDate,
-                        travelers: tripDraft.travelers || 2,
-                        airline: 'AVIANCA',
-                      })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-primary text-on-primary hover:bg-secondary text-xs font-semibold transition-all shadow-xs"
-                      title="Ver vuelos Avianca de retorno con fechas y pasajeros cargados"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">flight_land</span>
-                      <span>Vuelos Avianca</span>
-                      <span className="material-symbols-outlined text-[12px]">open_in_new</span>
-                    </a>
-                    <a
-                      href={getKayakFlightUrl({
-                        origin: tripDraft.origin,
-                        destination: tripDraft.destination,
-                        startDate: tripDraft.startDate,
-                        endDate: tripDraft.endDate,
-                        travelers: tripDraft.travelers || 2,
-                        airline: 'LATAM',
-                      })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all border border-outline-variant/30"
-                      title="Ver vuelos LATAM de retorno con fechas y pasajeros cargados"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">flight</span>
-                      <span>Vuelos LATAM</span>
-                      <span className="material-symbols-outlined text-[12px]">open_in_new</span>
-                    </a>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-on-surface-variant px-1">
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[13px] text-secondary">sync_alt</span>
-                      <span>Itinerario ida y vuelta</span>
-                    </span>
+                  <a
+                    href={getKayakFlightUrl({
+                      origin: tripDraft.destination,
+                      destination: tripDraft.origin,
+                      startDate: tripDraft.endDate,
+                      travelers: tripDraft.travelers || 2,
+                      airline: 'ALL',
+                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-secondary text-xs font-bold transition-all shadow-xs"
+                    title="Buscar y comparar vuelos de regreso en Kayak con ruta, fechas y pasajeros precargados"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">flight_land</span>
+                    <span>Buscar Vuelo de Retorno en Kayak (Todas las Aerolíneas)</span>
+                    <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                  </a>
+
+                  <div className="flex items-center justify-between text-[11px] text-on-surface-variant px-1 pt-0.5">
                     <a
                       href={getDespegarFlightUrl({
-                        origin: tripDraft.origin,
-                        destination: tripDraft.destination,
+                        origin: tripDraft.destination,
+                        destination: tripDraft.origin,
                         startDate: tripDraft.startDate,
                         endDate: tripDraft.endDate,
                         travelers: tripDraft.travelers || 2,
@@ -421,9 +421,10 @@ export const ProposalView: React.FC = () => {
                       rel="noopener noreferrer"
                       className="hover:text-primary hover:underline flex items-center gap-0.5 font-medium"
                     >
-                      <span>Ver en Despegar</span>
+                      <span>Ver Retorno en Despegar</span>
                       <span className="material-symbols-outlined text-[11px]">open_in_new</span>
                     </a>
+                    <span className="text-secondary font-mono text-[10px]">Cualquier aerolínea</span>
                   </div>
                 </div>
               </div>

@@ -17,11 +17,11 @@ VALID_MODES = {
 
 
 def transport_agent(state: TravelState) -> dict:
-    api_key = os.getenv("GOOGLE_API_KEY")
+    from application.llm_client import has_ai_key
 
-    if not api_key:
+    if not has_ai_key():
         return {
-            "errors": ["Falta configurar GOOGLE_API_KEY para transport_agent."]
+            "errors": ["Falta configurar una clave de IA (GOOGLE_API_KEY, GROQ_API_KEY o OPENROUTER_API_KEY)."]
         }
 
     origin = state.get("origin", "")

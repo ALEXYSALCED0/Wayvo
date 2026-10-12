@@ -278,11 +278,12 @@ VERIFIED_DESTINATION_CATALOG = {
 
 
 def activities_food_agent(state: TravelState) -> dict:
-    api_key = os.getenv("GOOGLE_API_KEY")
+    from application.llm_client import has_ai_key
+    from application.web_search import search_destination_live, format_web_context
 
-    if not api_key:
+    if not has_ai_key():
         return {
-            "errors": ["Falta configurar GOOGLE_API_KEY para activities_food_agent."]
+            "errors": ["Falta configurar una clave de IA (GOOGLE_API_KEY, GROQ_API_KEY o OPENROUTER_API_KEY)."]
         }
 
     assessment = state.get("psychologicalAssessment", {})
@@ -290,7 +291,11 @@ def activities_food_agent(state: TravelState) -> dict:
     travelers = state.get("travelers", 1)
     currency = state.get("currency", "COP")
 
-    # Identificar si el destino cuenta con catálogo verificado
+    # 1. Búsqueda web en tiempo real con DDGS (descubre destinos desconocidos o escondidos)
+    web_results = search_destination_live(destination, max_results=4)
+    web_context = format_web_context(web_results)
+
+    # 2. Catálogo curado de respaldo para ciudades principales
     dest_norm = (
         destination.lower()
         .replace("á", "a")
@@ -304,17 +309,18 @@ def activities_food_agent(state: TravelState) -> dict:
     for city_key, city_data in VERIFIED_DESTINATION_CATALOG.items():
         if city_key in dest_norm:
             catalog_context = f"""
-ESTABLECIMIENTOS Y OPERADORES VERIFICADOS EN {destination.upper()} (Usa preferentemente estos para garantizar que no existan datos ficticios):
-Restaurantes verificados:
+REFERENCIAS DE ESTABLECIMIENTOS TOP EN {destination.upper()}:
+Restaurantes reconocidos:
 {json.dumps(city_data["restaurants"], ensure_ascii=False, indent=2)}
 
-Actividades y operadores verificados:
+Actividades y operadores reconocidos:
 {json.dumps(city_data["activities"], ensure_ascii=False, indent=2)}
 """
             break
 
     prompt = f"""
-Eres un concierge local experto en {destination}. Genera recomendaciones gastronómicas y actividades auténticas, prestigiosas y específicas.
+Eres un concierge local y guía de viajes experto en {destination}.
+Genera recomendaciones gastronómicas y actividades reales, auténticas y específicas para este destino.
 
 Datos del viaje:
 - Destino: {destination}
@@ -326,13 +332,15 @@ Datos del viaje:
 - Restricciones alimentarias: {state.get("dietaryRestrictions", [])}
 - Moneda: {currency}
 
+{web_context}
+
 {catalog_context}
 
 REGLAS CRÍTICAS DE CALIDAD:
-1. En gastronomía, DEBES nombrar un RESTAURANTE O ESTABLECIMIENTO REAL con su nombre propio (ej: "Restaurante Celele", "La Cocina de Pepina", "La Cevicheria", "Pastelería Mila"). NUNCA uses nombres ficticios o solo el nombre de un plato sin establecimiento.
+1. En gastronomía, DEBES nombrar un RESTAURANTE O ESTABLECIMIENTO REAL con su nombre propio (apóyate en la información web de arriba para extraer lugares reales de {destination}). NUNCA uses nombres ficticios o solo el nombre de un plato sin establecimiento.
 2. Cada comida debe tener su 'venueName' (el restaurante) y su 'dish' (el plato insignia o especialidad).
-3. Si el restaurante tiene sitio web oficial o cuenta de Instagram real y confirmada, inclúyela; si no estás 100% seguro, usa null (el sistema generará el enlace verificado en Google Maps). NO inventes dominios.
-4. En actividades, nombra la atracción y el OPERADOR O MUSEO REAL (ej: "Castillo San Felipe de Barajas" operado por "Fortificaciones de Cartagena").
+3. Si el restaurante tiene sitio web oficial en los resultados web, inclúyelo en 'websiteUrl'; si no estás 100% seguro, usa null (el sistema generará el enlace verificado en Google Maps). NO inventes dominios.
+4. En actividades, nombra la atracción y el OPERADOR O MUSEO REAL de {destination}.
 
 Devuelve EXCLUSIVAMENTE JSON válido con esta estructura:
 {{
