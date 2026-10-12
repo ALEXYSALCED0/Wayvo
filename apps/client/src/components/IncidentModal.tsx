@@ -8,7 +8,7 @@ interface IncidentModalProps {
 }
 
 export const IncidentModal: React.FC<IncidentModalProps> = ({ tripId, onClose }) => {
-  const { setActiveTrip, activeTrip } = useApp();
+  const { setActiveTrip, activeTrip, appMode } = useApp();
 
   const [incidentType, setIncidentType] = useState('FLIGHT_DELAY');
   const [description, setDescription] = useState('Oleaje anómalo en bahía. Restricción preventiva de DIMAR.');
@@ -106,11 +106,15 @@ export const IncidentModal: React.FC<IncidentModalProps> = ({ tripId, onClose })
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-mono text-xs font-bold flex items-center gap-1.5 shadow-sm">
                 <span className="h-2 w-2 rounded-full bg-primary animate-ping"></span>
-                PATRÓN MEDIATOR • RESOLUCIÓN DESACOPLADA EN CALIENTE
+                {appMode === 'DEV'
+                  ? 'PATRÓN MEDIATOR • RESOLUCIÓN DESACOPLADA EN CALIENTE'
+                  : 'PROTECCIÓN ACTIVA DE VIAJE • AJUSTE EN TIEMPO REAL'}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-primary-container text-on-primary-container font-mono text-xs font-semibold">
-                TRIP SERVICE :3003
-              </span>
+              {appMode === 'DEV' && (
+                <span className="px-2.5 py-0.5 rounded-full bg-primary-container text-on-primary-container font-mono text-xs font-semibold">
+                  TRIP SERVICE :3003
+                </span>
+              )}
             </div>
             <button
               onClick={onClose}
@@ -122,10 +126,12 @@ export const IncidentModal: React.FC<IncidentModalProps> = ({ tripId, onClose })
 
           <div className="mt-2">
             <h2 className="text-xl md:text-2xl font-bold text-on-primary tracking-tight">
-              Mediador Autónomo de Incidencias: Reconfiguración de Itinerario
+              {appMode === 'DEV'
+                ? 'Mediador Autónomo de Incidencias: Reconfiguración de Itinerario'
+                : 'Asistente de Viaje: Ajuste Inmediato de tu Itinerario'}
             </h2>
             <p className="text-xs md:text-sm text-secondary-fixed mt-1">
-              Detectada alerta en nodo: <strong>Lancha Exprés Islas del Rosario</strong>. El Mediador desacopló el impacto y negoció alternativas de alto nivel sin romper tu reserva de la noche ni exceder tu presupuesto.
+              Detectada alerta en: <strong>Lancha Exprés Islas del Rosario</strong>. Wayvo seleccionó alternativas de alto nivel sin alterar tu reserva de la noche ni generar sobrecostos.
             </p>
           </div>
         </div>

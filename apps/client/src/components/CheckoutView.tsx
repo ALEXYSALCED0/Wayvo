@@ -148,14 +148,18 @@ export const CheckoutView: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-outline-variant/30 pb-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary font-mono text-xs uppercase tracking-wider font-semibold">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary text-xs uppercase tracking-wider font-semibold">
               <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
-              Saga Orchestration • Transacciones Distribuidas
+              {appMode === 'DEV' ? 'Saga Orchestration • Transacciones Distribuidas' : 'Confirmación Segura de Reserva'}
             </span>
           </div>
-          <h1 className="text-3xl font-bold text-primary">Saga Checkout en Vivo & Rollback</h1>
+          <h1 className="text-3xl font-bold text-primary">
+            {appMode === 'DEV' ? 'Saga Checkout en Vivo & Rollback' : 'Reserva de Vuelos y Hospedaje'}
+          </h1>
           <p className="text-sm text-on-surface-variant mt-1 max-w-2xl">
-            Orquestación atómica entre <strong>Trip Service</strong>, <strong>Booking Service</strong> y <strong>Provider Service</strong> con garantía de compensación automática ante fallos de inventario.
+            {appMode === 'DEV'
+              ? 'Orquestación atómica entre Trip Service, Booking Service y Provider Service con garantía de compensación automática ante fallos de inventario.'
+              : 'Verifica los detalles de tus vuelos y alojamiento antes de confirmar. Tu reserva está respaldada y protegida.'}
           </p>
         </div>
 
@@ -425,18 +429,20 @@ export const CheckoutView: React.FC = () => {
             {isProcessing ? (
               <>
                 <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
-                <span>Orquestando Saga Distribuida...</span>
+                <span>{appMode === 'DEV' ? 'Orquestando Saga Distribuida...' : 'Confirmando tu reserva segura...'}</span>
               </>
             ) : (
               <>
                 <span className="material-symbols-outlined text-[20px]">lock</span>
-                <span>Ejecutar Reserva con Saga Transaccional</span>
+                <span>{appMode === 'DEV' ? 'Ejecutar Reserva con Saga Transaccional' : 'Confirmar y Reservar Viaje'}</span>
               </>
             )}
           </button>
 
           <p className="text-[11px] text-on-surface-variant text-center">
-            Petición enrutada mediante el API Gateway Facade hacia el Saga Orchestrator de Joshua.
+            {appMode === 'DEV'
+              ? 'Petición enrutada mediante el API Gateway Facade hacia el Saga Orchestrator.'
+              : 'Transacción cifrada y protegida. Disponibilidad garantizada en tiempo real.'}
           </p>
         </div>
       </div>

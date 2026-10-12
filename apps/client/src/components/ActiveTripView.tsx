@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { IncidentModal } from './IncidentModal';
 
 export const ActiveTripView: React.FC = () => {
-  const { activeTrip, setCurrentView } = useApp();
+  const { activeTrip, setCurrentView, appMode } = useApp();
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [selectedDayFilter, setSelectedDayFilter] = useState('ALL');
 
@@ -85,7 +85,9 @@ export const ActiveTripView: React.FC = () => {
               {activeTrip.destination}, Colombia
             </h1>
             <p className="text-xs md:text-sm text-on-surface-variant">
-              Expedición Cultural Inteligente • Monitoreo Autónomo con Patrón Mediator
+              {appMode === 'DEV'
+                ? 'Expedición Cultural Inteligente • Monitoreo Autónomo con Patrón Mediator'
+                : 'Expedición Cultural Inteligente • Asistencia Proactiva 24/7'}
             </p>
             <div className="flex items-center gap-6 pt-1 text-xs text-on-surface">
               <span className="flex items-center gap-1.5">

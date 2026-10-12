@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 
 export const ProposalView: React.FC = () => {
-  const { planResult, setCurrentView } = useApp();
+  const { planResult, setCurrentView, appMode } = useApp();
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
 
   if (!planResult) {
@@ -52,9 +52,9 @@ export const ProposalView: React.FC = () => {
               <span className="material-symbols-outlined text-[18px]">calendar_today</span>
               <span>{tripDraft.startDate} — {tripDraft.endDate}</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-highest text-primary text-xs font-semibold">
               <span className="h-2 w-2 rounded-full bg-secondary animate-pulse"></span>
-              <span>LangGraph State: PROPOSAL_READY</span>
+              <span>{appMode === 'DEV' ? 'LangGraph State: PROPOSAL_READY' : 'Itinerario Personalizado Listo'}</span>
             </div>
           </div>
         </div>
