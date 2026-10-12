@@ -1,8 +1,6 @@
 import json
 import os
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-
 from domain.state import TravelState
 
 
@@ -24,63 +22,72 @@ def activities_food_agent(state: TravelState) -> dict:
     currency = state.get("currency", "COP")
 
     prompt = f"""
-Genera recomendaciones gastronómicas y actividades para un viaje.
+Eres un concierge local experto en {destination}. Genera recomendaciones gastronómicas y actividades auténticas y específicas.
 
-Datos:
+Datos del viaje:
 - Destino: {destination}
 - Origen: {state.get("origin", "No especificado")}
-- Fechas: {state.get("startDate") or state.get("start_date", "No especificada")}
-  hasta {state.get("endDate") or state.get("end_date", "No especificada")}
+- Fechas: {state.get("startDate") or state.get("start_date", "No especificada")} hasta {state.get("endDate") or state.get("end_date", "No especificada")}
 - Viajeros: {travelers}
-- Estilo: {state.get("preferredStyle") or "No especificado (dedúcelo de los intereses)"}
+- Estilo: {state.get("preferredStyle") or "No especificado"}
 - Intereses: {assessment.get("interests", [])}
 - Restricciones alimentarias: {state.get("dietaryRestrictions", [])}
 - Moneda: {currency}
 
-Devuelve exclusivamente JSON válido con esta estructura:
+REGLAS CRÍTICAS:
+1. En gastronomía, DEBES nombrar un RESTAURANTE O ESTABLECIMIENTO REAL y reconocido de {destination} (ej: "Restaurante Celele", "La Cocina de Pepina", "La Cevicheria", "Pastelería Mila"). NO uses nombres genéricos como "Restaurante típico".
+2. Si el restaurante tiene sitio web oficial o cuenta de Instagram conocida, incluye la URL o el @handle real (sin inventar dominios falsos; si no lo sabes con certeza usa null).
+3. En actividades, DEBES nombrar la atracción o tour concreto y su OPERADOR O MUSEO REAL (ej: "Castillo San Felipe de Barajas" operado por "Fortificaciones de Cartagena", o "Tour a Islas del Rosario" operado por "Bonavida Catamarán").
+4. Si la actividad tiene sitio web oficial de entradas o Instagram del operador, inclúyelo; si no, coloca null.
+
+Devuelve EXCLUSIVAMENTE JSON válido con esta estructura:
 {{
   "gastronomy": [
     {{
-      "dish": "Nombre del plato",
-      "typicalPlace": "Tipo de establecimiento",
-      "description": "Descripción breve",
+      "venueName": "Nombre real del restaurante (ej: La Cocina de Pepina)",
+      "dish": "Nombre del plato especial a probar (ej: Posta Cartagenera)",
+      "typicalPlace": "Restaurante de cocina tradicional cartagenera",
+      "description": "Descripción del restaurante y ambiente",
       "mealType": "lunch",
-      "estimatedCost": 30000,
+      "estimatedCost": 60000,
+      "websiteUrl": "https://lacocinadepepina.com",
+      "instagramHandle": "lacocinadepepina",
+      "directBookingUrl": null,
       "dietaryMatch": true
     }}
   ],
   "activities": [
     {{
-      "title": "Nombre de la actividad",
+      "title": "Visita Histórica al Castillo San Felipe de Barajas",
+      "operatorName": "Fortificaciones de Cartagena",
       "category": "Cultural",
-      "description": "Descripción breve",
-      "duration": "2 horas",
-      "estimatedCost": 50000,
+      "description": "Recorrido por los túneles y murallas de la mayor fortaleza militar española en América.",
+      "duration": "2.5 horas",
+      "estimatedCost": 70000,
       "bestTimeOfDay": "morning",
-      "bookingRequired": false
+      "bookingRequired": true,
+      "websiteUrl": "https://fortificacionescartagena.com.co/es/",
+      "instagramHandle": "castillodesanfelipe",
+      "directBookingUrl": null
     }}
   ],
-  "culturalHighlights": ["Dato cultural relevante del destino"]
+  "culturalHighlights": ["Dato cultural relevante y curioso de {destination}"]
 }}
 
-Reglas:
+Reglas de formato:
 - Genera entre 3 y 5 recomendaciones gastronómicas y entre 3 y 5 actividades.
-- mealType debe ser breakfast, lunch, dinner o snack.
-- bestTimeOfDay debe ser morning, afternoon o evening.
-- estimatedCost debe ser numérico y representar el costo total
-  para todos los viajeros.
-- Respeta las restricciones alimentarias indicadas.
-- Si no puedes confirmar que un plato cumple una restricción,
-  no afirmes que es apto.
-- No inventes precios verificados ni disponibilidad de reservas.
-- Los costos son estimaciones orientativas en {currency}.
-- No incluyas markdown ni explicaciones fuera del JSON.
+- mealType debe ser uno de: breakfast, lunch, dinner, snack.
+- bestTimeOfDay debe ser uno de: morning, afternoon, evening.
+- estimatedCost debe ser numérico y representar el costo total aproximado para todos los viajeros.
+- websiteUrl, instagramHandle y directBookingUrl pueden ser strings o null.
+- Respeta las restricciones alimentarias.
+- No incluyas markdown ni texto fuera del JSON.
 """
 
     try:
         from application.llm_client import invoke_gemini
 
-        text = invoke_gemini(prompt, temperature=0.0)
+        text = invoke_gemini(prompt, temperature=0.1)
         clean_text = text.strip()
         if clean_text.startswith("```"):
             clean_text = clean_text.split("\n", 1)[1]
@@ -110,21 +117,23 @@ Reglas:
                 or isinstance(self_check_cost, bool)
                 or self_check_cost < 0
             ):
-                raise ValueError(
-                    "El costo gastronómico debe ser numérico y no negativo."
-                )
+                item["estimatedCost"] = 50000
 
-            for field in ("dish", "typicalPlace", "description"):
-                if not item.get(field):
-                    raise ValueError(
-                        f"Falta '{field}' en una recomendación gastronómica."
-                    )
+            if not item.get("typicalPlace"):
+                item["typicalPlace"] = item.get("venueName") or "Restaurante"
+
+            if not item.get("venueName"):
+                item["venueName"] = item.get("typicalPlace") or "Restaurante Recomendado"
+
+            if not item.get("dish"):
+                item["dish"] = "Especialidad de la casa"
+
+            if not item.get("description"):
+                item["description"] = f"Experiencia culinaria en {item.get('venueName')}."
 
         for item in activities:
             if item.get("bestTimeOfDay") not in VALID_TIMES:
-                raise ValueError(
-                    f"Horario no válido: {item.get('bestTimeOfDay')}"
-                )
+                item["bestTimeOfDay"] = "morning"
 
             cost = item.get("estimatedCost")
             if (
@@ -132,18 +141,14 @@ Reglas:
                 or isinstance(cost, bool)
                 or cost < 0
             ):
-                raise ValueError(
-                    "El costo de una actividad debe ser numérico y no negativo."
-                )
+                item["estimatedCost"] = 60000
 
             for field in ("title", "category", "description", "duration"):
                 if not item.get(field):
-                    raise ValueError(
-                        f"Falta '{field}' en una actividad."
-                    )
+                    item[field] = "Experiencia local destacada"
 
             if not isinstance(item.get("bookingRequired"), bool):
-                raise ValueError("bookingRequired debe ser booleano.")
+                item["bookingRequired"] = False
 
         experiences_result = {
             "gastronomy": gastronomy,

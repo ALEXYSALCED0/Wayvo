@@ -33,6 +33,17 @@ export interface EventDetails {
   provider?: string;
   confirmationCode?: string;
   notes?: string;
+  venueName?: string;
+  dish?: string;
+  operatorName?: string;
+  websiteUrl?: string;
+  instagramUrl?: string;
+  instagramHandle?: string;
+  directBookingUrl?: string;
+  airline?: string;
+  airlineBookingUrl?: string;
+  flightNumber?: string;
+  [key: string]: any;
 }
 
 export interface Event {

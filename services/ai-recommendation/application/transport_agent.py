@@ -30,7 +30,7 @@ def transport_agent(state: TravelState) -> dict:
     currency = state.get("currency", "COP")
 
     prompt = f"""
-Genera opciones de transporte para un viaje.
+Genera opciones de transporte para un viaje de {origin} a {destination}.
 
 Datos:
 - Origen: {origin}
@@ -40,49 +40,51 @@ Datos:
 - Viajeros: {travelers}
 - Moneda: {currency}
 
+Para trayectos de larga distancia o aéreos, usa 'mode': 'flight' con aerolíneas reales oficiales (ej: 'Avianca', 'LATAM Airlines', 'Wingo', 'Copa Airlines') e incluye el portal oficial de reservas de esa aerolínea.
+
 Devuelve exclusivamente JSON válido con esta estructura:
 {{
-  "routeSummary": "Resumen breve de la ruta",
+  "routeSummary": "Vuelo directo con aerolínea comercial",
   "outbound": [
     {{
       "origin": "{origin}",
       "destination": "{destination}",
-      "mode": "bus",
-      "departureTime": "08:00",
-      "arrivalTime": "10:30",
-      "estimatedDuration": "2 horas y 30 minutos",
-      "estimatedCost": 50000,
-      "providerHint": "Operador sugerido"
+      "mode": "flight",
+      "airline": "Avianca",
+      "flightNumber": "AV9540",
+      "airlineBookingUrl": "https://www.avianca.com/es/",
+      "departureTime": "08:15",
+      "arrivalTime": "09:45",
+      "estimatedDuration": "1 hora y 30 minutos",
+      "estimatedCost": 640000,
+      "providerHint": "Avianca"
     }}
   ],
   "inbound": [
     {{
       "origin": "{destination}",
       "destination": "{origin}",
-      "mode": "bus",
-      "departureTime": "16:00",
-      "arrivalTime": "18:30",
-      "estimatedDuration": "2 horas y 30 minutos",
-      "estimatedCost": 50000,
-      "providerHint": "Operador sugerido"
+      "mode": "flight",
+      "airline": "Avianca",
+      "flightNumber": "AV9541",
+      "airlineBookingUrl": "https://www.avianca.com/es/",
+      "departureTime": "17:30",
+      "arrivalTime": "19:00",
+      "estimatedDuration": "1 hora y 30 minutos",
+      "estimatedCost": 640000,
+      "providerHint": "Avianca"
     }}
   ],
-  "localTransitTips": ["Consejo de transporte local"],
-  "totalTransportCost": 200000
+  "localTransitTips": ["Consejo de transporte en {destination}"],
+  "totalTransportCost": 1280000
 }}
 
 Reglas:
-- Devuelve hasta tres alternativas de ida y, si corresponde,
-  alternativas de regreso.
-- Los modos permitidos son: flight, train, bus, car_rental,
-  ferry y walking.
-- estimatedCost debe ser numérico y representar el costo TOTAL
-  de esa alternativa para todos los viajeros.
-- totalTransportCost debe representar una sola combinación
-  de ida y regreso para todos los viajeros, no la suma de
-  todas las alternativas.
-- No inventes operadores reales ni afirmes disponibilidad confirmada.
-- Usa costos aproximados en {currency}.
+- Devuelve hasta tres alternativas de ida y, si corresponde, alternativas de regreso.
+- Los modos permitidos son: flight, train, bus, car_rental, ferry y walking.
+- estimatedCost debe ser numérico y representar el costo TOTAL de esa alternativa para todos los viajeros.
+- totalTransportCost debe representar una sola combinación de ida y regreso para todos los viajeros.
+- Usa costos realistas de mercado en {currency}.
 - No incluyas markdown ni explicaciones fuera del JSON.
 """
 

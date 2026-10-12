@@ -63,9 +63,9 @@ export const AIChatDrawer: React.FC = () => {
               icon: 'travel_explore',
             },
             {
-              label: 'Explorar en Instagram',
-              url: `https://www.instagram.com/explore/tags/${encodeURIComponent(currentDest.toLowerCase().replace(/[^a-z0-9]/g, ''))}/`,
-              icon: 'photo_camera',
+              label: 'Ver en Google Maps',
+              url: `https://www.google.com/maps/search/?api=1&query=atracciones+turisticas+en+${encodeURIComponent(currentDest)}`,
+              icon: 'location_on',
             },
           ],
         },
@@ -173,12 +173,7 @@ export const AIChatDrawer: React.FC = () => {
             isPrimary: true,
           },
           {
-            label: 'Instagram (#${destTag}food)',
-            url: `https://www.instagram.com/explore/tags/${destTag}food/`,
-            icon: 'photo_camera',
-          },
-          {
-            label: 'Reseñas en TripAdvisor',
+            label: 'Guía de Restaurantes en TripAdvisor',
             url: `https://www.tripadvisor.com/Search?q=restaurantes+en+${encodeURIComponent(dest)}`,
             icon: 'reviews',
           },
@@ -186,7 +181,7 @@ export const AIChatDrawer: React.FC = () => {
       });
     }
 
-    // 3. Vuelos / Aerolíneas
+    // 3. Vuelos / Aerolíneas (Directo en aerolíneas oficiales)
     if (
       q.includes('vuelo') ||
       q.includes('avion') ||
@@ -195,26 +190,25 @@ export const AIChatDrawer: React.FC = () => {
       q.includes('aeropuerto') ||
       q.includes('escala')
     ) {
-      const datesParam = startDate && endDate ? `+del+${startDate}+al+${endDate}` : '';
       cards.push({
         id: `card-flight-${Date.now()}`,
         type: 'flight',
         title: `Vuelos hacia ${dest}`,
-        subtitle: `${origin} ➔ ${dest} (Tarifas en vivo)`,
-        badge: 'Vuelos en Vivo',
+        subtitle: `${origin} ➔ ${dest} (Vuelos directos)`,
+        badge: 'Web Oficial',
         location: dest,
-        description: `Verifica itinerarios, precios actualizados y reserva directamente en Google Flights o Skyscanner.`,
+        description: `Consulta frecuencias y reserva tu vuelo directamente en los portales de aerolíneas aliadas.`,
         actions: [
           {
-            label: 'Buscar en Google Flights',
-            url: `https://www.google.com/travel/flights?q=vuelos+de+${encodeURIComponent(origin)}+a+${encodeURIComponent(dest)}${datesParam}`,
+            label: 'Reservar en Avianca',
+            url: 'https://www.avianca.com/es/',
             icon: 'flight_takeoff',
             isPrimary: true,
           },
           {
-            label: 'Comparar en Skyscanner',
-            url: `https://www.skyscanner.net/transport/flights/`,
-            icon: 'travel_explore',
+            label: 'Reservar en LATAM Airlines',
+            url: 'https://www.latamairlines.com/co/es/ofertas-vuelos',
+            icon: 'flight',
           },
         ],
       });
@@ -235,21 +229,16 @@ export const AIChatDrawer: React.FC = () => {
         id: `card-activity-${Date.now()}`,
         type: 'activity',
         title: `Lugares & Actividades en ${dest}`,
-        subtitle: 'Páginas oficiales y tendencias en redes',
+        subtitle: 'Atracciones oficiales y tours guiados',
         badge: 'Imperdible',
         location: dest,
-        description: `Explora atracciones con enlace directo a sus sitios web de tickets y contenidos en Instagram.`,
+        description: `Explora atracciones con enlace directo a boleterías oficiales y catálogo de tours.`,
         actions: [
           {
-            label: 'Sitios Oficiales & Entradas',
-            url: `https://www.google.com/search?q=atracciones+turisticas+en+${encodeURIComponent(dest)}+entradas+oficiales`,
-            icon: 'confirmation_number',
+            label: 'Atracciones en Google Maps',
+            url: `https://www.google.com/maps/search/?api=1&query=atracciones+turisticas+en+${encodeURIComponent(dest)}`,
+            icon: 'location_on',
             isPrimary: true,
-          },
-          {
-            label: 'Explorar en Instagram',
-            url: `https://www.instagram.com/explore/tags/${destTag}/`,
-            icon: 'photo_camera',
           },
           {
             label: 'Tours en TripAdvisor',

@@ -15,7 +15,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   if (!event) return null;
 
   const formatCOP = (val?: number) => {
-    if (!val) return 'Incluido en el paquete';
+    if (!val) return 'Incluido en el itinerario';
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
       currency: 'COP',
@@ -23,8 +23,10 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     }).format(val);
   };
 
+  const type = (event as any).type;
+  const details = event.details || {};
+
   const getIcon = () => {
-    const type = (event as any).type;
     if (type === 'FLIGHT' || type === 'TRANSPORT') return 'flight';
     if (type === 'HOTEL' || type === 'ACCOMMODATION') return 'hotel';
     if (type === 'MEAL') return 'restaurant';
@@ -32,103 +34,160 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   };
 
   const getCategoryLabel = () => {
-    const type = (event as any).type;
-    if (type === 'FLIGHT' || type === 'TRANSPORT') return 'Transporte Aéreo / Terrestre';
-    if (type === 'HOTEL' || type === 'ACCOMMODATION') return 'Alojamiento & Hospitalidad';
-    if (type === 'MEAL') return 'Experiencia Gastronómica';
-    return 'Actividad / Tour Guiado';
+    if (type === 'FLIGHT' || type === 'TRANSPORT') return 'Vuelo / Transporte Oficial';
+    if (type === 'HOTEL' || type === 'ACCOMMODATION') return 'Hospedaje Seleccionado';
+    if (type === 'MEAL') return 'Experiencia Gastronómica & Mesa';
+    return 'Actividad / Tour Local';
   };
 
-  const titleRaw = event.title || 'experiencia';
-  const tagSafe = titleRaw.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const type = (event as any).type;
-
-  // Enlaces directos según tipo: Booking.com, Hoteles.com, Web oficial o Redes Sociales (Instagram / Maps / TripAdvisor)
+  // Construcción dinámica de botones específicos (sin buscadores genéricos ni muros de login)
   const getActionLinks = () => {
+    const links: {
+      label: string;
+      url: string;
+      icon: string;
+      color: string;
+      badge?: string;
+    }[] = [];
+
+    // 1. HOTEL / ALOJAMIENTO
     if (type === 'HOTEL' || type === 'ACCOMMODATION') {
-      return [
-        {
-          label: 'Reservar en Booking.com',
-          url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(titleRaw + ' ' + destination)}`,
-          icon: 'hotel',
-          color: 'bg-primary text-on-primary',
-        },
-        {
-          label: 'Ver en Hoteles.com',
-          url: `https://www.hoteles.com/Hotel-Search?destination=${encodeURIComponent(titleRaw + ' ' + destination)}`,
-          icon: 'travel_explore',
-          color: 'bg-surface-container text-primary',
-        },
-        {
-          label: 'Ver en Google Travel Hotels',
-          url: `https://www.google.com/travel/hotels/${encodeURIComponent(destination)}`,
-          icon: 'open_in_new',
-          color: 'bg-surface-container text-primary',
-        },
-      ];
+      const hotelName = details.venueName || event.title;
+      links.push({
+        label: `Ver Disponibilidad en Booking.com (${hotelName})`,
+        url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(hotelName + ' ' + destination)}`,
+        icon: 'hotel',
+        color: 'bg-primary text-on-primary',
+        badge: 'Reserva Directa',
+      });
+      links.push({
+        label: `Ver Tarifas en Hoteles.com`,
+        url: `https://es.hoteles.com/Hotel-Search?destination=${encodeURIComponent(hotelName + ' ' + destination)}`,
+        icon: 'travel_explore',
+        color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
+      });
+      return links;
     }
 
+    // 2. VUELOS Y TRANSPORTE AÉREO (Página de la aerolínea directa, NO Google Flights)
     if (type === 'FLIGHT' || type === 'TRANSPORT') {
-      return [
-        {
-          label: 'Buscar Vuelo en Google Flights',
-          url: `https://www.google.com/travel/flights?q=vuelos+a+${encodeURIComponent(destination)}`,
-          icon: 'flight_takeoff',
-          color: 'bg-primary text-on-primary',
-        },
-        {
-          label: 'Comparar en Skyscanner',
-          url: `https://www.skyscanner.net/transport/flights/`,
-          icon: 'travel_explore',
-          color: 'bg-surface-container text-primary',
-        },
-      ];
+      const airline = details.airline || (event.title.includes('LATAM') ? 'LATAM Airlines' : 'Avianca');
+      const airlineBookingUrl = details.airlineBookingUrl || (
+        airline.toLowerCase().includes('latam')
+          ? 'https://www.latamairlines.com/co/es/ofertas-vuelos'
+          : airline.toLowerCase().includes('wingo')
+          ? 'https://www.wingo.com/'
+          : 'https://www.avianca.com/es/'
+      );
+
+      links.push({
+        label: `Reservar Vuelo Directamente en ${airline}`,
+        url: airlineBookingUrl,
+        icon: 'flight_takeoff',
+        color: 'bg-primary text-on-primary',
+        badge: 'Web Oficial Aerolínea',
+      });
+      return links;
     }
 
+    // 3. GASTRONOMÍA / RESTAURANTES
     if (type === 'MEAL') {
-      return [
-        {
-          label: 'Menú y Reseñas en Google Maps',
-          url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(titleRaw + ' ' + destination)}`,
-          icon: 'restaurant',
+      const venue = details.venueName || (event.title.includes(':') ? event.title.split(':')[0].trim() : event.title);
+
+      // Sitio web oficial si existe
+      if (details.websiteUrl) {
+        links.push({
+          label: `Sitio Web Oficial de ${venue}`,
+          url: details.websiteUrl,
+          icon: 'language',
           color: 'bg-primary text-on-primary',
-        },
-        {
-          label: 'Ver en Instagram / Redes Sociales',
-          url: `https://www.instagram.com/explore/tags/${tagSafe}/`,
+          badge: 'Sitio Web',
+        });
+      }
+
+      // Perfil directo de Instagram (sin hashtags ni exploradores que pidan login)
+      if (details.instagramUrl || details.instagramHandle) {
+        const handle = details.instagramHandle ? details.instagramHandle.replace('@', '') : venue.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const igUrl = details.instagramUrl || `https://www.instagram.com/${handle}/`;
+        links.push({
+          label: `Perfil Oficial en Instagram (@${handle})`,
+          url: igUrl,
           icon: 'photo_camera',
-          color: 'bg-secondary-fixed text-on-secondary-fixed',
-        },
-        {
-          label: 'Ficha en TripAdvisor',
-          url: `https://www.tripadvisor.co/Search?q=${encodeURIComponent(titleRaw + ' ' + destination)}`,
-          icon: 'reviews',
-          color: 'bg-surface-container text-primary',
-        },
-      ];
+          color: 'bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary',
+          badge: 'Instagram',
+        });
+      }
+
+      // Reserva de mesa directa si existe
+      if (details.directBookingUrl) {
+        links.push({
+          label: `Reservar Mesa en ${venue}`,
+          url: details.directBookingUrl,
+          icon: 'table_restaurant',
+          color: 'bg-secondary text-on-secondary',
+          badge: 'Reserva Online',
+        });
+      }
+
+      // Ficha directa en Google Maps (fotos, cartas y reseñas)
+      links.push({
+        label: `Ver Carta y Ubicación en Google Maps`,
+        url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue + ' ' + destination)}`,
+        icon: 'location_on',
+        color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
+      });
+
+      return links;
     }
 
-    // Actividades, Tours y Museos
-    return [
-      {
-        label: 'Sitio Web Oficial & Entradas',
-        url: `https://www.google.com/search?q=${encodeURIComponent(titleRaw + ' ' + destination + ' sitio web oficial entradas tickets')}`,
+    // 4. ACTIVIDADES, TOURS Y MUSEOS
+    const actName = event.title;
+    const operator = details.operatorName;
+
+    // Boletería o checkout directo del tour
+    if (details.directBookingUrl) {
+      links.push({
+        label: `Comprar Entradas / Reservar Tour Oficial`,
+        url: details.directBookingUrl,
         icon: 'confirmation_number',
         color: 'bg-primary text-on-primary',
-      },
-      {
-        label: 'Ver en Instagram / Redes Sociales',
-        url: `https://www.instagram.com/explore/tags/${tagSafe}/`,
+        badge: 'Tickets Oficiales',
+      });
+    }
+
+    // Sitio web oficial del operador o museo
+    if (details.websiteUrl) {
+      links.push({
+        label: `Sitio Web Oficial ${operator ? `(${operator})` : ''}`,
+        url: details.websiteUrl,
+        icon: 'language',
+        color: 'bg-primary text-on-primary',
+        badge: 'Página Oficial',
+      });
+    }
+
+    // Perfil directo en Instagram del operador o atracción
+    if (details.instagramUrl || details.instagramHandle) {
+      const handle = details.instagramHandle ? details.instagramHandle.replace('@', '') : (operator || actName).toLowerCase().replace(/[^a-z0-9]/g, '');
+      const igUrl = details.instagramUrl || `https://www.instagram.com/${handle}/`;
+      links.push({
+        label: `Instagram Oficial (@${handle})`,
+        url: igUrl,
         icon: 'photo_camera',
-        color: 'bg-secondary-fixed text-on-secondary-fixed',
-      },
-      {
-        label: 'Ver Tours en TripAdvisor / Viator',
-        url: `https://www.tripadvisor.co/Search?q=${encodeURIComponent(titleRaw + ' ' + destination)}`,
-        icon: 'reviews',
-        color: 'bg-surface-container text-primary',
-      },
-    ];
+        color: 'bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary',
+        badge: 'Instagram',
+      });
+    }
+
+    // Ubicación en Google Maps
+    links.push({
+      label: `Ver en Google Maps`,
+      url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(actName + ' ' + destination)}`,
+      icon: 'location_on',
+      color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
+    });
+
+    return links;
   };
 
   const actionLinks = getActionLinks();
@@ -161,9 +220,34 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-6 flex flex-col gap-4 overflow-y-auto text-xs">
+          {/* Tarjeta de entidad destacada (Restaurante / Operador / Aerolínea) */}
+          {(details.venueName || details.operatorName || details.airline) && (
+            <div className="p-3.5 rounded-xl bg-secondary-fixed/20 border border-secondary/30 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-secondary font-mono uppercase tracking-wider block font-semibold">
+                  {type === 'MEAL' ? 'Establecimiento Seleccionado' : type === 'FLIGHT' ? 'Aerolínea Oficial' : 'Operador Autorizado'}
+                </span>
+                <span className="text-sm font-bold text-primary">
+                  {details.venueName || details.operatorName || details.airline}
+                </span>
+                {details.dish && (
+                  <span className="text-xs text-on-surface-variant block mt-0.5">
+                    Especialidad recomendada: <span className="font-semibold text-secondary">{details.dish}</span>
+                  </span>
+                )}
+                {details.flightNumber && (
+                  <span className="text-xs text-on-surface-variant font-mono block mt-0.5">
+                    Vuelo: {details.flightNumber}
+                  </span>
+                )}
+              </div>
+              <span className="material-symbols-outlined text-secondary text-[24px]">verified</span>
+            </div>
+          )}
+
           {/* Main Description */}
           <div className="p-3.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/20">
-            <span className="font-bold text-primary block mb-1">Descripción:</span>
+            <span className="font-bold text-primary block mb-1">Detalle del Evento:</span>
             <p className="text-on-surface-variant leading-relaxed">
               {event.description || 'Experiencia organizada y sincronizada dentro de tu itinerario de viaje.'}
             </p>
@@ -186,21 +270,21 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 flex flex-col gap-1">
               <span className="text-[11px] text-on-surface-variant flex items-center gap-1">
                 <span className="material-symbols-outlined text-[15px] text-secondary">payments</span>
-                Costo
+                Presupuesto Estimado
               </span>
               <span className="font-mono font-bold text-primary">
                 {formatCOP(event.details?.price)}
               </span>
             </div>
 
-            {/* Operador */}
+            {/* Operador o Proveedor */}
             <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 flex flex-col gap-1">
               <span className="text-[11px] text-on-surface-variant flex items-center gap-1">
                 <span className="material-symbols-outlined text-[15px] text-secondary">business</span>
-                Operador Verificado
+                Entidad Responsable
               </span>
               <span className="font-semibold text-primary truncate">
-                {event.details?.provider || 'Wayvo Verified Partners'}
+                {details.venueName || details.operatorName || details.airline || event.details?.provider || 'Establecimiento Local'}
               </span>
             </div>
 
@@ -216,11 +300,11 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Enlaces directos para reservar y redes sociales */}
+          {/* Enlaces directos para reservar y redes sociales específicas */}
           <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2.5">
             <span className="font-bold text-primary text-xs flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px] text-secondary">link</span>
-              Enlaces Directos de Reserva y Redes Oficiales
+              Canales Oficiales y Acceso Directo
             </span>
             <div className="flex flex-col gap-2">
               {actionLinks.map((link, idx) => (
@@ -235,32 +319,24 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                     <span className="material-symbols-outlined text-[16px]">{link.icon}</span>
                     <span>{link.label}</span>
                   </div>
-                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                  {link.badge && (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-white/20 ml-2">
+                      {link.badge}
+                    </span>
+                  )}
+                  <span className="material-symbols-outlined text-[14px] ml-auto">open_in_new</span>
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Notes & Tips */}
-          {event.details?.notes && (
-            <div className="p-3.5 rounded-xl bg-secondary-fixed/30 border border-secondary/30 flex items-start gap-2.5">
-              <span className="material-symbols-outlined text-secondary text-[20px] mt-0.5">tips_and_updates</span>
-              <div>
-                <span className="font-bold text-primary block mb-0.5">Recomendaciones para el Viajero:</span>
-                <p className="text-on-surface-variant leading-relaxed">
-                  {event.details.notes}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Voucher and Check-in Info */}
+          {/* Localizador Wayvo */}
           <div className="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/20 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-secondary text-[20px]">confirmation_number</span>
               <div>
-                <span className="font-bold text-primary block">Localizador Wayvo</span>
-                <span className="text-[11px] text-on-surface-variant">Presentar digitalmente</span>
+                <span className="font-bold text-primary block">Referencia en Itinerario</span>
+                <span className="text-[11px] text-on-surface-variant">Sincronizado en tu plan Wayvo</span>
               </div>
             </div>
             <span className="px-3 py-1 rounded-md bg-surface-container text-primary font-mono text-xs font-bold">

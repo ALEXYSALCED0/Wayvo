@@ -266,16 +266,28 @@ export const ProposalView: React.FC = () => {
                     )}
                   </span>
                 </div>
-                <a
-                  href={`https://www.google.com/travel/flights?q=vuelos+de+${encodeURIComponent(tripDraft.origin || 'Bogota')}+a+${encodeURIComponent(tripDraft.destination)}+del+${tripDraft.startDate}+al+${tripDraft.endDate}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all mt-3 w-full border border-outline-variant/30"
-                >
-                  <span className="material-symbols-outlined text-[15px] text-secondary">flight_takeoff</span>
-                  <span>Ver Vuelos en Google Flights</span>
-                  <span className="material-symbols-outlined text-[13px] ml-auto">open_in_new</span>
-                </a>
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <a
+                    href="https://www.avianca.com/es/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-secondary text-xs font-semibold transition-all shadow-xs"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">flight_takeoff</span>
+                    <span>Avianca</span>
+                    <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                  </a>
+                  <a
+                    href="https://www.latamairlines.com/co/es/ofertas-vuelos"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all border border-outline-variant/30"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">flight</span>
+                    <span>LATAM</span>
+                    <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                  </a>
+                </div>
               </div>
 
               {/* Inbound Flight Card (Vuelo de Vuelta / Regreso) */}
@@ -303,16 +315,28 @@ export const ProposalView: React.FC = () => {
                     )}
                   </span>
                 </div>
-                <a
-                  href={`https://www.google.com/travel/flights?q=vuelos+de+${encodeURIComponent(tripDraft.destination)}+a+${encodeURIComponent(tripDraft.origin || 'Bogota')}+del+${tripDraft.startDate}+al+${tripDraft.endDate}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all mt-3 w-full border border-outline-variant/30"
-                >
-                  <span className="material-symbols-outlined text-[15px] text-secondary">flight_land</span>
-                  <span>Ver Vuelos de Retorno</span>
-                  <span className="material-symbols-outlined text-[13px] ml-auto">open_in_new</span>
-                </a>
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <a
+                    href="https://www.avianca.com/es/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-secondary text-xs font-semibold transition-all shadow-xs"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">flight_land</span>
+                    <span>Avianca</span>
+                    <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                  </a>
+                  <a
+                    href="https://www.latamairlines.com/co/es/ofertas-vuelos"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all border border-outline-variant/30"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">flight</span>
+                    <span>LATAM</span>
+                    <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                  </a>
+                </div>
               </div>
 
               {/* Hotel Card */}

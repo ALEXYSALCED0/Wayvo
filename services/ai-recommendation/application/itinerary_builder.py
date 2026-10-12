@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date, datetime, time, timedelta
 from uuid import uuid4
 import re
@@ -69,9 +71,16 @@ def _make_event(
     location: str,
     cost: float,
     order: int,
+    extra_details: dict | None = None,
 ) -> dict:
     start = datetime.combine(event_date, start_time)
     end = start + timedelta(hours=duration_hours)
+
+    details = {"price": cost}
+    if extra_details:
+        for k, v in extra_details.items():
+            if v is not None:
+                details[k] = v
 
     return {
         "id": str(uuid4()),
@@ -86,7 +95,7 @@ def _make_event(
         "status": "PENDING",
         "reservationStatus": "NOT_RESERVED",
         "order": order,
-        "details": {"price": cost},
+        "details": details,
     }
 
 
@@ -117,6 +126,7 @@ def _schedule_event(
     preferred_time: time,
     duration_hours: float,
     latest_end: time = DAY_END,
+    extra_details: dict | None = None,
 ) -> bool:
     """Busca un horario libre a partir del horario preferido."""
     event_date = date.fromisoformat(day["date"])
@@ -144,6 +154,7 @@ def _schedule_event(
                     location=location,
                     cost=cost,
                     order=len(day["events"]) + 1,
+                    extra_details=extra_details,
                 )
             )
             return True
@@ -169,6 +180,7 @@ def _schedule_event(
                     location=location,
                     cost=cost,
                     order=len(day["events"]) + 1,
+                    extra_details=extra_details,
                 )
             )
             return True
@@ -188,6 +200,7 @@ def _add_transport_event(
     cost: float,
     start_time: time,
     duration_hours: float,
+    extra_details: dict | None = None,
 ) -> None:
     """El transporte tiene hora fija: se agrega a su hora de salida aunque
     termine de noche o al día siguiente (no se limita a las 22:00 como las actividades)."""
@@ -203,6 +216,7 @@ def _add_transport_event(
             location=location,
             cost=cost,
             order=len(day["events"]) + 1,
+            extra_details=extra_details,
         )
     )
 
@@ -325,12 +339,16 @@ def itinerary_builder(state: TravelState) -> dict:
             if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost < 0:
                 raise ValueError("El costo del transporte de ida no es válido.")
 
+            airline = route.get("airline") or route.get("providerHint", "Avianca")
+            flight_num = route.get("flightNumber", "Vuelo Directo")
+            airline_url = route.get("airlineBookingUrl") or "https://www.avianca.com/es/"
+
             _add_transport_event(
                 day=days[0],
                 trip_id=trip_id,
-                title=f"Viaje de {origin} a {destination}",
+                title=f"Vuelo {airline} ({flight_num}): {origin} ➔ {destination}" if mode == "flight" else f"Viaje de {origin} a {destination}",
                 description=(
-                    f"Transporte sugerido: {mode}. "
+                    f"Transporte operado por {airline}. "
                     f"Duración estimada: {route.get('estimatedDuration', 'No especificada')}."
                 ),
                 event_type=event_type,
@@ -338,6 +356,11 @@ def itinerary_builder(state: TravelState) -> dict:
                 cost=float(cost),
                 start_time=_departure_time(route, time(8, 0)),
                 duration_hours=duration,
+                extra_details={
+                    "airline": airline,
+                    "flightNumber": flight_num,
+                    "airlineBookingUrl": airline_url,
+                },
             )
 
         # Transporte de regreso: se programa en el último día.
@@ -354,12 +377,16 @@ def itinerary_builder(state: TravelState) -> dict:
             if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost < 0:
                 raise ValueError("El costo del transporte de regreso no es válido.")
 
+            airline = route.get("airline") or route.get("providerHint", "Avianca")
+            flight_num = route.get("flightNumber", "Vuelo Retorno")
+            airline_url = route.get("airlineBookingUrl") or "https://www.avianca.com/es/"
+
             _add_transport_event(
                 day=days[-1],
                 trip_id=trip_id,
-                title=f"Regreso de {destination} a {origin}",
+                title=f"Vuelo {airline} ({flight_num}): {destination} ➔ {origin}" if mode == "flight" else f"Regreso de {destination} a {origin}",
                 description=(
-                    f"Transporte sugerido: {mode}. "
+                    f"Transporte operado por {airline}. "
                     f"Duración estimada: {route.get('estimatedDuration', 'No especificada')}."
                 ),
                 event_type=event_type,
@@ -367,14 +394,18 @@ def itinerary_builder(state: TravelState) -> dict:
                 cost=float(cost),
                 start_time=_departure_time(route, time(16, 0)),
                 duration_hours=duration,
+                extra_details={
+                    "airline": airline,
+                    "flightNumber": flight_num,
+                    "airlineBookingUrl": airline_url,
+                },
             )
 
         # Se utilizan las recomendaciones que dejó el budget_agent.
         activities = experiences.get("activities", [])
         gastronomy = experiences.get("gastronomy", [])
 
-        # Las actividades se distribuyen procurando respetar
-        # su franja horaria preferida.
+        # Las actividades se distribuyen procurando respetar su franja horaria preferida.
         for index, activity in enumerate(activities):
             if not days:
                 break
@@ -398,16 +429,32 @@ def itinerary_builder(state: TravelState) -> dict:
             ):
                 continue
 
+            op_name = activity.get("operatorName")
+            act_title = activity.get("title", "Actividad")
+            website_url = activity.get("websiteUrl")
+            ig_handle = activity.get("instagramHandle")
+            ig_url = f"https://www.instagram.com/{ig_handle.strip('@')}/" if ig_handle else None
+            booking_url = activity.get("directBookingUrl")
+
+            title = f"{act_title} ({op_name})" if op_name and op_name.lower() not in act_title.lower() else act_title
+
             scheduled = _schedule_event(
                 day=day,
                 trip_id=trip_id,
-                title=activity.get("title", "Actividad"),
+                title=title,
                 description=activity.get("description", ""),
                 event_type="ACTIVITY",
                 location=destination,
                 cost=float(cost),
                 preferred_time=preferred_time,
                 duration_hours=duration,
+                extra_details={
+                    "operatorName": op_name,
+                    "websiteUrl": website_url,
+                    "instagramHandle": ig_handle,
+                    "instagramUrl": ig_url,
+                    "directBookingUrl": booking_url,
+                },
             )
 
             if not scheduled:
@@ -417,7 +464,6 @@ def itinerary_builder(state: TravelState) -> dict:
                 )
 
         # Las comidas se programan después de las actividades.
-        # Si hay conflicto, se busca el siguiente horario disponible.
         for index, meal in enumerate(gastronomy):
             if not days:
                 break
@@ -434,16 +480,33 @@ def itinerary_builder(state: TravelState) -> dict:
             ):
                 continue
 
+            venue_name = meal.get("venueName") or meal.get("typicalPlace") or "Restaurante"
+            dish_name = meal.get("dish") or "Especialidad gastronómica"
+            website_url = meal.get("websiteUrl")
+            ig_handle = meal.get("instagramHandle")
+            ig_url = f"https://www.instagram.com/{ig_handle.strip('@')}/" if ig_handle else None
+            booking_url = meal.get("directBookingUrl")
+
+            title = f"{venue_name}: {dish_name}" if venue_name.lower() not in dish_name.lower() else dish_name
+
             scheduled = _schedule_event(
                 day=day,
                 trip_id=trip_id,
-                title=meal.get("dish", "Comida"),
-                description=meal.get("description", ""),
+                title=title,
+                description=f"{meal.get('description', '')}. Especialidad: {dish_name}.",
                 event_type="MEAL",
-                location=meal.get("typicalPlace", destination),
+                location=f"{venue_name}, {destination}",
                 cost=float(cost),
                 preferred_time=preferred_time,
                 duration_hours=1,
+                extra_details={
+                    "venueName": venue_name,
+                    "dish": dish_name,
+                    "websiteUrl": website_url,
+                    "instagramHandle": ig_handle,
+                    "instagramUrl": ig_url,
+                    "directBookingUrl": booking_url,
+                },
             )
 
             if not scheduled:
