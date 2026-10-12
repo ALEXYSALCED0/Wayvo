@@ -70,17 +70,17 @@ export class CheckAvailabilityUseCase {
     if (process.env.NODE_ENV !== 'test') {
       if (!provider) {
         const provType = item.type === 'TRANSPORT'
-          ? ProviderType.AIRLINE
+          ? ProviderType.TRANSPORT
           : item.type === 'ACCOMMODATION'
-          ? ProviderType.HOTEL
-          : ProviderType.TOUR_OPERATOR;
+          ? ProviderType.ACCOMMODATION
+          : ProviderType.ACTIVITY;
         provider = Provider.create({
           id: item.providerId,
           name: item.providerId,
           type: provType,
           contactEmail: `${item.providerId.replace(/[^a-zA-Z0-9]/g, '') || 'partner'}@providers.wayvo.co`,
         });
-        provider.verify('Auto-verificado para itinerario');
+        provider.verify();
         await this.providers.save(provider);
       }
       if (!offer) {
