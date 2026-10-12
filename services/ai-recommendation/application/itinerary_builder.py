@@ -341,7 +341,7 @@ def itinerary_builder(state: TravelState) -> dict:
 
             airline = route.get("airline") or route.get("providerHint", "Avianca")
             flight_num = route.get("flightNumber", "Vuelo Directo")
-            airline_url = route.get("airlineBookingUrl") or "https://www.avianca.com/es/"
+            airline_url = route.get("airlineBookingUrl") or "https://www.avianca.com/co/es/"
 
             _add_transport_event(
                 day=days[0],
@@ -379,7 +379,7 @@ def itinerary_builder(state: TravelState) -> dict:
 
             airline = route.get("airline") or route.get("providerHint", "Avianca")
             flight_num = route.get("flightNumber", "Vuelo Retorno")
-            airline_url = route.get("airlineBookingUrl") or "https://www.avianca.com/es/"
+            airline_url = route.get("airlineBookingUrl") or "https://www.avianca.com/co/es/"
 
             _add_transport_event(
                 day=days[-1],

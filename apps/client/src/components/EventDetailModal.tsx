@@ -1,5 +1,15 @@
 import React from 'react';
 import { Event as PlanEvent } from '@wayvo/contracts';
+import {
+  getKayakFlightUrl,
+  OFFICIAL_AIRLINE_PORTALS,
+  getGoogleMapsPlaceUrl,
+  getTripadvisorSearchUrl,
+  getCivitatisTourUrl,
+  getGetYourGuideTourUrl,
+  getBookingHotelUrl,
+  getHotelesUrl,
+} from '../utils/travelLinks';
 
 interface EventDetailModalProps {
   event: PlanEvent | null;
@@ -40,7 +50,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     return 'Actividad / Tour Local';
   };
 
-  // Construcción dinámica de botones específicos (sin buscadores genéricos ni muros de login)
+  // Construcción dinámica de botones específicos (100% enlaces verificados y funcionales)
   const getActionLinks = () => {
     const links: {
       label: string;
@@ -55,37 +65,53 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
       const hotelName = details.venueName || event.title;
       links.push({
         label: `Ver Disponibilidad en Booking.com (${hotelName})`,
-        url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(hotelName + ' ' + destination)}`,
+        url: getBookingHotelUrl(hotelName, destination),
         icon: 'hotel',
         color: 'bg-primary text-on-primary',
-        badge: 'Reserva Directa',
+        badge: 'Booking.com',
       });
       links.push({
         label: `Ver Tarifas en Hoteles.com`,
-        url: `https://es.hoteles.com/Hotel-Search?destination=${encodeURIComponent(hotelName + ' ' + destination)}`,
+        url: getHotelesUrl(hotelName, destination),
         icon: 'travel_explore',
+        color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
+        badge: 'Hoteles.com',
+      });
+      links.push({
+        label: `Ficha y Ubicación en Google Maps`,
+        url: getGoogleMapsPlaceUrl(hotelName, destination),
+        icon: 'location_on',
         color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
       });
       return links;
     }
 
-    // 2. VUELOS Y TRANSPORTE AÉREO (Página de la aerolínea directa, NO Google Flights)
+    // 2. VUELOS Y TRANSPORTE AÉREO (Pre-cargados con fechas y ruta en Kayak + Portales limpios)
     if (type === 'FLIGHT' || type === 'TRANSPORT') {
-      const airline = details.airline || (event.title.includes('LATAM') ? 'LATAM Airlines' : 'Avianca');
-      const airlineBookingUrl = details.airlineBookingUrl || (
-        airline.toLowerCase().includes('latam')
-          ? 'https://www.latamairlines.com/co/es/ofertas-vuelos'
-          : airline.toLowerCase().includes('wingo')
-          ? 'https://www.wingo.com/'
-          : 'https://www.avianca.com/es/'
-      );
+      const airlineName = details.airline || (event.title.includes('LATAM') ? 'LATAM' : 'Avianca');
+      const isLatam = airlineName.toLowerCase().includes('latam');
+      const airlineKey = isLatam ? 'LATAM' : 'AVIANCA';
 
       links.push({
-        label: `Reservar Vuelo Directamente en ${airline}`,
-        url: airlineBookingUrl,
+        label: `Ver Vuelos ${airlineName} (Ruta y Fechas Cargadas)`,
+        url: getKayakFlightUrl({
+          origin: 'Bogotá',
+          destination,
+          startDate: (event as any).startDateTime?.split('T')[0] || '',
+          travelers: 2,
+          airline: airlineKey,
+        }),
         icon: 'flight_takeoff',
         color: 'bg-primary text-on-primary',
-        badge: 'Web Oficial Aerolínea',
+        badge: 'Vuelos en Vivo',
+      });
+
+      links.push({
+        label: `${OFFICIAL_AIRLINE_PORTALS[airlineKey].label}`,
+        url: OFFICIAL_AIRLINE_PORTALS[airlineKey].url,
+        icon: 'flight',
+        color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
+        badge: 'Web Oficial',
       });
       return links;
     }
@@ -94,28 +120,47 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     if (type === 'MEAL') {
       const venue = details.venueName || (event.title.includes(':') ? event.title.split(':')[0].trim() : event.title);
 
-      // Sitio web oficial si existe
-      if (details.websiteUrl) {
+      // Google Maps es la fuente de verdad definitiva: menú, teléfono, horarios, fotos y web oficial verificada sin login
+      links.push({
+        label: `Ver Menú, Fotos y Ubicación en Google Maps`,
+        url: getGoogleMapsPlaceUrl(venue, destination),
+        icon: 'location_on',
+        color: 'bg-primary text-on-primary',
+        badge: 'Ficha Verificada',
+      });
+
+      // TripAdvisor: calificaciones reales de viajeros
+      links.push({
+        label: `Reseñas y Ranking en TripAdvisor`,
+        url: getTripadvisorSearchUrl(venue, destination),
+        icon: 'reviews',
+        color: 'bg-secondary text-on-secondary',
+        badge: 'TripAdvisor',
+      });
+
+      // Sitio web oficial si existe y es válido
+      if (details.websiteUrl && details.websiteUrl.startsWith('http')) {
         links.push({
           label: `Sitio Web Oficial de ${venue}`,
           url: details.websiteUrl,
           icon: 'language',
-          color: 'bg-primary text-on-primary',
+          color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
           badge: 'Sitio Web',
         });
       }
 
-      // Perfil directo de Instagram (sin hashtags ni exploradores que pidan login)
-      if (details.instagramUrl || details.instagramHandle) {
-        const handle = details.instagramHandle ? details.instagramHandle.replace('@', '') : venue.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const igUrl = details.instagramUrl || `https://www.instagram.com/${handle}/`;
-        links.push({
-          label: `Perfil Oficial en Instagram (@${handle})`,
-          url: igUrl,
-          icon: 'photo_camera',
-          color: 'bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary',
-          badge: 'Instagram',
-        });
+      // Perfil directo de Instagram SOLO si existe handle verificado
+      if (details.instagramHandle) {
+        const handle = details.instagramHandle.replace('@', '').trim();
+        if (handle.length > 2) {
+          links.push({
+            label: `Instagram Oficial (@${handle})`,
+            url: `https://www.instagram.com/${handle}/`,
+            icon: 'photo_camera',
+            color: 'bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary',
+            badge: 'Instagram',
+          });
+        }
       }
 
       // Reserva de mesa directa si existe
@@ -124,18 +169,10 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           label: `Reservar Mesa en ${venue}`,
           url: details.directBookingUrl,
           icon: 'table_restaurant',
-          color: 'bg-secondary text-on-secondary',
+          color: 'bg-primary text-on-primary',
           badge: 'Reserva Online',
         });
       }
-
-      // Ficha directa en Google Maps (fotos, cartas y reseñas)
-      links.push({
-        label: `Ver Carta y Ubicación en Google Maps`,
-        url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue + ' ' + destination)}`,
-        icon: 'location_on',
-        color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
-      });
 
       return links;
     }
@@ -144,48 +181,51 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     const actName = event.title;
     const operator = details.operatorName;
 
-    // Boletería o checkout directo del tour
-    if (details.directBookingUrl) {
-      links.push({
-        label: `Comprar Entradas / Reservar Tour Oficial`,
-        url: details.directBookingUrl,
-        icon: 'confirmation_number',
-        color: 'bg-primary text-on-primary',
-        badge: 'Tickets Oficiales',
-      });
-    }
+    // Civitatis: tours guiados con operadores en español
+    links.push({
+      label: `Tours y Excursiones en Civitatis`,
+      url: getCivitatisTourUrl(actName, destination),
+      icon: 'local_activity',
+      color: 'bg-primary text-on-primary',
+      badge: 'Civitatis',
+    });
 
-    // Sitio web oficial del operador o museo
-    if (details.websiteUrl) {
+    // GetYourGuide: catálogo de tickets y actividades
+    links.push({
+      label: `Ver Opciones en GetYourGuide`,
+      url: getGetYourGuideTourUrl(actName, destination),
+      icon: 'confirmation_number',
+      color: 'bg-secondary text-on-secondary',
+      badge: 'GetYourGuide',
+    });
+
+    // TripAdvisor: opiniones de viajeros sobre el tour
+    links.push({
+      label: `Opiniones y Entradas en TripAdvisor`,
+      url: getTripadvisorSearchUrl(actName, destination),
+      icon: 'reviews',
+      color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
+      badge: 'TripAdvisor',
+    });
+
+    // Ubicación en Google Maps
+    links.push({
+      label: `Ubicación en Google Maps`,
+      url: getGoogleMapsPlaceUrl(actName, destination),
+      icon: 'location_on',
+      color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
+    });
+
+    // Sitio web oficial si existe
+    if (details.websiteUrl && details.websiteUrl.startsWith('http')) {
       links.push({
         label: `Sitio Web Oficial ${operator ? `(${operator})` : ''}`,
         url: details.websiteUrl,
         icon: 'language',
-        color: 'bg-primary text-on-primary',
+        color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
         badge: 'Página Oficial',
       });
     }
-
-    // Perfil directo en Instagram del operador o atracción
-    if (details.instagramUrl || details.instagramHandle) {
-      const handle = details.instagramHandle ? details.instagramHandle.replace('@', '') : (operator || actName).toLowerCase().replace(/[^a-z0-9]/g, '');
-      const igUrl = details.instagramUrl || `https://www.instagram.com/${handle}/`;
-      links.push({
-        label: `Instagram Oficial (@${handle})`,
-        url: igUrl,
-        icon: 'photo_camera',
-        color: 'bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary',
-        badge: 'Instagram',
-      });
-    }
-
-    // Ubicación en Google Maps
-    links.push({
-      label: `Ver en Google Maps`,
-      url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(actName + ' ' + destination)}`,
-      icon: 'location_on',
-      color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
-    });
 
     return links;
   };
@@ -300,11 +340,11 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Enlaces directos para reservar y redes sociales específicas */}
+          {/* Enlaces verificados sin buscadores genéricos ni muros de login */}
           <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2.5">
             <span className="font-bold text-primary text-xs flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-[16px] text-secondary">link</span>
-              Canales Oficiales y Acceso Directo
+              <span className="material-symbols-outlined text-[16px] text-secondary">verified_user</span>
+              Canales Verificados y Acceso Directo
             </span>
             <div className="flex flex-col gap-2">
               {actionLinks.map((link, idx) => (

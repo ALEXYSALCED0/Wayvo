@@ -1,6 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { WayvoApi } from '../services/api';
+import {
+  getKayakFlightUrl,
+  OFFICIAL_AIRLINE_PORTALS,
+  getBookingHotelUrl,
+  getHotelesUrl,
+  getCivitatisTourUrl,
+  getGetYourGuideTourUrl,
+  getGoogleMapsPlaceUrl,
+  getTripadvisorSearchUrl,
+} from '../utils/travelLinks';
 
 export interface ChatCardAction {
   label: string;
@@ -116,7 +126,6 @@ export const AIChatDrawer: React.FC = () => {
       q.includes('dormir') ||
       q.includes('resort')
     ) {
-      const datesParam = startDate && endDate ? `&checkin=${startDate}&checkout=${endDate}` : '';
       cards.push({
         id: `card-hotel-${Date.now()}`,
         type: 'hotel',
@@ -128,19 +137,19 @@ export const AIChatDrawer: React.FC = () => {
         actions: [
           {
             label: 'Reservar en Booking.com',
-            url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(dest)}${datesParam}`,
+            url: getBookingHotelUrl(`Hotel en ${dest}`, dest, startDate, endDate, 2),
             icon: 'hotel',
             isPrimary: true,
           },
           {
             label: 'Ver en Hoteles.com',
-            url: `https://es.hoteles.com/Hotel-Search?destination=${encodeURIComponent(dest)}`,
+            url: getHotelesUrl(`Hotel en ${dest}`, dest, startDate, endDate, 2),
             icon: 'travel_explore',
           },
           {
-            label: 'Google Travel Hoteles',
-            url: `https://www.google.com/travel/hotels/${encodeURIComponent(dest)}`,
-            icon: 'open_in_new',
+            label: 'Ficha en Google Maps',
+            url: getGoogleMapsPlaceUrl(`Hoteles en ${dest}`, dest),
+            icon: 'location_on',
           },
         ],
       });
@@ -161,20 +170,20 @@ export const AIChatDrawer: React.FC = () => {
         id: `card-food-${Date.now()}`,
         type: 'restaurant',
         title: `Gastronomía y Restaurantes en ${dest}`,
-        subtitle: 'Menús, reservas y redes oficiales',
+        subtitle: 'Menús, reservas y reseñas verificadas',
         badge: 'Recomendado',
         location: dest,
-        description: `Consulta cartas de platos, fotos en redes sociales y disponibilidad de mesas.`,
+        description: `Consulta cartas de platos, fotos y disponibilidad sin muros de login.`,
         actions: [
           {
-            label: 'Ver en Google Maps & Reservas',
-            url: `https://www.google.com/maps/search/?api=1&query=mejores+restaurantes+en+${encodeURIComponent(dest)}`,
+            label: 'Ver Menú y Ficha en Google Maps',
+            url: getGoogleMapsPlaceUrl(`mejores restaurantes en ${dest}`, dest),
             icon: 'restaurant',
             isPrimary: true,
           },
           {
-            label: 'Guía de Restaurantes en TripAdvisor',
-            url: `https://www.tripadvisor.com/Search?q=restaurantes+en+${encodeURIComponent(dest)}`,
+            label: 'Guía y Ranking en TripAdvisor',
+            url: getTripadvisorSearchUrl(`restaurantes en ${dest}`, dest),
             icon: 'reviews',
           },
         ],
@@ -194,21 +203,45 @@ export const AIChatDrawer: React.FC = () => {
         id: `card-flight-${Date.now()}`,
         type: 'flight',
         title: `Vuelos hacia ${dest}`,
-        subtitle: `${origin} ➔ ${dest} (Vuelos directos)`,
+        subtitle: `${origin} ➔ ${dest} (Ruta y fechas)`,
         badge: 'Web Oficial',
         location: dest,
-        description: `Consulta frecuencias y reserva tu vuelo directamente en los portales de aerolíneas aliadas.`,
+        description: `Vuelos con ruta, fechas y pasajeros ya configurados para comparar y reservar directamente.`,
         actions: [
           {
-            label: 'Reservar en Avianca',
-            url: 'https://www.avianca.com/es/',
+            label: 'Ver Vuelos Avianca (Fechas Cargadas)',
+            url: getKayakFlightUrl({
+              origin,
+              destination: dest,
+              startDate: startDate || '',
+              endDate: endDate || '',
+              travelers: 2,
+              airline: 'AVIANCA',
+            }),
             icon: 'flight_takeoff',
             isPrimary: true,
           },
           {
-            label: 'Reservar en LATAM Airlines',
-            url: 'https://www.latamairlines.com/co/es/ofertas-vuelos',
+            label: 'Ver Vuelos LATAM (Fechas Cargadas)',
+            url: getKayakFlightUrl({
+              origin,
+              destination: dest,
+              startDate: startDate || '',
+              endDate: endDate || '',
+              travelers: 2,
+              airline: 'LATAM',
+            }),
             icon: 'flight',
+          },
+          {
+            label: OFFICIAL_AIRLINE_PORTALS.AVIANCA.label,
+            url: OFFICIAL_AIRLINE_PORTALS.AVIANCA.url,
+            icon: 'open_in_new',
+          },
+          {
+            label: OFFICIAL_AIRLINE_PORTALS.LATAM.label,
+            url: OFFICIAL_AIRLINE_PORTALS.LATAM.url,
+            icon: 'open_in_new',
           },
         ],
       });
@@ -232,18 +265,28 @@ export const AIChatDrawer: React.FC = () => {
         subtitle: 'Atracciones oficiales y tours guiados',
         badge: 'Imperdible',
         location: dest,
-        description: `Explora atracciones con enlace directo a boleterías oficiales y catálogo de tours.`,
+        description: `Explora atracciones con enlace directo a operadores oficiales y catálogo de tours.`,
         actions: [
           {
-            label: 'Atracciones en Google Maps',
-            url: `https://www.google.com/maps/search/?api=1&query=atracciones+turisticas+en+${encodeURIComponent(dest)}`,
-            icon: 'location_on',
+            label: 'Tours en Civitatis (Guías en Español)',
+            url: getCivitatisTourUrl(`tours en ${dest}`, dest),
+            icon: 'local_activity',
             isPrimary: true,
           },
           {
-            label: 'Tours en TripAdvisor',
-            url: `https://www.tripadvisor.com/Search?q=actividades+en+${encodeURIComponent(dest)}`,
+            label: 'Opciones en GetYourGuide',
+            url: getGetYourGuideTourUrl(`actividades en ${dest}`, dest),
+            icon: 'confirmation_number',
+          },
+          {
+            label: 'Opiniones en TripAdvisor',
+            url: getTripadvisorSearchUrl(`atracciones en ${dest}`, dest),
             icon: 'reviews',
+          },
+          {
+            label: 'Atracciones en Google Maps',
+            url: getGoogleMapsPlaceUrl(`atracciones turisticas en ${dest}`, dest),
+            icon: 'location_on',
           },
         ],
       });
