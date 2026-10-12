@@ -25,7 +25,7 @@ export function createServiceProxy(options: ServiceProxyOptions): RequestHandler
     changeOrigin: true,
     timeout: timeoutMs,
     proxyTimeout: timeoutMs,
-    pathRewrite,
+    pathRewrite: pathRewrite || ((path, req) => req.originalUrl || path),
     on: {
       proxyReq: (proxyReq, req, res) => {
         // 1. Inject distributed tracing correlation ID

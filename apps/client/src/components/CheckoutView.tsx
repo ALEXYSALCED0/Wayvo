@@ -40,21 +40,22 @@ export function CheckoutView() {
   const items = suggestedBookingItems && suggestedBookingItems.length > 0 ? suggestedBookingItems : [
     {
       type: 'TRANSPORT' as any,
-      providerId: 'avianca',
-      offerId: 'flight-mde-ctg',
-      description: `Vuelo Medellín - ${tripDraft.destination}`,
+      providerId: 'prov-aerocaribe',
+      offerId: 'offer-aerocaribe-bog-ctg-am',
+      description: `Vuelo Bogotá - ${tripDraft.destination}`,
       quantity: tripDraft.travelers || 2,
-      unitPrice: 280000,
+      unitPrice: 320000,
     },
     {
       type: 'ACCOMMODATION' as any,
-      providerId: 'hotel-bocagrande',
-      offerId: 'hotel-ctg-deluxe',
-      description: `Alojamiento 4 estrellas en ${tripDraft.destination}`,
+      providerId: 'prov-hotel-colonial',
+      offerId: 'offer-colonial-standard',
+      description: `Hotel Colonial en ${tripDraft.destination}`,
       quantity: 1,
-      unitPrice: 850000,
+      unitPrice: 420000,
     },
   ];
+
 
   const totalAmount = items.reduce((acc, curr) => acc + curr.unitPrice * curr.quantity, 0);
 

@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import unicodedata
 from datetime import date
+
 from math import ceil
 
 from domain.provider_catalog import (

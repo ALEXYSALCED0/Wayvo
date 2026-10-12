@@ -197,24 +197,25 @@ export function generateFallbackPlan(input: AIPlanRecommendationInput): AIPlanRe
     ],
   };
 
-  // 6. Build Suggested Booking Items for Checkout
+  // 6. Build Suggested Booking Items for Checkout (aligned with provider-service catalog)
   const suggestedBookingItems: CreateBookingItemInput[] = [
     {
       type: BookingItemType.TRANSPORT,
-      providerId: 'prov-airline-avianca',
-      offerId: `flight-${origin.toLowerCase().slice(0, 3)}-${destination.toLowerCase().slice(0, 3)}`,
-      description: `Vuelo ida ${origin} - ${destination} (${travelers} pasajero${travelers > 1 ? 's' : ''})`,
+      providerId: 'prov-aerocaribe',
+      offerId: 'offer-aerocaribe-bog-ctg-am',
+      description: `Vuelo Bogotá - ${destination} (${travelers} pasajero${travelers > 1 ? 's' : ''})`,
       quantity: travelers,
       unitPrice: outboundFlightCost,
     },
     {
       type: BookingItemType.ACCOMMODATION,
-      providerId: 'prov-hotel-premium',
-      offerId: `hotel-stay-${destination.toLowerCase().slice(0, 3)}`,
-      description: `Estadía Hotel Estándar en ${destination} (3 noches)`,
+      providerId: 'prov-hotel-colonial',
+      offerId: 'offer-colonial-standard',
+      description: `Estadía Hotel Colonial en ${destination} (3 noches)`,
       quantity: 1,
       unitPrice: budgetBreakdown.accommodation,
     },
+
     {
       type: BookingItemType.ACTIVITY,
       providerId: 'prov-local-tours',

@@ -54,7 +54,23 @@ describe('API Gateway Integration Tests', () => {
 
     it('should return homogeneous 503 error when downstream microservice is offline', async () => {
       // Trying to proxy to offline service without fallback
-      const res = await request(app).get('/api/v1/bookings/some-offline-id');
+      const { createServiceProxy } = await import('../src/infrastructure/proxy/http-proxy');
+      const express = (await import('express')).default;
+      const { errorMiddleware } = await import('../src/adapters/http/middlewares/error.middleware');
+      const { correlationIdMiddleware } = await import('../src/adapters/http/middlewares/correlation-id.middleware');
+
+      const testApp = express();
+      testApp.use(correlationIdMiddleware);
+      testApp.use(
+        '/api/v1/offline-test',
+        createServiceProxy({
+          serviceName: 'booking-service',
+          target: 'http://localhost:59999',
+        }),
+      );
+      testApp.use(errorMiddleware);
+
+      const res = await request(testApp).get('/api/v1/offline-test/some-offline-id');
       expect(res.status).toBe(503);
       expect(res.body.success).toBe(false);
       expect(res.body.error).toBeDefined();
@@ -62,6 +78,7 @@ describe('API Gateway Integration Tests', () => {
       expect(res.body.error.details).toBeDefined();
       expect(res.headers[CORRELATION_ID_HEADER]).toBeDefined();
     });
+
 
     it('should return homogeneous 400 error when payload contains invalid JSON', async () => {
       const res = await request(app)

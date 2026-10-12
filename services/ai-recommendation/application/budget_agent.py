@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from datetime import date
 from math import ceil
+
 from typing import Any
 
 from domain.budget_rates import (
