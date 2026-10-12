@@ -234,6 +234,7 @@ def generate_plan(request: AIPlanRequest):
     errors = result.get("errors", [])
 
     if errors:
+        print(f"[AI Service Plan Error] Destino: '{request.destination}', Errores de agentes: {errors}", flush=True)
         error_text = " ".join(str(error).lower() for error in errors)
 
         # El catálogo de alojamiento sigue pendiente.
@@ -255,10 +256,11 @@ def generate_plan(request: AIPlanRequest):
         raise HTTPException(
             status_code=502,
             detail={
-                "message": "Un agente no pudo completar su tarea.",
+                "message": f"Un agente no pudo completar su tarea: {'; '.join(str(e) for e in errors)}",
                 "errors": errors,
             },
         )
+
 
     validate_complete_result(result)
 

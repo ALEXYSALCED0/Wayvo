@@ -196,6 +196,16 @@ def budget_agent(state: dict[str, Any]) -> dict[str, Any]:
 
     accommodation_cost = _valid_cost(accommodation)
 
+    user_budget = state.get("approximateBudgetAmount")
+    # Si el usuario no indicó un monto fijo, el presupuesto sugerido se ajusta
+    # dinámicamente para cubrir el costo real de vuelos/hoteles de ese destino,
+    # siempre que no sea un costo absurdo o astronómico (ej: > 20M COP para viaje corto).
+    max_reasonable_budget = 20_000_000 if currency == "COP" else 5_000
+    if user_budget is None and budget is not None:
+        needed = transport_cost + accommodation_cost + (float(budget) * 0.3)
+        if needed > float(budget) and (transport_cost + accommodation_cost) <= max_reasonable_budget:
+            budget = round(transport_cost + accommodation_cost + float(budget), 2)
+
     available = round(
         float(budget) - transport_cost - accommodation_cost,
         2,
@@ -209,6 +219,8 @@ def budget_agent(state: dict[str, Any]) -> dict[str, Any]:
                 "más económicas."
             ]
         }
+
+
 
     activities = [
         item
