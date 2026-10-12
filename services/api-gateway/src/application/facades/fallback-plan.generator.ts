@@ -55,9 +55,9 @@ export function generateFallbackPlan(input: AIPlanRecommendationInput): AIPlanRe
         ? 0.75
         : 1.0;
 
-  const estimatedTotalCost = Math.round(
-    (input.approximateBudgetAmount || 3600000) * baseMultiplier * (travelers > 1 ? travelers * 0.9 : 1),
-  );
+  const estimatedTotalCost = input.approximateBudgetAmount
+    ? Math.round(input.approximateBudgetAmount)
+    : Math.round(3600000 * baseMultiplier * travelers);
   const dailyBudget = Math.round(estimatedTotalCost / numDays);
 
   const budgetBreakdown = {

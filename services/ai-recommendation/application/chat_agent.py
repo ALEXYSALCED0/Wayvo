@@ -85,7 +85,7 @@ Reglas:
 
     try:
         llm = ChatGoogleGenerativeAI(
-            model="gemini-3.1-flash-lite",
+            model="gemini-3.8-flash",
             temperature=0.7,
             google_api_key=api_key,
         )
