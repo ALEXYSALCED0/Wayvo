@@ -480,71 +480,72 @@ export const OnboardingView: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Origen */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-primary flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-secondary text-[18px]">flight_takeoff</span>
-                    Ciudad de Origen
+                  <label className="text-xs font-semibold text-primary flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-secondary text-[18px]">flight_takeoff</span>
+                      Ciudad de Origen
+                    </span>
+                    <span className="text-[10px] text-secondary font-mono">Libre o sugerido</span>
                   </label>
-                  <select
+                  <input
+                    type="text"
+                    list="origins-list"
                     value={origin}
                     onChange={(e) => setOrigin(e.target.value)}
-                    className="w-full h-11 px-3 bg-surface-container-low text-on-surface text-xs font-medium rounded-xl border border-outline-variant/30 focus:outline-none focus:border-secondary cursor-pointer"
-                  >
-                    <option value="Bogotá (BOG)">Bogotá • El Dorado Intl (BOG)</option>
-                    <option value="Medellín (MDE)">Medellín • José María Córdova (MDE)</option>
-                    <option value="Cali (CLO)">Cali • Alfonso Bonilla Aragón (CLO)</option>
-                    <option value="Barranquilla (BAQ)">Barranquilla • Ernesto Cortissoz (BAQ)</option>
-                    <option value="Bucaramanga (BGA)">Bucaramanga • Palonegro (BGA)</option>
-                    <option value="Pereira (PEI)">Pereira • Matecaña (PEI)</option>
-                    <option value="Cartagena (CTG)">Cartagena • Rafael Núñez (CTG)</option>
-                  </select>
+                    placeholder="Escribe tu ciudad de salida (ej: Bogotá, Medellín, Cali...)"
+                    className="w-full h-11 px-3 bg-surface-container-low text-on-surface text-xs font-medium rounded-xl border border-outline-variant/30 focus:outline-none focus:border-secondary"
+                  />
+                  <datalist id="origins-list">
+                    <option value="Bogotá (BOG)" />
+                    <option value="Medellín (MDE)" />
+                    <option value="Cali (CLO)" />
+                    <option value="Barranquilla (BAQ)" />
+                    <option value="Bucaramanga (BGA)" />
+                    <option value="Pereira (PEI)" />
+                    <option value="Cartagena (CTG)" />
+                  </datalist>
                 </div>
 
-                {/* Destino */}
+                {/* Destino Libre */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-primary flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-secondary text-[18px]">flight_land</span>
-                    Destino Principal
+                  <label className="text-xs font-semibold text-primary flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-secondary text-[18px]">flight_land</span>
+                      Destino Principal
+                    </span>
+                    <span className="text-[10px] text-secondary font-mono">Cualquier ciudad o país</span>
                   </label>
-                  <select
+                  <input
+                    type="text"
+                    list="destinations-list"
                     value={destination}
                     onChange={(e) => setDestination(e.target.value)}
-                    className="w-full h-11 px-3 bg-surface-container-low text-on-surface text-xs font-medium rounded-xl border border-outline-variant/30 focus:outline-none focus:border-secondary cursor-pointer"
-                  >
-                    <optgroup label="Caribe Colombiano">
-                      <option value="Cartagena (CTG)">Cartagena de Indias • Rafael Núñez (CTG)</option>
-                      <option value="Santa Marta (SMR)">Santa Marta & Parque Tayrona • Simón Bolívar (SMR)</option>
-                      <option value="San Andrés (ADZ)">San Andrés Isla • Gustavo Rojas Pinilla (ADZ)</option>
-                      <option value="Barranquilla (BAQ)">Barranquilla • Ernesto Cortissoz (BAQ)</option>
-                      <option value="Riohacha (RCH)">Riohacha & La Guajira • Almirante Padilla (RCH)</option>
-                    </optgroup>
-                    <optgroup label="Región Andina & Montaña">
-                      <option value="Medellín (MDE)">Medellín & Guatapé • José María Córdova (MDE)</option>
-                      <option value="Bogotá (BOG)">Bogotá • Capital Cosmopolita (BOG)</option>
-                      <option value="Cali (CLO)">Cali • Valle del Cauca (CLO)</option>
-                      <option value="Bucaramanga (BGA)">Bucaramanga & Barichara • Palonegro (BGA)</option>
-                      <option value="Villa de Leyva (VLL)">Villa de Leyva & Boyacá</option>
-                    </optgroup>
-                    <optgroup label="Eje Cafetero & Paisaje Cultural">
-                      <option value="Eje Cafetero (AXM)">Armenia / Salento & Cocora • El Edén (AXM)</option>
-                      <option value="Pereira (PEI)">Pereira & Risaralda • Matecaña (PEI)</option>
-                      <option value="Manizales (MZL)">Manizales & Nevados • La Nubia (MZL)</option>
-                    </optgroup>
-                    <optgroup label="Aventura & Ecoturismo">
-                      <option value="Leticia (LET)">Leticia • Amazonas Salvaje (LET)</option>
-                      <option value="Nuquí (NQU)">Nuquí & Bahía Solano • Pacífico (NQU)</option>
-                      <option value="La Macarena (LMC)">La Macarena • Caño Cristales (LMC)</option>
-                    </optgroup>
-                    <optgroup label="Destinos Internacionales">
-                      <option value="Cancún (CUN)">Cancún & Riviera Maya, México (CUN)</option>
-                      <option value="Cusco (CUZ)">Cusco & Machu Picchu, Perú (CUZ)</option>
-                      <option value="Punta Cana (PUJ)">Punta Cana, Rep. Dominicana (PUJ)</option>
-                    </optgroup>
-                  </select>
+                    placeholder="Escribe el destino que desees (ej: Medellín, Roma, Tokio, Cali, París...)"
+                    className="w-full h-11 px-3 bg-surface-container-low text-on-surface text-xs font-medium rounded-xl border border-outline-variant/30 focus:outline-none focus:border-secondary"
+                  />
+                  <datalist id="destinations-list">
+                    <option value="Cartagena (CTG)" />
+                    <option value="Santa Marta (SMR)" />
+                    <option value="San Andrés (ADZ)" />
+                    <option value="Medellín (MDE)" />
+                    <option value="Bogotá (BOG)" />
+                    <option value="Cali (CLO)" />
+                    <option value="Bucaramanga (BGA)" />
+                    <option value="Eje Cafetero (AXM)" />
+                    <option value="Leticia (LET)" />
+                    <option value="Cancún (CUN)" />
+                    <option value="Cusco (CUZ)" />
+                    <option value="Madrid (MAD)" />
+                    <option value="Tokio (NRT)" />
+                    <option value="París (CDG)" />
+                    <option value="Buenos Aires (EZE)" />
+                    <option value="Nueva York (JFK)" />
+                  </datalist>
                 </div>
 
                 {/* Destinos Populares Quick Chips */}
                 <div className="md:col-span-2">
-                  <span className="text-[11px] font-semibold text-on-surface-variant block mb-2">Destinos Destacados en Tendencia:</span>
+                  <span className="text-[11px] font-semibold text-on-surface-variant block mb-2">Sugerencias rápidas en tendencia (o escribe el tuyo):</span>
                   <div className="flex flex-wrap gap-2">
                     {[
                       { name: 'Cartagena (CTG)', label: 'Cartagena', icon: 'beach_access' },
@@ -553,6 +554,8 @@ export const OnboardingView: React.FC = () => {
                       { name: 'Medellín (MDE)', label: 'Medellín', icon: 'location_city' },
                       { name: 'Eje Cafetero (AXM)', label: 'Eje Cafetero', icon: 'coffee' },
                       { name: 'Leticia (LET)', label: 'Amazonas', icon: 'forest' },
+                      { name: 'Cusco (CUZ)', label: 'Machu Picchu', icon: 'landscape' },
+                      { name: 'Tokio', label: 'Tokio', icon: 'flight' },
                     ].map((dest) => (
                       <button
                         key={dest.name}
@@ -571,11 +574,13 @@ export const OnboardingView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Route Vector Graphic (Stitch Visual Vector) */}
+                {/* Route Vector Graphic */}
                 <div className="md:col-span-2 py-3 px-4 rounded-xl bg-surface-container-low flex items-center justify-between border border-outline-variant/30">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold text-primary">{origin.slice(-4, -1)}</span>
-                    <span className="text-[11px] text-on-surface-variant">Origen</span>
+                    <span className="font-mono text-sm font-bold text-primary">
+                      {origin.includes('(') ? origin.slice(-4, -1) : origin.slice(0, 3).toUpperCase()}
+                    </span>
+                    <span className="text-[11px] text-on-surface-variant truncate max-w-[120px]">{origin}</span>
                   </div>
                   <div className="flex-1 mx-4 flex items-center justify-center relative">
                     <svg className="w-full h-5 text-secondary" fill="none" viewBox="0 0 240 20" preserveAspectRatio="none">
@@ -586,8 +591,10 @@ export const OnboardingView: React.FC = () => {
                     <span className="material-symbols-outlined text-[18px] text-primary absolute -top-1">flight</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold text-primary">{destination.slice(-4, -1)}</span>
-                    <span className="text-[11px] text-on-surface-variant">Llegada</span>
+                    <span className="font-mono text-sm font-bold text-primary">
+                      {destination.includes('(') ? destination.slice(-4, -1) : destination.slice(0, 3).toUpperCase()}
+                    </span>
+                    <span className="text-[11px] text-on-surface-variant truncate max-w-[120px]">{destination}</span>
                   </div>
                 </div>
 

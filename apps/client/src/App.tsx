@@ -30,9 +30,11 @@ function AppContent() {
           <span className="font-bold text-primary">Wayvo</span>
           <span>• Azure Clarity Travel Platform</span>
         </div>
-        <div className="font-mono text-[11px] text-secondary">
-          GoF: Facade • Saga • Adapter • Mediator | AI: LangGraph
-        </div>
+        {appMode === 'DEV' && (
+          <div className="font-mono text-[11px] text-secondary">
+            GoF: Facade • Saga • Adapter • Mediator | AI: LangGraph
+          </div>
+        )}
         <div>Diseño de Software 2 • Universidad del Norte</div>
       </footer>
 

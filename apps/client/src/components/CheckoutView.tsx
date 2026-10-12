@@ -103,9 +103,23 @@ export const CheckoutView: React.FC = () => {
         setCheckoutResult(response.saga);
 
         if (response.saga.status === 'CONFIRMED' && response.saga.tripId) {
+          const allPlanEvents = planResult.itinerary?.days?.flatMap((d) => d.events) || [];
           try {
             const trip = await WayvoApi.getTrip(response.saga.tripId);
-            setActiveTrip(trip);
+            if (trip && trip.destination === tripDraft.destination && trip.events && trip.events.length > 0) {
+              setActiveTrip(trip);
+            } else {
+              setActiveTrip({
+                id: response.saga.tripId,
+                userId: tripDraft.userId || 'usr-client',
+                title: tripDraft.title || `Viaje a ${tripDraft.destination}`,
+                destination: tripDraft.destination,
+                startDate: tripDraft.startDate,
+                endDate: tripDraft.endDate,
+                status: 'CONFIRMED',
+                events: allPlanEvents,
+              } as any);
+            }
           } catch {
             setActiveTrip({
               id: response.saga.tripId,
@@ -115,7 +129,7 @@ export const CheckoutView: React.FC = () => {
               startDate: tripDraft.startDate,
               endDate: tripDraft.endDate,
               status: 'CONFIRMED',
-              events: planResult.itinerary?.days?.flatMap((d) => d.events) || [],
+              events: allPlanEvents,
             } as any);
           }
         }

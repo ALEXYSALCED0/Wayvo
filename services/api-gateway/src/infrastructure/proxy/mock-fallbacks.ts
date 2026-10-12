@@ -149,11 +149,29 @@ export function aiMockFallback(req: Request, res: Response): void {
   // Free conversational chat endpoint
   if (url.includes('/chat')) {
     const userMsg = req.body?.message || '';
+    const dest = req.body?.context?.currentDestination || 'tu destino';
+    const q = userMsg.toLowerCase();
+
+    let dynamicReply = `¡Hola! Como tu asistente de viaje Wayvo para ${dest}, he recibido tu consulta. `;
+    if (q.includes('vuelo') || q.includes('retraso') || q.includes('aeropuerto')) {
+      dynamicReply += `Si se presenta alguna novedad con tus vuelos hacia o desde ${dest}, nuestra garantía de reserva activa la reasignación en vuelos aliados sin costo adicional.`;
+    } else if (q.includes('imprevisto') || q.includes('clima') || q.includes('lluvia') || q.includes('oleaje')) {
+      dynamicReply += `Monitoreamos las condiciones en ${dest} en tiempo real. Ante cualquier novedad operativa, el Mediador recalcula actividades alternativas con tarifas protegidas.`;
+    } else if (q.includes('comida') || q.includes('restaurante') || q.includes('plato') || q.includes('gastronom')) {
+      dynamicReply += `Para ${dest}, te recomendamos probar la gastronomía autóctona y establecimientos con reserva previa para asegurar tu cupo y la mejor experiencia.`;
+    } else {
+      dynamicReply += `Tu itinerario se encuentra calibrado. ¿Te gustaría conocer sugerencias de actividades, recomendaciones gastronómicas o resolver alguna duda sobre tus reservas?`;
+    }
+
     const response: ApiResponse = {
       success: true,
       data: {
-        reply: `¡Hola! Como asistente de viajes de Wayvo con Gemini, he analizado tu solicitud: "${userMsg}". Tu itinerario está optimizado para tus gustos. ¿Deseas modificar algún horario o explorar actividades alternativas?`,
-        suggestedActions: ['Ver detalles del vuelo', 'Revisar recomendaciones de cena', 'Simular un imprevisto'],
+        reply: dynamicReply,
+        suggestedActions: [
+          `Lugares imperdibles en ${dest}`,
+          `Gastronomía en ${dest}`,
+          'Protección ante imprevistos',
+        ],
         model: 'gemini-1.5-pro',
       },
       message: 'Served by API Gateway AI Assistant',

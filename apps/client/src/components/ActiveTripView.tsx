@@ -1,68 +1,117 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { IncidentModal } from './IncidentModal';
+import { EventDetailModal } from './EventDetailModal';
 
 export const ActiveTripView: React.FC = () => {
-  const { activeTrip, setCurrentView, appMode } = useApp();
+  const { activeTrip, planResult, setActiveTrip, setCurrentView, appMode } = useApp();
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [selectedDayFilter, setSelectedDayFilter] = useState('ALL');
+  const [selectedEventModal, setSelectedEventModal] = useState<any | null>(null);
 
-  if (!activeTrip) {
+  // Allow previewing planResult if trip is not yet confirmed through checkout
+  const currentTrip =
+    activeTrip ||
+    (planResult
+      ? ({
+          id: planResult.planId || 'trip-preview',
+          userId: planResult.tripDraft.userId || 'usr-client',
+          title: planResult.tripDraft.title || `Viaje a ${planResult.tripDraft.destination}`,
+          destination: planResult.tripDraft.destination,
+          startDate: planResult.tripDraft.startDate,
+          endDate: planResult.tripDraft.endDate,
+          status: 'CONFIRMED',
+          isPreview: true,
+          events: planResult.itinerary?.days?.flatMap((d) => d.events) || [],
+        } as any)
+      : null);
+
+  const handleLoadDemoTrip = () => {
+    setActiveTrip({
+      id: 'trip-demo-medellin',
+      userId: 'usr-client',
+      title: 'Expedición Cultural en Medellín',
+      destination: 'Medellín',
+      startDate: '2026-11-01',
+      endDate: '2026-11-05',
+      status: 'CONFIRMED',
+      events: [
+        {
+          id: 'evt-1',
+          title: 'Vuelo Bogotá (BOG) ➔ Medellín (MDE)',
+          time: '07:30 AM - 08:35 AM',
+          type: 'TRANSPORT',
+          status: 'COMPLETED',
+          location: 'Aeropuerto José María Córdova',
+          description: 'Avianca AV8422 • Arribo a tiempo y equipaje reclamado.',
+          details: { provider: 'Avianca Airlines', price: 280000, notes: 'Terminal 1 Puerta 4' },
+        },
+        {
+          id: 'evt-2',
+          title: 'Check-in Hotel Boutique El Poblado',
+          time: '11:00 AM',
+          type: 'ACCOMMODATION',
+          status: 'COMPLETED',
+          location: 'El Poblado, Medellín',
+          description: 'Habitación Superior con vista panorámica y desayuno.',
+          details: { provider: 'Wayvo Boutique Hotels', price: 650000, notes: 'Clave WiFi y tarjeta llave activa' },
+        },
+        {
+          id: 'evt-3',
+          title: 'Tour de Transformación Social Comuna 13 & Graffitour',
+          time: '02:30 PM',
+          type: 'ACTIVITY',
+          status: 'COMPLETED',
+          location: 'San Javier - Escaleras Eléctricas',
+          description: 'Recorrido con guía local, escaleras eléctricas y degustación de helado de mango biche.',
+          details: { provider: 'Guías Comuna 13 Oficiales', price: 85000, notes: 'Llevar calzado deportivo y agua' },
+        },
+        {
+          id: 'evt-4',
+          title: 'Cena de Alta Cocina Paisa en El Chato / Carmen',
+          time: '08:00 PM',
+          type: 'MEAL',
+          status: 'PENDING',
+          location: 'Manila, El Poblado',
+          description: 'Mesa reservada para degustación de 6 pasos con maridaje.',
+          details: { provider: 'Carmen Medellín', price: 210000, notes: 'Código de vestimenta smart casual' },
+        },
+      ],
+    } as any);
+  };
+
+  if (!currentTrip) {
     return (
-      <div className="w-full max-w-4xl mx-auto my-16 p-8 text-center bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm">
+      <div className="w-full max-w-4xl mx-auto my-16 p-8 text-center bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm animate-fade-in">
         <span className="material-symbols-outlined text-[48px] text-secondary mb-3">luggage</span>
-        <h2 className="text-xl font-bold text-primary mb-2">No hay un viaje activo confirmado</h2>
-        <p className="text-sm text-on-surface-variant mb-6">
-          Ejecuta la reserva en el Checkout para activar tu viaje y monitorearlo en tiempo real.
+        <h2 className="text-xl font-bold text-primary mb-2">No hay un viaje activo cargado</h2>
+        <p className="text-sm text-on-surface-variant mb-6 max-w-md mx-auto">
+          Diseña tu viaje personalizado con IA para hacer el seguimiento en vivo, o carga un viaje de prueba para explorar la experiencia.
         </p>
-        <button
-          onClick={() => setCurrentView('CHECKOUT')}
-          className="px-6 py-2.5 rounded-full bg-primary-container text-on-primary text-sm font-semibold hover:bg-primary transition-all shadow-sm"
-        >
-          Ir al Checkout
-        </button>
+        <div className="flex items-center justify-center gap-3 flex-wrap">
+          <button
+            onClick={() => setCurrentView('ONBOARDING')}
+            className="px-6 py-2.5 rounded-full bg-primary-container text-on-primary text-sm font-semibold hover:bg-primary transition-all shadow-sm flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">travel_explore</span>
+            <span>Planificar con IA</span>
+          </button>
+          <button
+            onClick={handleLoadDemoTrip}
+            className="px-6 py-2.5 rounded-full bg-surface-container hover:bg-surface-container-high text-primary text-sm font-semibold transition-all border border-outline-variant/30 flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-[18px] text-secondary">magic_button</span>
+            <span>Cargar Viaje Demo</span>
+          </button>
+        </div>
       </div>
     );
   }
 
-  const events = activeTrip.events && activeTrip.events.length > 0 ? activeTrip.events : [
-    {
-      id: 'evt-1',
-      title: 'Vuelo Bogotá (BOG) ➔ Cartagena (CTG)',
-      time: '08:00 AM - 09:30 AM',
-      type: 'TRANSPORT',
-      status: 'COMPLETED',
-      location: 'Aeropuerto Rafael Núñez',
-      description: 'Avianca AV9543 • Vuelo confirmado y arribado a tiempo.',
-    },
-    {
-      id: 'evt-2',
-      title: 'Check-in Hotel Colonial Cartagena',
-      time: '11:00 AM',
-      type: 'ACCOMMODATION',
-      status: 'COMPLETED',
-      location: 'Centro Histórico',
-      description: 'Habitación estándar con vista al jardín colonial.',
-    },
-    {
-      id: 'evt-3',
-      title: 'Excursión Lancha Rápida Islas del Rosario',
-      time: '02:30 PM',
-      type: 'ACTIVITY',
-      status: 'DISRUPTED',
-      location: 'Muelle de la Bodeguita',
-      description: 'Alerta por oleaje anómalo (DIMAR). El Mediador tiene alternativas listas.',
-    },
-    {
-      id: 'evt-4',
-      title: 'Cena de Degustación en Celele',
-      time: '08:00 PM',
-      type: 'MEAL',
-      status: 'PENDING',
-      location: 'Barrio Getsemaní',
-      description: 'Mesa reservada para 2 personas en jardín interior.',
-    },
-  ];
+  const events = (currentTrip.events && currentTrip.events.length > 0 ? currentTrip.events : []).map((evt: any) => ({
+    ...evt,
+    time: evt.time || evt.startTime || '09:00 AM',
+  }));
 
   return (
     <div className="w-full bg-surface pb-12 animate-fade-in">
@@ -72,17 +121,22 @@ export const ActiveTripView: React.FC = () => {
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
-                IATA DEST: {activeTrip.destination.slice(0, 3).toUpperCase()}
+                IATA DEST: {currentTrip.destination.slice(0, 3).toUpperCase()}
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-xs font-medium">
-                {activeTrip.startDate} — {activeTrip.endDate}
+                {currentTrip.startDate} — {currentTrip.endDate}
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-surface-container-lowest text-secondary font-mono text-xs shadow-sm">
                 Hora Local: COT (GMT-5)
               </span>
+              {(currentTrip as any).isPreview && (
+                <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-mono text-xs font-bold">
+                  Vista Previa del Itinerario
+                </span>
+              )}
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-primary">
-              {activeTrip.destination}, Colombia
+              {currentTrip.destination}
             </h1>
             <p className="text-xs md:text-sm text-on-surface-variant">
               {appMode === 'DEV'
@@ -176,14 +230,15 @@ export const ActiveTripView: React.FC = () => {
 
           {/* Cards de Eventos */}
           <div className="flex flex-col gap-4">
-            {events.map((evt) => {
+            {events.map((evt: any) => {
               const isDisrupted = evt.status === 'DISRUPTED';
               const isCompleted = evt.status === 'COMPLETED';
 
               return (
                 <div
                   key={evt.id}
-                  className={`stitch-card p-5 rounded-xl flex items-start justify-between gap-4 transition-all ${
+                  onClick={() => setSelectedEventModal(evt)}
+                  className={`stitch-card p-5 rounded-xl flex items-start justify-between gap-4 transition-all cursor-pointer group hover:shadow-sm ${
                     isDisrupted
                       ? 'bg-error-container/30 border-error/40'
                       : 'bg-surface-container-lowest hover:border-secondary'
@@ -191,7 +246,7 @@ export const ActiveTripView: React.FC = () => {
                 >
                   <div className="flex items-start gap-4">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform ${
                         isDisrupted
                           ? 'bg-error-container text-error'
                           : isCompleted
@@ -215,7 +270,7 @@ export const ActiveTripView: React.FC = () => {
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono text-xs font-bold text-secondary">{evt.time}</span>
-                        <h3 className={`text-sm font-bold ${isDisrupted ? 'text-error' : 'text-primary'}`}>
+                        <h3 className={`text-sm font-bold group-hover:text-secondary transition-colors ${isDisrupted ? 'text-error' : 'text-primary'}`}>
                           {evt.title}
                         </h3>
                       </div>
@@ -229,7 +284,7 @@ export const ActiveTripView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                     <span
                       className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                         isDisrupted
@@ -241,10 +296,17 @@ export const ActiveTripView: React.FC = () => {
                     >
                       {isDisrupted ? 'ALERTA DISRUPCIÓN' : isCompleted ? '✓ COMPLETADO' : 'PROGRAMADO'}
                     </span>
+                    <span className="text-[11px] text-secondary font-semibold group-hover:underline flex items-center gap-0.5 mt-1">
+                      <span>Ver Ficha</span>
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                    </span>
                     {isDisrupted && (
                       <button
-                        onClick={() => setIsIncidentModalOpen(true)}
-                        className="block mt-2 text-xs font-bold text-error hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsIncidentModalOpen(true);
+                        }}
+                        className="block mt-1 text-xs font-bold text-error hover:underline"
                       >
                         Resolver Ahora ➔
                       </button>
@@ -319,8 +381,17 @@ export const ActiveTripView: React.FC = () => {
       {/* Incident Modal Trigger */}
       {isIncidentModalOpen && (
         <IncidentModal
-          tripId={activeTrip.id}
+          tripId={currentTrip.id}
           onClose={() => setIsIncidentModalOpen(false)}
+        />
+      )}
+
+      {/* Event Details Full Modal */}
+      {selectedEventModal && (
+        <EventDetailModal
+          event={selectedEventModal}
+          destination={currentTrip.destination}
+          onClose={() => setSelectedEventModal(null)}
         />
       )}
     </div>

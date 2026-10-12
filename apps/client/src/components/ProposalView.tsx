@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { EventDetailModal } from './EventDetailModal';
 
 export const ProposalView: React.FC = () => {
   const { planResult, setCurrentView, appMode } = useApp();
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [selectedEventModal, setSelectedEventModal] = useState<any | null>(null);
 
   if (!planResult) {
     return (
@@ -168,10 +170,11 @@ export const ProposalView: React.FC = () => {
                 activeDay.events.map((evt) => (
                   <div
                     key={evt.id}
-                    className="stitch-card p-4 rounded-xl bg-surface-container-lowest flex items-start justify-between gap-4 hover:border-secondary transition-all"
+                    onClick={() => setSelectedEventModal(evt)}
+                    className="stitch-card p-4 rounded-xl bg-surface-container-lowest flex items-start justify-between gap-4 hover:border-secondary hover:shadow-sm cursor-pointer transition-all group"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-primary flex-shrink-0 mt-0.5">
+                      <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-primary flex-shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
                         <span className="material-symbols-outlined text-[20px]">
                           {evt.type === 'FLIGHT' || (evt as any).type === 'TRANSPORT'
                             ? 'flight'
@@ -185,7 +188,7 @@ export const ProposalView: React.FC = () => {
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-mono text-xs font-bold text-secondary">{evt.time || 'Horario Flexible'}</span>
-                          <span className="text-xs font-semibold text-primary">{evt.title}</span>
+                          <span className="text-xs font-semibold text-primary group-hover:text-secondary transition-colors">{evt.title}</span>
                         </div>
                         <p className="text-xs text-on-surface-variant">{evt.description}</p>
                         <div className="flex items-center gap-3 text-[11px] text-on-surface-variant mt-1 flex-wrap">
@@ -210,12 +213,16 @@ export const ProposalView: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
+                    <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
                       <span className="text-xs font-mono font-bold text-primary block">
                         {evt.details?.price ? formatCOP(evt.details.price) : 'Incluido'}
                       </span>
-                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-surface-container text-secondary font-medium">
+                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-mono bg-surface-container text-secondary font-medium">
                         {evt.statusLabel || 'PROGRAMADO'}
+                      </span>
+                      <span className="text-[11px] text-secondary font-semibold group-hover:underline flex items-center gap-0.5 mt-1">
+                        <span>Ver Ficha</span>
+                        <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                       </span>
                     </div>
                   </div>
@@ -424,6 +431,15 @@ export const ProposalView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Event Details Full Modal */}
+      {selectedEventModal && (
+        <EventDetailModal
+          event={selectedEventModal}
+          destination={tripDraft.destination}
+          onClose={() => setSelectedEventModal(null)}
+        />
+      )}
     </div>
   );
 };

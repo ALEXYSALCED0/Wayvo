@@ -10,12 +10,14 @@ interface ChatMessage {
 }
 
 export const AIChatDrawer: React.FC = () => {
-  const { isChatOpen, setIsChatOpen, activeTrip } = useApp();
+  const { isChatOpen, setIsChatOpen, activeTrip, planResult } = useApp();
+  const currentDest = activeTrip?.destination || planResult?.tripDraft?.destination || 'tu destino';
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'msg-0',
       sender: 'assistant',
-      text: '¡Hola! Soy tu asistente de viajes inteligente de Wayvo impulsado por Google Gemini. ¿En qué puedo asistirte con tu itinerario, restaurantes o actividades?',
+      text: `¡Hola! Soy tu concierge inteligente de Wayvo impulsado por Google Gemini. Estoy aquí para resolver tus dudas sobre ${currentDest}, sugerirte restaurantes locales, revisar vuelos o gestionar imprevistos.`,
       time: 'Ahora',
     },
   ]);
@@ -25,10 +27,28 @@ export const AIChatDrawer: React.FC = () => {
   if (!isChatOpen) return null;
 
   const quickChips = [
-    '¿Qué comida típica pruebo en Cartagena?',
-    '¿Qué hacer en caso de retraso de mi vuelo?',
-    'Recomiéndame un restaurante en el Centro Histórico',
+    `¿Qué lugares no me puedo perder en ${currentDest}?`,
+    `¿Qué comida típica debo probar en ${currentDest}?`,
+    `¿Qué hacer en caso de retraso de mi vuelo?`,
+    `Recomiéndame una actividad especial para la tarde`,
   ];
+
+  const generateSmartFallbackReply = (query: string, dest: string) => {
+    const q = query.toLowerCase();
+    if (q.includes('vuelo') || q.includes('retraso') || q.includes('aeropuerto')) {
+      return `Si tu vuelo hacia o desde ${dest} sufre una demora, la garantía Wayvo activa de inmediato la protección de itinerario. Nuestro sistema busca reubicaciones sin costo en aerolíneas aliadas (Avianca / LATAM) y reajusta automáticamente las reservas de hotel.`;
+    }
+    if (q.includes('imprevisto') || q.includes('clima') || q.includes('lluvia') || q.includes('oleaje')) {
+      return `Ante cualquier contingencia climática en ${dest}, el motor inteligente recalcula actividades bajo techo o culturales de igual valor, garantizando que aproveches cada momento sin incurrir en sobrecostos.`;
+    }
+    if (q.includes('comida') || q.includes('restaurante') || q.includes('probar') || q.includes('gastronom')) {
+      return `En ${dest}, te sugiero explorar tanto la cocina tradicional como propuestas contemporáneas de autor. Busca lugares con certificación local y reservas garantizadas para evitar esperas en temporada alta.`;
+    }
+    if (q.includes('lugares') || q.includes('perder') || q.includes('visitar') || q.includes('actividad')) {
+      return `Para ${dest}, te recomiendo combinar recorridos patrimoniales por la mañana con experiencias al aire libre o gastronómicas al atardecer, aprovechando la mejor luz y temperatura del día.`;
+    }
+    return `Como tu copiloto en ${dest}, he analizado tu consulta. Tu itinerario actual está equilibrado y monitoreado continuamente. Si deseas agregar o cambiar una parada, indícamelo y lo coordinaré con el sistema.`;
+  };
 
   const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputMessage;
@@ -51,14 +71,14 @@ export const AIChatDrawer: React.FC = () => {
         message: text,
         tripId: activeTrip?.id,
         context: {
-          currentDestination: activeTrip?.destination || 'Cartagena',
+          currentDestination: currentDest,
         },
       });
 
       const replyText =
         response.message?.text ||
         (response as any).reply ||
-        'He analizado tu mensaje y verifiqué los datos con la malla multiagente. Tu itinerario se mantiene optimizado.';
+        generateSmartFallbackReply(text, currentDest);
 
       setMessages((prev) => [
         ...prev,
@@ -75,7 +95,7 @@ export const AIChatDrawer: React.FC = () => {
         {
           id: `msg-${Date.now()}-ai`,
           sender: 'assistant',
-          text: `Como tu copiloto en ${activeTrip?.destination || 'Cartagena'}, te recomiendo visitar Celele en Getsemaní para una cena caribeña de autor, o recorrer las murallas al atardecer.`,
+          text: generateSmartFallbackReply(text, currentDest),
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
