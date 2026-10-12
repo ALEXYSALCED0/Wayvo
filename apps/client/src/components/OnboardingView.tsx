@@ -492,6 +492,10 @@ export const OnboardingView: React.FC = () => {
                     <option value="Bogotá (BOG)">Bogotá • El Dorado Intl (BOG)</option>
                     <option value="Medellín (MDE)">Medellín • José María Córdova (MDE)</option>
                     <option value="Cali (CLO)">Cali • Alfonso Bonilla Aragón (CLO)</option>
+                    <option value="Barranquilla (BAQ)">Barranquilla • Ernesto Cortissoz (BAQ)</option>
+                    <option value="Bucaramanga (BGA)">Bucaramanga • Palonegro (BGA)</option>
+                    <option value="Pereira (PEI)">Pereira • Matecaña (PEI)</option>
+                    <option value="Cartagena (CTG)">Cartagena • Rafael Núñez (CTG)</option>
                   </select>
                 </div>
 
@@ -506,10 +510,65 @@ export const OnboardingView: React.FC = () => {
                     onChange={(e) => setDestination(e.target.value)}
                     className="w-full h-11 px-3 bg-surface-container-low text-on-surface text-xs font-medium rounded-xl border border-outline-variant/30 focus:outline-none focus:border-secondary cursor-pointer"
                   >
-                    <option value="Cartagena (CTG)">Cartagena de Indias • Rafael Núñez (CTG)</option>
-                    <option value="Santa Marta (SMR)">Santa Marta • Simón Bolívar (SMR)</option>
-                    <option value="Medellín (MDE)">Medellín • Valle de Aburrá (MDE)</option>
+                    <optgroup label="Caribe Colombiano">
+                      <option value="Cartagena (CTG)">Cartagena de Indias • Rafael Núñez (CTG)</option>
+                      <option value="Santa Marta (SMR)">Santa Marta & Parque Tayrona • Simón Bolívar (SMR)</option>
+                      <option value="San Andrés (ADZ)">San Andrés Isla • Gustavo Rojas Pinilla (ADZ)</option>
+                      <option value="Barranquilla (BAQ)">Barranquilla • Ernesto Cortissoz (BAQ)</option>
+                      <option value="Riohacha (RCH)">Riohacha & La Guajira • Almirante Padilla (RCH)</option>
+                    </optgroup>
+                    <optgroup label="Región Andina & Montaña">
+                      <option value="Medellín (MDE)">Medellín & Guatapé • José María Córdova (MDE)</option>
+                      <option value="Bogotá (BOG)">Bogotá • Capital Cosmopolita (BOG)</option>
+                      <option value="Cali (CLO)">Cali • Valle del Cauca (CLO)</option>
+                      <option value="Bucaramanga (BGA)">Bucaramanga & Barichara • Palonegro (BGA)</option>
+                      <option value="Villa de Leyva (VLL)">Villa de Leyva & Boyacá</option>
+                    </optgroup>
+                    <optgroup label="Eje Cafetero & Paisaje Cultural">
+                      <option value="Eje Cafetero (AXM)">Armenia / Salento & Cocora • El Edén (AXM)</option>
+                      <option value="Pereira (PEI)">Pereira & Risaralda • Matecaña (PEI)</option>
+                      <option value="Manizales (MZL)">Manizales & Nevados • La Nubia (MZL)</option>
+                    </optgroup>
+                    <optgroup label="Aventura & Ecoturismo">
+                      <option value="Leticia (LET)">Leticia • Amazonas Salvaje (LET)</option>
+                      <option value="Nuquí (NQU)">Nuquí & Bahía Solano • Pacífico (NQU)</option>
+                      <option value="La Macarena (LMC)">La Macarena • Caño Cristales (LMC)</option>
+                    </optgroup>
+                    <optgroup label="Destinos Internacionales">
+                      <option value="Cancún (CUN)">Cancún & Riviera Maya, México (CUN)</option>
+                      <option value="Cusco (CUZ)">Cusco & Machu Picchu, Perú (CUZ)</option>
+                      <option value="Punta Cana (PUJ)">Punta Cana, Rep. Dominicana (PUJ)</option>
+                    </optgroup>
                   </select>
+                </div>
+
+                {/* Destinos Populares Quick Chips */}
+                <div className="md:col-span-2">
+                  <span className="text-[11px] font-semibold text-on-surface-variant block mb-2">Destinos Destacados en Tendencia:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { name: 'Cartagena (CTG)', label: 'Cartagena', icon: 'beach_access' },
+                      { name: 'Santa Marta (SMR)', label: 'Santa Marta', icon: 'nature_people' },
+                      { name: 'San Andrés (ADZ)', label: 'San Andrés', icon: 'surfing' },
+                      { name: 'Medellín (MDE)', label: 'Medellín', icon: 'location_city' },
+                      { name: 'Eje Cafetero (AXM)', label: 'Eje Cafetero', icon: 'coffee' },
+                      { name: 'Leticia (LET)', label: 'Amazonas', icon: 'forest' },
+                    ].map((dest) => (
+                      <button
+                        key={dest.name}
+                        type="button"
+                        onClick={() => setDestination(dest.name)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 transition-all ${
+                          destination === dest.name
+                            ? 'bg-primary text-on-primary border-primary shadow-sm font-semibold'
+                            : 'bg-surface-container-low text-on-surface-variant border-outline-variant/30 hover:bg-surface-container'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[15px]">{dest.icon}</span>
+                        <span>{dest.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Route Vector Graphic (Stitch Visual Vector) */}

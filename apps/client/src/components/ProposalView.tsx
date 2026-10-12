@@ -64,14 +64,14 @@ export const ProposalView: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 flex flex-col lg:flex-row gap-8">
         {/* Left Column (8 cols): Profiler Card + Day Timeline + Bookable Units */}
         <div className="w-full lg:w-8/12 flex flex-col gap-8">
-          {/* 1. Tarjeta de Personalidad del Viaje (ProfilerAgent) */}
+          {/* 1. Tarjeta de Personalidad del Viaje */}
           <article className="stitch-card p-6 md:p-8 bg-surface-container rounded-2xl relative overflow-hidden border border-outline-variant/30">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 relative z-10">
               <div className="space-y-2 max-w-xl">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-secondary text-[22px]">psychology</span>
                   <span className="font-mono text-xs uppercase tracking-wider text-secondary font-semibold">
-                    ProfilerAgent Síntesis Psicométrica
+                    {appMode === 'DEV' ? 'ProfilerAgent Síntesis Psicométrica' : 'Perfil y Calibración del Viajero'}
                   </span>
                 </div>
                 <h2 className="text-2xl font-bold text-primary">
@@ -87,12 +87,12 @@ export const ProposalView: React.FC = () => {
               <div className="flex md:flex-col items-center md:items-end justify-between gap-2 bg-surface-container-lowest p-4 rounded-xl shadow-sm shrink-0 border border-outline-variant/20">
                 <div className="text-left md:text-right">
                   <span className="text-[11px] text-on-surface-variant block uppercase tracking-wide font-medium">
-                    Afinidad Neuro-Viajera
+                    Afinidad con tu Perfil
                   </span>
                   <span className="text-3xl font-extrabold text-primary">94%</span>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-surface-container text-secondary font-mono text-xs font-semibold">
-                  Calibración Alta
+                  Calibración Óptima
                 </span>
               </div>
             </div>
@@ -135,7 +135,7 @@ export const ProposalView: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <span className="font-mono text-xs uppercase tracking-wider text-secondary font-semibold">
-                  Secuencia Operativa
+                  {appMode === 'DEV' ? 'Secuencia Operativa de Agentes' : 'Itinerario Día por Día'}
                 </span>
                 <h3 className="text-xl font-bold text-primary">Cronograma Diario Calibrado</h3>
               </div>
@@ -173,7 +173,13 @@ export const ProposalView: React.FC = () => {
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-primary flex-shrink-0 mt-0.5">
                         <span className="material-symbols-outlined text-[20px]">
-                          {evt.type === 'FLIGHT' ? 'flight' : evt.type === 'HOTEL' ? 'hotel' : evt.type === 'MEAL' ? 'restaurant' : 'local_activity'}
+                          {evt.type === 'FLIGHT' || (evt as any).type === 'TRANSPORT'
+                            ? 'flight'
+                            : evt.type === 'HOTEL' || (evt as any).type === 'ACCOMMODATION'
+                            ? 'hotel'
+                            : evt.type === 'MEAL'
+                            ? 'restaurant'
+                            : 'local_activity'}
                         </span>
                       </div>
                       <div className="flex flex-col gap-1">
@@ -182,12 +188,26 @@ export const ProposalView: React.FC = () => {
                           <span className="text-xs font-semibold text-primary">{evt.title}</span>
                         </div>
                         <p className="text-xs text-on-surface-variant">{evt.description}</p>
-                        <div className="flex items-center gap-3 text-[11px] text-on-surface-variant mt-1">
-                          {evt.details?.provider && <span>Operador: {evt.details.provider}</span>}
+                        <div className="flex items-center gap-3 text-[11px] text-on-surface-variant mt-1 flex-wrap">
+                          {evt.details?.provider && (
+                            <span className="flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[13px] text-secondary">business</span>
+                              <span>Operador: {evt.details.provider}</span>
+                            </span>
+                          )}
                           {((evt as any).location || (evt.details as any)?.location) && (
-                            <span>Ubicación: {(evt as any).location || (evt.details as any)?.location}</span>
+                            <span className="flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[13px] text-secondary">location_on</span>
+                              <span>{(evt as any).location || (evt.details as any)?.location}</span>
+                            </span>
                           )}
                         </div>
+                        {evt.details?.notes && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-secondary font-medium mt-1">
+                            <span className="material-symbols-outlined text-[14px]">tips_and_updates</span>
+                            <span>Nota: {evt.details.notes}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
@@ -208,51 +228,105 @@ export const ProposalView: React.FC = () => {
             </div>
           </section>
 
-          {/* 3. Bookable Units (Flights & Accommodation) */}
+          {/* 3. Bookable Units: Vuelos (Ida y Vuelta), Hospedaje y Experiencias */}
           <section className="flex flex-col gap-4">
             <span className="font-mono text-xs uppercase tracking-wider text-secondary font-semibold">
-              Inventario Confirmable
+              {appMode === 'DEV' ? 'Inventario Confirmable (Booking Items)' : 'Vuelos, Hospedaje y Experiencias Incluidas'}
             </span>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Flight Card */}
-              <div className="stitch-card p-5 bg-surface-container-lowest rounded-xl flex flex-col justify-between">
+              {/* Outbound Flight Card (Vuelo de Ida) */}
+              <div className="stitch-card p-5 bg-surface-container-lowest rounded-xl flex flex-col justify-between border border-outline-variant/30">
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-xs font-mono font-semibold">
-                      Vuelo Directo
+                    <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-xs font-mono font-semibold flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">flight_takeoff</span>
+                      <span>Vuelo de Ida</span>
                     </span>
-                    <span className="text-xs text-on-surface-variant font-mono">AV9543</span>
+                    <span className="text-xs text-on-surface-variant font-mono">Día 1 • 08:00 AM</span>
                   </div>
                   <h4 className="text-sm font-bold text-primary mb-1">
                     {tripDraft.origin || 'Bogotá'} ➔ {tripDraft.destination}
                   </h4>
                   <p className="text-xs text-on-surface-variant mb-4">
-                    Avianca Airlines • Equipaje de mano y bodega incluido.
+                    Avianca / LATAM • Vuelo directo sin escalas. Equipaje de mano y bodega incluido.
                   </p>
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
-                  <span className="text-on-surface-variant">2 Pasajeros</span>
-                  <span className="font-mono font-bold text-primary">{formatCOP(640000)}</span>
+                  <span className="text-on-surface-variant">{tripDraft.travelers || 2} Pasajeros</span>
+                  <span className="font-mono font-bold text-primary">
+                    {formatCOP(Math.round((budget?.breakdown?.transport || 1200000) / 2))}
+                  </span>
+                </div>
+              </div>
+
+              {/* Inbound Flight Card (Vuelo de Vuelta / Regreso) */}
+              <div className="stitch-card p-5 bg-surface-container-lowest rounded-xl flex flex-col justify-between border border-outline-variant/30">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-xs font-mono font-semibold flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">flight_land</span>
+                      <span>Vuelo de Regreso</span>
+                    </span>
+                    <span className="text-xs text-on-surface-variant font-mono">Día {days.length} • 06:30 PM</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-primary mb-1">
+                    {tripDraft.destination} ➔ {tripDraft.origin || 'Bogotá'}
+                  </h4>
+                  <p className="text-xs text-on-surface-variant mb-4">
+                    Avianca / LATAM • Vuelo de retorno confirmado. Asientos contiguos reservados.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
+                  <span className="text-on-surface-variant">{tripDraft.travelers || 2} Pasajeros</span>
+                  <span className="font-mono font-bold text-primary">
+                    {formatCOP(Math.round((budget?.breakdown?.transport || 1200000) / 2))}
+                  </span>
                 </div>
               </div>
 
               {/* Hotel Card */}
-              <div className="stitch-card p-5 bg-surface-container-lowest rounded-xl flex flex-col justify-between">
+              <div className="stitch-card p-5 bg-surface-container-lowest rounded-xl flex flex-col justify-between border border-outline-variant/30">
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-xs font-mono font-semibold">
-                      Alojamiento 4★
+                    <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-xs font-mono font-semibold flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">hotel</span>
+                      <span>Hospedaje Seleccionado</span>
                     </span>
                     <span className="text-xs text-secondary font-semibold">Desayuno Incluido</span>
                   </div>
-                  <h4 className="text-sm font-bold text-primary mb-1">Hotel Colonial Cartagena</h4>
+                  <h4 className="text-sm font-bold text-primary mb-1">Hotel Colonial en {tripDraft.destination}</h4>
                   <p className="text-xs text-on-surface-variant mb-4">
-                    Centro Histórico • Habitación Estándar Climatizada con balcón.
+                    Habitación Estándar Climatizada • Check-in: {tripDraft.startDate} • Check-out: {tripDraft.endDate}
                   </p>
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
-                  <span className="text-on-surface-variant">4 Noches</span>
-                  <span className="font-mono font-bold text-primary">{formatCOP(1260000)}</span>
+                  <span className="text-on-surface-variant">{days.length > 1 ? days.length - 1 : 1} Noches</span>
+                  <span className="font-mono font-bold text-primary">
+                    {formatCOP(budget?.breakdown?.accommodation || 1260000)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Experiences Card */}
+              <div className="stitch-card p-5 bg-surface-container-lowest rounded-xl flex flex-col justify-between border border-outline-variant/30">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-xs font-mono font-semibold flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">confirmation_number</span>
+                      <span>Experiencias Curadas</span>
+                    </span>
+                    <span className="text-xs text-secondary font-semibold">Accesos VIP</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-primary mb-1">Tours, Entradas y Gastronomía</h4>
+                  <p className="text-xs text-on-surface-variant mb-4">
+                    Selección adaptada a tu perfil de {personality?.analyzedStyle || 'viajero'}.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
+                  <span className="text-on-surface-variant">{tripDraft.travelers || 2} Personas</span>
+                  <span className="font-mono font-bold text-primary">
+                    {formatCOP(budget?.breakdown?.activities || 700000)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -266,7 +340,7 @@ export const ProposalView: React.FC = () => {
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-outline-variant/20">
               <span className="material-symbols-outlined text-secondary text-[22px]">account_balance_wallet</span>
               <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">
-                Arquitectura Presupuestal
+                {appMode === 'DEV' ? 'Arquitectura Presupuestal (Budget Optimizer)' : 'Resumen del Presupuesto'}
               </h3>
             </div>
 
@@ -282,7 +356,7 @@ export const ProposalView: React.FC = () => {
             <div className="flex flex-col gap-3 text-xs mb-6">
               <div>
                 <div className="flex justify-between mb-1">
-                  <span className="text-on-surface-variant">Transporte Aéreo</span>
+                  <span className="text-on-surface-variant">Transporte Aéreo (Ida y Vuelta)</span>
                   <span className="font-mono font-semibold text-primary">
                     {formatCOP(budget?.breakdown?.transport || 1200000)}
                   </span>
@@ -294,7 +368,7 @@ export const ProposalView: React.FC = () => {
 
               <div>
                 <div className="flex justify-between mb-1">
-                  <span className="text-on-surface-variant">Alojamiento (4 Noches)</span>
+                  <span className="text-on-surface-variant">Alojamiento ({days.length > 1 ? days.length - 1 : 1} Noches)</span>
                   <span className="font-mono font-semibold text-primary">
                     {formatCOP(budget?.breakdown?.accommodation || 1260000)}
                   </span>
@@ -329,19 +403,23 @@ export const ProposalView: React.FC = () => {
               </div>
             </div>
 
-            {/* Primary CTA: Proceed to Saga Checkout */}
+            {/* Primary CTA: Proceed to Checkout */}
             <button
               onClick={() => setCurrentView('CHECKOUT')}
               className="w-full py-3.5 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 mb-3"
             >
-              <span>Proceder al Checkout (Saga)</span>
+              <span>{appMode === 'DEV' ? 'Proceder al Checkout (Saga Transaccional)' : 'Proceder a la Reserva'}</span>
               <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
             </button>
 
-            {/* Saga Guarantee Tag */}
+            {/* Guarantee Tag */}
             <div className="p-3 rounded-lg bg-surface-container-low flex items-center gap-2.5 text-[11px] text-on-surface-variant">
               <span className="material-symbols-outlined text-[18px] text-secondary flex-shrink-0">shield_lock</span>
-              <span>Blindado con Orquestación Saga Transaccional con Compensación Automática.</span>
+              <span>
+                {appMode === 'DEV'
+                  ? 'Blindado con Orquestación Saga Transaccional con Compensación Automática.'
+                  : 'Garantía Wayvo: Reserva 100% protegida y disponibilidad confirmada en tiempo real.'}
+              </span>
             </div>
           </div>
         </div>

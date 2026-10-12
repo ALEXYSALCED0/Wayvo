@@ -181,7 +181,7 @@ export const CheckoutView: React.FC = () => {
         )}
       </div>
 
-      {/* Dynamic Status Banners (Stitch checkout.html) */}
+      {/* Dynamic Status Banners */}
       {result?.status === 'CONFIRMED' && (
         <div className="stitch-card p-6 bg-surface-container-lowest rounded-xl flex items-start gap-4 border-l-4 border-l-secondary shadow-md animate-fade-in">
           <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center flex-shrink-0 text-primary">
@@ -195,7 +195,9 @@ export const CheckoutView: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-on-surface-variant leading-relaxed">
-              Todos los microservicios y proveedores externos aseguraron la disponibilidad. El orquestador Saga cerró el contexto en estado consolidado.
+              {appMode === 'DEV'
+                ? 'Todos los microservicios y proveedores externos aseguraron la disponibilidad. El orquestador Saga cerró el contexto en estado consolidado.'
+                : 'Tus vuelos de ida y vuelta, hospedaje y experiencias han sido confirmados exitosamente. Hemos emitido tus códigos de abordaje y voucher oficial.'}
             </p>
             <div className="pt-2">
               <button
@@ -218,20 +220,26 @@ export const CheckoutView: React.FC = () => {
           <div className="flex flex-col gap-1 flex-1">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-base font-bold text-error">
-                Compensación Automática Ejecutada (Saga Rollback)
+                {appMode === 'DEV'
+                  ? 'Compensación Automática Ejecutada (Saga Rollback)'
+                  : 'No se pudo completar la reserva en este momento'}
               </span>
               <span className="px-3 py-0.5 rounded-full bg-error-container text-on-error-container font-mono text-xs font-bold">
-                HTTP 409 SAGA_COMPENSATED
+                {appMode === 'DEV' ? 'HTTP 409 SAGA_COMPENSATED' : 'Sin cargos realizados'}
               </span>
             </div>
             <p className="text-xs text-on-surface-variant leading-relaxed">
-              {result?.reason || errorStatus || 'Uno de los proveedores externos no confirmó cupo. El orquestador Saga canceló el viaje y liberó tus reservas provisionales automáticamente.'}
+              {appMode === 'DEV'
+                ? result?.reason || errorStatus || 'Uno de los proveedores externos no confirmó cupo. El orquestador Saga canceló el viaje y liberó tus reservas provisionales automáticamente.'
+                : 'Uno de los cupos con aerolíneas o alojamiento no estuvo disponible de forma inmediata. No se ha aplicado ningún cobro a tu cuenta.'}
             </p>
             <div className="flex items-center gap-4 pt-2">
-              <span className="font-mono text-xs text-error flex items-center gap-1.5 font-medium">
-                <span className="material-symbols-outlined text-[14px]">lock_reset</span>
-                Reversión completada en sub-segundo
-              </span>
+              {appMode === 'DEV' && (
+                <span className="font-mono text-xs text-error flex items-center gap-1.5 font-medium">
+                  <span className="material-symbols-outlined text-[14px]">lock_reset</span>
+                  Reversión completada en sub-segundo
+                </span>
+              )}
               <button
                 onClick={handleExecuteSaga}
                 className="text-xs text-primary font-semibold hover:underline"
@@ -243,152 +251,251 @@ export const CheckoutView: React.FC = () => {
         </div>
       )}
 
-      {/* Main Grid: Visualizador del Orquestador (8 cols) + Resumen de Pago (4 cols) */}
+      {/* Main Grid: Visualizador o Verificación (8 cols) + Resumen de Pago (4 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Visualizador del Orquestador Reactivo (Stitch timeline) */}
+        {/* Left Column: Dev Saga Orchestrator or User Verification Panel */}
         <div className="lg:col-span-8 stitch-card p-6 md:p-8 bg-surface-container-lowest rounded-2xl flex flex-col gap-6">
-          <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4">
-            <div className="flex flex-col">
-              <span className="text-xs font-mono text-secondary uppercase font-semibold tracking-wider">
-                Flujo de Estados Saga
-              </span>
-              <span className="text-lg font-bold text-primary">Visualizador del Orquestador Reactivo</span>
-            </div>
-            <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
-              <span className="font-mono text-xs text-on-surface-variant">Graph-ID: #saga-core</span>
-            </div>
-          </div>
-
-          {/* Stepper Vertical */}
-          <div className="relative py-2">
-            <div className="absolute left-6 top-8 bottom-8 w-0.5 bg-surface-container-highest z-0"></div>
-            <div className="flex flex-col gap-6 relative z-10">
-              {/* Node 1: Trip Service */}
-              <div className="flex items-start gap-4">
-                <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                    sagaStep >= 1
-                      ? 'bg-primary text-on-primary shadow-sm'
-                      : 'bg-surface-container text-outline'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[20px]">account_tree</span>
+          {appMode === 'DEV' ? (
+            <>
+              <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4">
+                <div className="flex flex-col">
+                  <span className="text-xs font-mono text-secondary uppercase font-semibold tracking-wider">
+                    Flujo de Estados Saga
+                  </span>
+                  <span className="text-lg font-bold text-primary">Visualizador del Orquestador Reactivo</span>
                 </div>
-                <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-primary">1. Trip Service</span>
-                      <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/trips</span>
-                    </div>
-                    <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
-                      {sagaStep >= 1 ? '201 CREATED' : 'STANDBY'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-on-surface-variant">
-                    Inicialización del contexto de viaje en estado PENDING y asignación de identificador único.
-                  </p>
+                <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1 rounded-full">
+                  <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                  <span className="font-mono text-xs text-on-surface-variant">Graph-ID: #saga-core</span>
                 </div>
               </div>
 
-              {/* Node 2: Booking Service */}
-              <div className="flex items-start gap-4">
-                <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                    sagaStep >= 2
-                      ? 'bg-primary text-on-primary shadow-sm'
-                      : 'bg-surface-container text-outline'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[20px]">bookmark_add</span>
-                </div>
-                <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-primary">2. Booking Service</span>
-                      <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/bookings</span>
-                    </div>
-                    <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
-                      {sagaStep >= 2 ? '201 PENDING' : 'STANDBY'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-on-surface-variant">
-                    Creación de la reserva y persistencia de items con Correlation ID trazable.
-                  </p>
-                </div>
-              </div>
-
-              {/* Node 3: Provider Service */}
-              <div className="flex items-start gap-4">
-                <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                    sagaStep >= 3
-                      ? result?.status === 'COMPENSATED' || errorStatus
-                        ? 'bg-error text-on-error shadow-sm'
-                        : 'bg-primary text-on-primary shadow-sm'
-                      : 'bg-surface-container text-outline'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[20px]">sync_alt</span>
-                </div>
-                <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-primary">3. Provider Service</span>
-                      <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/providers/reserve</span>
-                    </div>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-semibold ${
-                        result?.status === 'COMPENSATED' || errorStatus
-                          ? 'bg-error-container text-error'
-                          : sagaStep >= 3
-                          ? 'bg-surface-container-highest text-primary'
+              {/* Stepper Vertical Dev */}
+              <div className="relative py-2">
+                <div className="absolute left-6 top-8 bottom-8 w-0.5 bg-surface-container-highest z-0"></div>
+                <div className="flex flex-col gap-6 relative z-10">
+                  {/* Node 1: Trip Service */}
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                        sagaStep >= 1
+                          ? 'bg-primary text-on-primary shadow-sm'
                           : 'bg-surface-container text-outline'
                       }`}
                     >
-                      {result?.status === 'COMPENSATED' || errorStatus
-                        ? '409 COMPENSATED'
-                        : sagaStep >= 3
-                        ? '200 RESERVED'
-                        : 'STANDBY'}
-                    </span>
+                      <span className="material-symbols-outlined text-[20px]">account_tree</span>
+                    </div>
+                    <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-primary">1. Trip Service</span>
+                          <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/trips</span>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
+                          {sagaStep >= 1 ? '201 CREATED' : 'STANDBY'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant">
+                        Inicialización del contexto de viaje en estado PENDING y asignación de identificador único.
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-on-surface-variant">
-                    {result?.status === 'COMPENSATED' || errorStatus
-                      ? 'Proveedor no disponible. Se disparó rollback automático liberando viaje y reserva.'
-                      : 'Verificación de catálogo y reserva de cupos atómicos con proveedores externos.'}
+
+                  {/* Node 2: Booking Service */}
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                        sagaStep >= 2
+                          ? 'bg-primary text-on-primary shadow-sm'
+                          : 'bg-surface-container text-outline'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">bookmark_add</span>
+                    </div>
+                    <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-primary">2. Booking Service</span>
+                          <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/bookings</span>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
+                          {sagaStep >= 2 ? '201 PENDING' : 'STANDBY'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant">
+                        Creación de la reserva y persistencia de items con Correlation ID trazable.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Node 3: Provider Service */}
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                        sagaStep >= 3
+                          ? result?.status === 'COMPENSATED' || errorStatus
+                            ? 'bg-error text-on-error shadow-sm'
+                            : 'bg-primary text-on-primary shadow-sm'
+                          : 'bg-surface-container text-outline'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">sync_alt</span>
+                    </div>
+                    <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-primary">3. Provider Service</span>
+                          <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/providers/reserve</span>
+                        </div>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-semibold ${
+                            result?.status === 'COMPENSATED' || errorStatus
+                              ? 'bg-error-container text-error'
+                              : sagaStep >= 3
+                              ? 'bg-surface-container-highest text-primary'
+                              : 'bg-surface-container text-outline'
+                          }`}
+                        >
+                          {result?.status === 'COMPENSATED' || errorStatus
+                            ? '409 COMPENSATED'
+                            : sagaStep >= 3
+                            ? '200 RESERVED'
+                            : 'STANDBY'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant">
+                        {result?.status === 'COMPENSATED' || errorStatus
+                          ? 'Proveedor no disponible. Se disparó rollback automático liberando viaje y reserva.'
+                          : 'Verificación de catálogo y reserva de cupos atómicos con proveedores externos.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Node 4: Confirm Trip */}
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                        sagaStep >= 4 && result?.status === 'CONFIRMED'
+                          ? 'bg-secondary text-on-secondary shadow-sm'
+                          : 'bg-surface-container text-outline'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">verified_user</span>
+                    </div>
+                    <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-primary">4. Confirmación Final</span>
+                          <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/trips/:id/confirm</span>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
+                          {sagaStep >= 4 && result?.status === 'CONFIRMED' ? 'CONFIRMED' : 'STANDBY'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant">
+                        Bloqueo de pago y transición del viaje a estado activo consolidado.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* USER MODE: Clean, Reassuring Booking Verification Panel */
+            <>
+              <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4">
+                <div className="flex flex-col">
+                  <span className="text-xs font-mono text-secondary uppercase font-semibold tracking-wider">
+                    Detalles del Viaje a Confirmar
+                  </span>
+                  <span className="text-lg font-bold text-primary">Verificación y Cobertura de tu Viaje</span>
+                </div>
+                <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1 rounded-full text-xs text-secondary font-medium">
+                  <span className="material-symbols-outlined text-[16px]">verified</span>
+                  <span>Disponibilidad en Tiempo Real</span>
+                </div>
+              </div>
+
+              {/* Verified Trip Elements */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Outbound Flight */}
+                <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-secondary text-[16px]">flight_takeoff</span>
+                        Vuelo de Ida
+                      </span>
+                      <span className="text-[11px] font-mono text-secondary font-semibold">Directo</span>
+                    </div>
+                    <div className="text-sm font-semibold text-primary">
+                      {tripDraft.origin || 'Bogotá'} ➔ {tripDraft.destination}
+                    </div>
+                    <p className="text-xs text-on-surface-variant mt-1">
+                      Fecha: {tripDraft.startDate} • Salida 08:00 AM • Equipaje incluido.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Return Flight */}
+                <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-secondary text-[16px]">flight_land</span>
+                        Vuelo de Regreso
+                      </span>
+                      <span className="text-[11px] font-mono text-secondary font-semibold">Directo</span>
+                    </div>
+                    <div className="text-sm font-semibold text-primary">
+                      {tripDraft.destination} ➔ {tripDraft.origin || 'Bogotá'}
+                    </div>
+                    <p className="text-xs text-on-surface-variant mt-1">
+                      Fecha: {tripDraft.endDate} • Salida 06:30 PM • Asientos contiguos.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Hotel */}
+                <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between md:col-span-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-secondary text-[16px]">hotel</span>
+                      Hospedaje Seleccionado
+                    </span>
+                    <span className="text-[11px] font-semibold text-secondary">Desayuno Incluido</span>
+                  </div>
+                  <div className="text-sm font-semibold text-primary">
+                    Hotel Colonial en {tripDraft.destination}
+                  </div>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Check-in: {tripDraft.startDate} — Check-out: {tripDraft.endDate} • Habitación Estándar Climatizada.
                   </p>
                 </div>
               </div>
 
-              {/* Node 4: Confirm Trip */}
-              <div className="flex items-start gap-4">
-                <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                    sagaStep >= 4 && result?.status === 'CONFIRMED'
-                      ? 'bg-secondary text-on-secondary shadow-sm'
-                      : 'bg-surface-container text-outline'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[20px]">verified_user</span>
-                </div>
-                <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-primary">4. Confirmación Final</span>
-                      <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/trips/:id/confirm</span>
-                    </div>
-                    <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
-                      {sagaStep >= 4 && result?.status === 'CONFIRMED' ? 'CONFIRMED' : 'STANDBY'}
-                    </span>
+              {/* Wayvo Traveler Guarantee Checklist */}
+              <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/30 flex flex-col gap-2.5">
+                <span className="text-xs font-bold text-primary uppercase tracking-wide">
+                  Beneficios y Garantías Incluidas:
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-on-surface-variant">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary text-[18px]">verified</span>
+                    <span>Sin cobros ocultos</span>
                   </div>
-                  <p className="text-xs text-on-surface-variant">
-                    Bloqueo de pago y transición del viaje a estado activo consolidado.
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary text-[18px]">support_agent</span>
+                    <span>Concierge 24/7 en destino</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary text-[18px]">security</span>
+                    <span>Cancelación protegida</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         {/* Right Column: Order Summary & Checkout Trigger */}

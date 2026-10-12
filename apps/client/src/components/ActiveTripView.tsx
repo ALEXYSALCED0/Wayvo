@@ -115,7 +115,7 @@ export const ActiveTripView: React.FC = () => {
               </div>
             </div>
 
-            {/* Estado Operativo & Mediador */}
+            {/* Estado Operativo */}
             <div className="p-4 bg-surface-container-lowest rounded-xl shadow-sm min-w-[240px] border border-outline-variant/20">
               <div className="flex justify-between items-center mb-1 text-xs">
                 <span className="text-on-surface-variant uppercase font-medium">Estado Operativo</span>
@@ -125,13 +125,20 @@ export const ActiveTripView: React.FC = () => {
                 <span className="material-symbols-outlined text-[18px] text-secondary">verified_user</span>
                 <span>En Curso</span>
               </div>
-              <button
-                onClick={() => setIsIncidentModalOpen(true)}
-                className="w-full mt-2 py-1.5 px-3 rounded-lg bg-surface-container-highest text-primary hover:bg-secondary-fixed transition-colors text-xs font-semibold flex items-center justify-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-[16px] text-secondary">alt_route</span>
-                <span>Simular Imprevisto (Mediador)</span>
-              </button>
+              {appMode === 'DEV' ? (
+                <button
+                  onClick={() => setIsIncidentModalOpen(true)}
+                  className="w-full mt-2 py-1.5 px-3 rounded-lg bg-surface-container-highest text-primary hover:bg-secondary-fixed transition-colors text-xs font-semibold flex items-center justify-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-[16px] text-secondary">alt_route</span>
+                  <span>Simular Imprevisto (Mediador)</span>
+                </button>
+              ) : (
+                <div className="mt-2 pt-2 border-t border-outline-variant/20 flex items-center gap-1.5 text-xs text-secondary font-medium">
+                  <span className="material-symbols-outlined text-[16px]">security</span>
+                  <span>Protección y Monitoreo Activo</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -251,32 +258,61 @@ export const ActiveTripView: React.FC = () => {
 
         {/* Right Column: Mediador & Concierge Panel */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <div className="stitch-card p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/30">
-            <div className="flex items-center gap-2 pb-3 mb-4 border-b border-outline-variant/20">
-              <span className="material-symbols-outlined text-secondary text-[22px]">alt_route</span>
-              <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">
-                Patrón Mediator Autónomo
-              </h3>
-            </div>
+          {appMode === 'DEV' ? (
+            <div className="stitch-card p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/30">
+              <div className="flex items-center gap-2 pb-3 mb-4 border-b border-outline-variant/20">
+                <span className="material-symbols-outlined text-secondary text-[22px]">alt_route</span>
+                <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">
+                  Patrón Mediator Autónomo
+                </h3>
+              </div>
 
-            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 mb-4">
-              <span className="text-xs font-mono font-bold text-error block mb-1">
-                Disrupción Registrada en Cola
-              </span>
-              <p className="text-xs text-on-surface-variant leading-relaxed">
-                Condición marítima anómala en bahía de Cartagena. El <strong>TripMediator</strong> de Santiago recalculó
-                alternativas terrestres y gastronómicas de igual valor.
-              </p>
-            </div>
+              <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 mb-4">
+                <span className="text-xs font-mono font-bold text-error block mb-1">
+                  Disrupción Registrada en Cola
+                </span>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  Condición marítima anómala en bahía de Cartagena. El <strong>TripMediator</strong> recalculó
+                  alternativas terrestres y gastronómicas de igual valor.
+                </p>
+              </div>
 
-            <button
-              onClick={() => setIsIncidentModalOpen(true)}
-              className="w-full py-3 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined text-[18px]">handshake</span>
-              <span>Abrir Mediador de Incidentes</span>
-            </button>
-          </div>
+              <button
+                onClick={() => setIsIncidentModalOpen(true)}
+                className="w-full py-3 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">handshake</span>
+                <span>Abrir Mediador de Incidentes</span>
+              </button>
+            </div>
+          ) : (
+            <div className="stitch-card p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/30 flex flex-col gap-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-outline-variant/20">
+                <span className="material-symbols-outlined text-secondary text-[22px]">support_agent</span>
+                <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">
+                  Asistencia & Concierge Wayvo
+                </h3>
+              </div>
+
+              <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/20">
+                <div className="flex items-center gap-2 text-xs font-bold text-primary mb-1">
+                  <span className="material-symbols-outlined text-secondary text-[16px]">verified</span>
+                  <span>Protección Continua Activa</span>
+                </div>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  Monitoreamos el clima, estado de vuelos y novedades locales en tiempo real para anticiparnos a cualquier cambio en tu itinerario.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline-variant/30 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-on-surface">
+                  <span className="material-symbols-outlined text-secondary text-[18px]">emergency</span>
+                  <span>Línea Concierge 24/7</span>
+                </div>
+                <span className="font-mono text-secondary font-semibold">Disponible</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
