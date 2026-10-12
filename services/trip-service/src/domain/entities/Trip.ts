@@ -10,7 +10,8 @@ import { Itinerary, dateKey } from './Itinerary';
 
 const ALLOWED: Record<TripStatus, TripStatus[]> = {
   [TripStatus.PENDING]: [TripStatus.CONFIRMED, TripStatus.CANCELLED],
-  [TripStatus.CONFIRMED]: [TripStatus.CANCELLED],
+  [TripStatus.CONFIRMED]: [TripStatus.ACTIVE, TripStatus.CANCELLED],
+  [TripStatus.ACTIVE]: [TripStatus.CANCELLED],
   [TripStatus.CANCELLED]: [],
 };
 
@@ -178,6 +179,39 @@ export class Trip {
       this.addEvent({ ...draft, isAlternative: true }),
     );
     return selected;
+  }
+
+  // Actualización de estado y reserva de eventos individuales
+  updateEventReservation(eventId: string, reservationStatus: ReservationStatus): Event {
+    this.assertEditable();
+    const event = this.getEvent(eventId);
+    event.setReservationStatus(reservationStatus);
+    this.touch();
+    return event;
+  }
+
+  startEvent(eventId: string): Event {
+    this.assertEditable();
+    const event = this.getEvent(eventId);
+    event.start();
+    this.touch();
+    return event;
+  }
+
+  completeEvent(eventId: string): Event {
+    this.assertEditable();
+    const event = this.getEvent(eventId);
+    event.complete();
+    this.touch();
+    return event;
+  }
+
+  cancelEvent(eventId: string, reason?: string, replacedByTitle?: string): Event {
+    this.assertEditable();
+    const event = this.getEvent(eventId);
+    event.cancel(reason, replacedByTitle);
+    this.touch();
+    return event;
   }
 
   // Internos

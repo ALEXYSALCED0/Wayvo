@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { WayvoApi } from '../services/api';
 import { EventDetailModal } from './EventDetailModal';
 import {
   getKayakFlightUrl,
@@ -11,9 +12,11 @@ import {
 } from '../utils/travelLinks';
 
 export const ProposalView: React.FC = () => {
-  const { planResult, setCurrentView, appMode } = useApp();
+  const { planResult, setCurrentView, appMode, loadUserTrips } = useApp();
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [selectedEventModal, setSelectedEventModal] = useState<any | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [draftSavedMsg, setDraftSavedMsg] = useState(false);
 
   if (!planResult) {
     return (
@@ -34,6 +37,9 @@ export const ProposalView: React.FC = () => {
   }
 
   const { tripDraft, personality, itinerary, budget, suggestedBookingItems } = planResult;
+  const outboundFlight = planResult.transport?.outbound?.[0];
+  const inboundFlight = planResult.transport?.inbound?.[0];
+  const accommodation = planResult.accommodation;
   const days = itinerary?.days || [];
   const activeDay = days[selectedDayIndex] || days[0];
 
@@ -74,6 +80,25 @@ export const ProposalView: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 flex flex-col lg:flex-row gap-8">
         {/* Left Column (8 cols): Profiler Card + Day Timeline + Bookable Units */}
         <div className="w-full lg:w-8/12 flex flex-col gap-8">
+          {/* Alerta amigable si el presupuesto personalizado es inferior al viaje */}
+          {budget?.isBudgetExceeded && (
+            <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3.5 text-amber-950 dark:text-amber-200 shadow-xs">
+              <span className="material-symbols-outlined text-[26px] text-amber-600 shrink-0 mt-0.5">sentiment_satisfied</span>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-amber-900 dark:text-amber-100 flex items-center gap-1.5">
+                  <span>Presupuesto personalizado ajustado</span>
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-[10px] uppercase font-mono font-bold tracking-wide">
+                    Tarifas Mínimas
+                  </span>
+                </h4>
+                <p className="text-xs leading-relaxed opacity-90">
+                  {budget.budgetNotice ||
+                    `Tu presupuesto ingresado (${formatCOP(budget.userBudget)}) es inferior al valor de referencia del viaje para este destino (${formatCOP(budget.estimatedTotalCost)} entre vuelos y alojamiento). Armamos tu itinerario buscando siempre las opciones reales más económicas y convenientes.`}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* 1. Tarjeta de Personalidad del Viaje */}
           <article className="stitch-card p-6 md:p-8 bg-surface-container rounded-2xl relative overflow-hidden border border-outline-variant/30">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 relative z-10">
@@ -257,22 +282,28 @@ export const ProposalView: React.FC = () => {
                       <span className="material-symbols-outlined text-[14px]">flight_takeoff</span>
                       <span>Vuelo de Ida</span>
                     </span>
-                    <span className="text-xs text-on-surface-variant font-mono">Día 1 • 08:00 AM</span>
+                    <span className="text-xs text-on-surface-variant font-mono">
+                      Día 1 • {outboundFlight?.departureTime || '08:00 AM'}
+                    </span>
                   </div>
                   <h4 className="text-sm font-bold text-primary mb-1">
-                    {tripDraft.origin || 'Bogotá'} ({resolveAirportCode(tripDraft.origin)}) ➔ {tripDraft.destination} ({resolveAirportCode(tripDraft.destination)})
+                    {outboundFlight?.airline || 'Avianca'} ({outboundFlight?.flightNumber || 'Directo'}): {tripDraft.origin || 'Bogotá'} ({resolveAirportCode(tripDraft.origin)}) ➔ {tripDraft.destination} ({resolveAirportCode(tripDraft.destination)})
                   </h4>
                   <p className="text-xs text-on-surface-variant mb-4">
-                    Avianca / LATAM • Vuelo directo sin escalas. Equipaje de mano y bodega incluido.
+                    {outboundFlight?.airline || 'Aerolínea Comercial'} • Vuelo directo más económico de la ruta. Duración: {outboundFlight?.estimatedDuration || '2 horas'}. Equipaje incluido.
                   </p>
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
                   <span className="text-on-surface-variant">{tripDraft.travelers || 2} Pasajeros</span>
-                  <span className="font-mono font-bold text-primary">
-                    {formatCOP(
-                      (tripDraft.destination.toLowerCase().includes('miami') ? 720000 : 320000) * (tripDraft.travelers || 2)
+                  <div className="text-right">
+                    <span className="text-[11px] text-secondary font-mono mr-1">Desde</span>
+                    <span className="font-mono font-bold text-primary">
+                      {formatCOP(outboundFlight?.estimatedCost || 320000)}
+                    </span>
+                    {outboundFlight?.isEstimate && (
+                      <span className="text-[10px] text-on-surface-variant ml-1 font-mono">(Aproximado)</span>
                     )}
-                  </span>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2 mt-3">
                   <a
@@ -287,10 +318,10 @@ export const ProposalView: React.FC = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-secondary text-xs font-bold transition-all shadow-xs"
-                    title="Buscar y comparar todas las aerolíneas en Kayak con ruta, fechas y pasajeros precargados"
+                    title="Reservar el vuelo más económico encontrado en Kayak"
                   >
                     <span className="material-symbols-outlined text-[16px]">travel_explore</span>
-                    <span>Buscar Vuelos en Kayak (Todas las Aerolíneas)</span>
+                    <span>Reservar en Kayak</span>
                     <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                   </a>
 
@@ -310,56 +341,7 @@ export const ProposalView: React.FC = () => {
                       <span>Ver en Despegar</span>
                       <span className="material-symbols-outlined text-[11px]">open_in_new</span>
                     </a>
-                    <div className="flex items-center gap-2">
-                      <span className="text-secondary font-mono text-[10px]">Filtros:</span>
-                      <a
-                        href={getKayakFlightUrl({
-                          origin: tripDraft.origin,
-                          destination: tripDraft.destination,
-                          startDate: tripDraft.startDate,
-                          endDate: tripDraft.endDate,
-                          travelers: tripDraft.travelers || 2,
-                          airline: 'AVIANCA',
-                        })}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-primary hover:underline text-[10px]"
-                      >
-                        Avianca
-                      </a>
-                      <span>•</span>
-                      <a
-                        href={getKayakFlightUrl({
-                          origin: tripDraft.origin,
-                          destination: tripDraft.destination,
-                          startDate: tripDraft.startDate,
-                          endDate: tripDraft.endDate,
-                          travelers: tripDraft.travelers || 2,
-                          airline: 'LATAM',
-                        })}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-primary hover:underline text-[10px]"
-                      >
-                        LATAM
-                      </a>
-                      <span>•</span>
-                      <a
-                        href={getKayakFlightUrl({
-                          origin: tripDraft.origin,
-                          destination: tripDraft.destination,
-                          startDate: tripDraft.startDate,
-                          endDate: tripDraft.endDate,
-                          travelers: tripDraft.travelers || 2,
-                          airline: 'WINGO',
-                        })}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-primary hover:underline text-[10px]"
-                      >
-                        Wingo
-                      </a>
-                    </div>
+                    <span className="text-secondary font-mono text-[10px]">Tarifa más barata</span>
                   </div>
                 </div>
               </div>
@@ -372,22 +354,28 @@ export const ProposalView: React.FC = () => {
                       <span className="material-symbols-outlined text-[14px]">flight_land</span>
                       <span>Vuelo de Regreso</span>
                     </span>
-                    <span className="text-xs text-on-surface-variant font-mono">Día {days.length} • 06:30 PM</span>
+                    <span className="text-xs text-on-surface-variant font-mono">
+                      Día {days.length} • {inboundFlight?.departureTime || '06:30 PM'}
+                    </span>
                   </div>
                   <h4 className="text-sm font-bold text-primary mb-1">
-                    {tripDraft.destination} ({resolveAirportCode(tripDraft.destination)}) ➔ {tripDraft.origin || 'Bogotá'} ({resolveAirportCode(tripDraft.origin)})
+                    {inboundFlight?.airline || 'Avianca'} ({inboundFlight?.flightNumber || 'Retorno'}): {tripDraft.destination} ({resolveAirportCode(tripDraft.destination)}) ➔ {tripDraft.origin || 'Bogotá'} ({resolveAirportCode(tripDraft.origin)})
                   </h4>
                   <p className="text-xs text-on-surface-variant mb-4">
-                    Vuelo de retorno con todas las aerolíneas disponibles. Equipaje y asientos contiguos.
+                    Vuelo de retorno con la tarifa más económica en Kayak. Duración: {inboundFlight?.estimatedDuration || '2 horas'}.
                   </p>
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
                   <span className="text-on-surface-variant">{tripDraft.travelers || 2} Pasajeros</span>
-                  <span className="font-mono font-bold text-primary">
-                    {formatCOP(
-                      (tripDraft.destination.toLowerCase().includes('miami') ? 720000 : 320000) * (tripDraft.travelers || 2)
+                  <div className="text-right">
+                    <span className="text-[11px] text-secondary font-mono mr-1">Desde</span>
+                    <span className="font-mono font-bold text-primary">
+                      {formatCOP(inboundFlight?.estimatedCost || 320000)}
+                    </span>
+                    {inboundFlight?.isEstimate && (
+                      <span className="text-[10px] text-on-surface-variant ml-1 font-mono">(Aproximado)</span>
                     )}
-                  </span>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2 mt-3">
                   <a
@@ -401,10 +389,10 @@ export const ProposalView: React.FC = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-secondary text-xs font-bold transition-all shadow-xs"
-                    title="Buscar y comparar vuelos de regreso en Kayak con ruta, fechas y pasajeros precargados"
+                    title="Reservar el vuelo de retorno más económico encontrado en Kayak"
                   >
                     <span className="material-symbols-outlined text-[16px]">flight_land</span>
-                    <span>Buscar Vuelo de Retorno en Kayak (Todas las Aerolíneas)</span>
+                    <span>Reservar en Kayak</span>
                     <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                   </a>
 
@@ -437,25 +425,35 @@ export const ProposalView: React.FC = () => {
                       <span className="material-symbols-outlined text-[14px]">hotel</span>
                       <span>Hospedaje Seleccionado</span>
                     </span>
-                    <span className="text-xs text-secondary font-semibold">Desayuno Incluido</span>
+                    <span className="text-xs text-secondary font-semibold">
+                      {accommodation?.hotelType || 'Hotel Boutique'}
+                    </span>
                   </div>
-                  <h4 className="text-sm font-bold text-primary mb-1">Hotel Colonial en {tripDraft.destination}</h4>
+                  <h4 className="text-sm font-bold text-primary mb-1">
+                    {accommodation?.name || `Hotel en ${tripDraft.destination}`}
+                  </h4>
                   <p className="text-xs text-on-surface-variant mb-4">
-                    Habitación Estándar Climatizada • Check-in: {tripDraft.startDate} • Check-out: {tripDraft.endDate}
+                    {accommodation?.location || tripDraft.destination} • {accommodation?.description || 'Alojamiento calibrado con desayuno y wifi.'}
                   </p>
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
-                  <span className="text-on-surface-variant">{days.length > 1 ? days.length - 1 : 1} Noches • {tripDraft.travelers || 2} Huéspedes</span>
-                  <span className="font-mono font-bold text-primary">
-                    {formatCOP(
-                      (tripDraft.destination.toLowerCase().includes('miami') ? 480000 : 380000) * (days.length > 1 ? days.length - 1 : 1)
-                    )}
+                  <span className="text-on-surface-variant">
+                    {accommodation?.nights || (days.length > 1 ? days.length - 1 : 1)} Noches • {accommodation?.rooms || 1} Hab. • {tripDraft.travelers || 2} Huéspedes
                   </span>
+                  <div className="text-right">
+                    <span className="text-[11px] text-secondary font-mono mr-1">Total</span>
+                    <span className="font-mono font-bold text-primary">
+                      {formatCOP(accommodation?.estimatedCost || budget?.breakdown?.accommodation || 380000)}
+                    </span>
+                    {accommodation?.isEstimate && (
+                      <span className="text-[10px] text-on-surface-variant ml-1 font-mono">(Aproximado)</span>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-3">
                   <a
-                    href={getBookingHotelUrl(
-                      `Hotel en ${tripDraft.destination}`,
+                    href={accommodation?.bookingUrl || getBookingHotelUrl(
+                      accommodation?.name || `Hotel en ${tripDraft.destination}`,
                       tripDraft.destination,
                       tripDraft.startDate,
                       tripDraft.endDate,
@@ -466,12 +464,12 @@ export const ProposalView: React.FC = () => {
                     className="inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-primary text-on-primary hover:bg-secondary text-xs font-semibold transition-all shadow-xs"
                   >
                     <span className="material-symbols-outlined text-[14px]">hotel</span>
-                    <span>Booking.com</span>
+                    <span>Reservar Hotel</span>
                     <span className="material-symbols-outlined text-[12px]">open_in_new</span>
                   </a>
                   <a
-                    href={getHotelesUrl(
-                      `Hotel en ${tripDraft.destination}`,
+                    href={getBookingHotelUrl(
+                      accommodation?.name || `Hotel en ${tripDraft.destination}`,
                       tripDraft.destination,
                       tripDraft.startDate,
                       tripDraft.endDate,
@@ -482,7 +480,7 @@ export const ProposalView: React.FC = () => {
                     className="inline-flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all border border-outline-variant/30"
                   >
                     <span className="material-symbols-outlined text-[14px]">travel_explore</span>
-                    <span>Hoteles.com</span>
+                    <span>Booking.com</span>
                     <span className="material-symbols-outlined text-[12px]">open_in_new</span>
                   </a>
                 </div>
@@ -585,7 +583,7 @@ export const ProposalView: React.FC = () => {
                 <div className="flex justify-between mb-1">
                   <span className="text-on-surface-variant">Experiencias & Gastronomía</span>
                   <span className="font-mono font-semibold text-primary">
-                    {formatCOP(budget?.breakdown?.activities || 700000)}
+                    {formatCOP(((budget?.breakdown?.activities || 0) + (budget?.breakdown?.food || 0)) || 700000)}
                   </span>
                 </div>
                 <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
@@ -593,27 +591,93 @@ export const ProposalView: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-on-surface-variant">Fondo Imprevistos</span>
-                  <span className="font-mono font-semibold text-primary">
-                    {formatCOP(budget?.breakdown?.emergencyFund || 340000)}
-                  </span>
+              {(budget?.breakdown?.emergencyFund ? budget.breakdown.emergencyFund > 0 : false) && (
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-on-surface-variant">Fondo Imprevistos</span>
+                    <span className="font-mono font-semibold text-primary">
+                      {formatCOP(budget?.breakdown?.emergencyFund || 0)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-outline-variant h-full" style={{ width: '10%' }}></div>
+                  </div>
                 </div>
-                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-outline-variant h-full" style={{ width: '10%' }}></div>
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Primary CTA: Proceed to Checkout */}
-            <button
-              onClick={() => setCurrentView('CHECKOUT')}
-              className="w-full py-3.5 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 mb-3"
-            >
-              <span>{appMode === 'DEV' ? 'Proceder al Checkout (Saga Transaccional)' : 'Proceder a la Reserva'}</span>
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </button>
+            {/* Actions: Confirm Trip or Save as Quote Draft */}
+            <div className="flex flex-col gap-2.5 mb-3">
+              <button
+                onClick={() => setCurrentView('CHECKOUT')}
+                className="w-full py-3.5 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                <span>{appMode === 'DEV' ? 'Confirmar Itinerario (Saga Transaccional)' : 'Confirmar Itinerario'}</span>
+                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              </button>
+
+              <button
+                disabled={isSavingDraft || draftSavedMsg}
+                onClick={async () => {
+                  if (!planResult) return;
+                  setIsSavingDraft(true);
+                  try {
+                    const allEvents = (planResult.itinerary?.days || []).flatMap((d) =>
+                      (d.events || []).map((evt) => ({
+                        ...evt,
+                        dayDate: d.date || planResult.tripDraft.startDate,
+                      }))
+                    );
+                    await WayvoApi.createTrip({
+                      userId: planResult.tripDraft.userId || 'usr-client',
+                      destination: planResult.tripDraft.destination,
+                      startDate: planResult.tripDraft.startDate,
+                      endDate: planResult.tripDraft.endDate,
+                      origin: planResult.tripDraft.origin,
+                      title: planResult.tripDraft.title || `Viaje a ${planResult.tripDraft.destination}`,
+                      travelers: planResult.tripDraft.travelers,
+                      description: `Presupuesto estimado: ${formatCOP(planResult.budget?.estimatedTotalCost)}`,
+                      events: allEvents.map((evt, idx) => ({
+                        type: (((evt.type as any) === 'ACCOMMODATION' ? 'HOTEL' : evt.type) || 'ACTIVITY') as any,
+                        title: evt.title,
+                        description: evt.description || '',
+                        location: evt.location || planResult.tripDraft.destination,
+                        startDateTime: evt.startDateTime || `${evt.dayDate}T09:00:00Z`,
+                        endDateTime: evt.endDateTime,
+                        time: evt.time || '09:00 AM',
+                        order: idx + 1,
+                        status: 'PENDING' as any,
+                        reservationStatus: (evt.reservationStatus as any) || 'NOT_RESERVED',
+                        details: evt.details,
+                      })),
+                    });
+                    await loadUserTrips();
+                    setDraftSavedMsg(true);
+                    setTimeout(() => setCurrentView('MY_TRIPS'), 1200);
+                  } catch (err: any) {
+                    alert(`No se pudo guardar la cotización: ${err.message}`);
+                  } finally {
+                    setIsSavingDraft(false);
+                  }
+                }}
+                className={`w-full py-2.5 px-4 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                  draftSavedMsg
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-surface-container hover:bg-surface-container-high text-primary border-outline-variant/30'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {draftSavedMsg ? 'check' : 'bookmark_add'}
+                </span>
+                <span>
+                  {draftSavedMsg
+                    ? '¡Cotización Guardada! Redirigiendo a Mis Viajes...'
+                    : isSavingDraft
+                    ? 'Guardando Cotización...'
+                    : 'Guardar Cotización para Comparar'}
+                </span>
+              </button>
+            </div>
 
             {/* Guarantee Tag */}
             <div className="p-3 rounded-lg bg-surface-container-low flex items-center gap-2.5 text-[11px] text-on-surface-variant">

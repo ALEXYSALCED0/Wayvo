@@ -14,6 +14,8 @@ import type {
   AIChatResponse,
   CompensationLogOutput,
   Provider,
+  ResolveIncidentAIInput,
+  ResolveIncidentAIOutput,
 } from '@wayvo/contracts';
 
 export const CORRELATION_ID_HEADER = 'x-correlation-id';
@@ -116,6 +118,80 @@ export const WayvoApi = {
   // 3. Trip Service: Get Trip details & timeline
   getTrip: async (tripId: string): Promise<Trip> => {
     return request<Trip>(`/api/v1/trips/${tripId}`);
+  },
+
+  // 3a. Trip Service: Add events to an existing trip
+  addEventsToTrip: async (tripId: string, events: any[]): Promise<Trip> => {
+    return request<Trip>(`/api/v1/trips/${tripId}/events`, {
+      method: 'POST',
+      body: JSON.stringify({ events }),
+    });
+  },
+
+  // 3b. Trip Service: List all trips for a user
+  listTrips: async (userId: string = 'usr-client'): Promise<Trip[]> => {
+    return request<Trip[]>(`/api/v1/trips?userId=${encodeURIComponent(userId)}`);
+  },
+
+  // 3c. Trip Service: Start a trip (transitions to ACTIVE)
+  startTrip: async (tripId: string): Promise<Trip> => {
+    return request<Trip>(`/api/v1/trips/${tripId}/start`, { method: 'POST' });
+  },
+
+  // 3d. Trip Service: Cancel a saved trip
+  cancelTrip: async (tripId: string, reason: string = 'Cancelado por usuario'): Promise<Trip> => {
+    return request<Trip>(`/api/v1/trips/${tripId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  // 3d2. Trip Service: Delete trip permanently
+  deleteTrip: async (tripId: string): Promise<{ deleted: boolean; tripId: string }> => {
+    return request<{ deleted: boolean; tripId: string }>(`/api/v1/trips/${tripId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // 3d3. Trip Service: Resolve incident in itinerary (cancel original + inject new alternatives)
+  resolveIncidentItinerary: async (
+    tripId: string,
+    payload: { eventId: string; reason: string; replacedByTitle: string; newEvents: any[] },
+  ): Promise<Trip> => {
+    return request<Trip>(`/api/v1/trips/${tripId}/resolve-incident`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // 3e. Trip Service: Update event reservation status (confirmed by user)
+  updateEventReservation: async (
+    tripId: string,
+    eventId: string,
+    reservationStatus: 'NOT_RESERVED' | 'CONFIRMED',
+  ): Promise<Trip> => {
+    return request<Trip>(`/api/v1/trips/${tripId}/events/${eventId}/reservation`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reservationStatus }),
+    });
+  },
+
+  // 3f. Trip Service: Start an event (in progress)
+  startEvent: async (tripId: string, eventId: string): Promise<Trip> => {
+    return request<Trip>(`/api/v1/trips/${tripId}/events/${eventId}/start`, { method: 'POST' });
+  },
+
+  // 3g. Trip Service: Complete an event
+  completeEvent: async (tripId: string, eventId: string): Promise<Trip> => {
+    return request<Trip>(`/api/v1/trips/${tripId}/events/${eventId}/complete`, { method: 'POST' });
+  },
+
+  // 3h. AI Service: Resolve incident dynamically with context-aware AI
+  resolveIncidentAI: async (payload: ResolveIncidentAIInput): Promise<ResolveIncidentAIOutput> => {
+    return request<ResolveIncidentAIOutput>('/api/v1/ai/incidents/resolve', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   // 4. Trip Service: Create Trip directly (fallback/dev mode)

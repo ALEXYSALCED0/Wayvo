@@ -51,6 +51,8 @@ export interface AlternativeOption {
   isBestValue?: boolean;
   isRecommended?: boolean;
   scoreMatch?: number;
+  timeImpact?: string;
+  costDifference?: string;
   newEventsToInject: InjectedEventPreview[];
 }
 
@@ -65,4 +67,23 @@ export interface SelectAlternativeInput {
   tripId: string;
   eventId: string;
   alternativeId: string;
+}
+
+export interface ResolveIncidentAIInput {
+  tripId: string;
+  eventId: string;
+  destination: string;
+  eventTitle: string;
+  eventType: string;
+  startDateTime?: string;
+  time?: string;
+  incidentType: IssueType | string;
+  userReason: string;
+  surroundingItinerary?: { title: string; time?: string; type: string }[];
+}
+
+export interface ResolveIncidentAIOutput {
+  affectedEventId: string;
+  aiDiagnosis: string;
+  alternatives: AlternativeOption[];
 }

@@ -63,9 +63,10 @@ services:
   # SERVICIOS BACKEND & IA
   # ==========================================
   booking-service:
+    image: wayvo-booking-service:latest
     build:
-      context: ./services/booking-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/booking-service/Dockerfile
     container_name: wayvo-booking-service
     environment:
       PORT: 3001
@@ -85,9 +86,10 @@ services:
       - wayvo-network
 
   provider-service:
+    image: wayvo-provider-service:latest
     build:
-      context: ./services/provider-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/provider-service/Dockerfile
     container_name: wayvo-provider-service
     environment:
       PORT: 3002
@@ -104,9 +106,10 @@ services:
       - wayvo-network
 
   trip-service:
+    image: wayvo-trip-service:latest
     build:
-      context: ./services/trip-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/trip-service/Dockerfile
     container_name: wayvo-trip-service
     environment:
       PORT: 3003
@@ -122,6 +125,7 @@ services:
       - wayvo-network
 
   ai-recommendation:
+    image: wayvo-ai-recommendation:latest
     build:
       context: ./services/ai-recommendation
       dockerfile: Dockerfile
@@ -129,6 +133,7 @@ services:
     environment:
       PORT: 8000
       ENVIRONMENT: development
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ports:
       - "8000:8000"
@@ -139,9 +144,10 @@ services:
   # API GATEWAY (FACADE)
   # ==========================================
   api-gateway:
+    image: wayvo-api-gateway:latest
     build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
     container_name: wayvo-api-gateway
     environment:
       PORT: 3000
@@ -162,12 +168,13 @@ services:
       - wayvo-network
 
   # ==========================================
-  # CLIENTE MULTIPLATAFORMA (REACT NATIVE / EXPO)
+  # CLIENTE WEB RESPONSIVE (REACT + VITE)
   # ==========================================
   client:
+    image: wayvo-client:latest
     build:
-      context: ./apps/client
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/client/Dockerfile
     container_name: wayvo-client
     environment:
       VITE_API_URL: http://localhost:3000
@@ -175,9 +182,6 @@ services:
       - "5173:5173"
     depends_on:
       - api-gateway
-    profiles:
-      - client
-      - full
     networks:
       - wayvo-network
 

@@ -12,4 +12,16 @@ export class InMemoryTripRepository implements ITripRepository {
   async findById(id: string): Promise<Trip | null> {
     return this.trips.get(id) ?? null;
   }
+
+  async findByUserId(userId: string): Promise<Trip[]> {
+    return Array.from(this.trips.values())
+      .filter((trip) => trip.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async delete(id: string): Promise<boolean> {
+    return this.trips.delete(id);
+  }
 }
+
+

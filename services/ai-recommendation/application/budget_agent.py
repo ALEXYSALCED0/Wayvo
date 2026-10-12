@@ -41,20 +41,37 @@ def _estimate_accommodation(
     state: dict[str, Any],
     nights: int,
 ) -> dict[str, Any] | None:
-    """Estima el alojamiento con la tarifa de la categoría elegida."""
+    """Estima el alojamiento con un hotel real de la categoría elegida."""
     rates = NIGHTLY_RATE_PER_ROOM.get(state.get("currency", "COP"))
 
     if not rates:
         return None
 
+    destination = state.get("destination", "")
     category = _category(state)
-    nightly_rate = rates.get(category, rates[DEFAULT_CATEGORY])
-
     travelers = state.get("travelers", 1)
+    currency = state.get("currency", "COP")
+
+    try:
+        from application.hotel_agent import find_real_hotel
+        real_hotel = find_real_hotel(
+            destination=destination,
+            category=category,
+            travelers=travelers,
+            nights=nights,
+            currency=currency,
+        )
+        if real_hotel:
+            return real_hotel
+    except Exception:
+        pass
+
+    nightly_rate = rates.get(category, rates[DEFAULT_CATEGORY])
     rooms = ceil(travelers / PERSONS_PER_ROOM)
 
     return {
-        "name": f"Alojamiento {category.lower()} en {state.get('destination', '')}",
+        "id": f"hotel-{destination.lower()[:3]}-{category[:3].lower()}",
+        "name": f"Alojamiento {category.lower()} en {destination}",
         "nights": nights,
         "rooms": rooms,
         "nightlyRate": nightly_rate,
@@ -211,14 +228,23 @@ def budget_agent(state: dict[str, Any]) -> dict[str, Any]:
         2,
     )
 
+    is_budget_exceeded = False
     if available < 0:
-        return {
-            "errors": errors + [
-                "El transporte y el alojamiento superan el "
-                "presupuesto disponible. Se necesitan opciones "
-                "más económicas."
-            ]
-        }
+        if user_budget is not None:
+            # Presupuesto personalizado insuficiente: no arrojar error.
+            # En su lugar, cubrir transporte y alojamiento con las opciones mínimas
+            # e informar amablemente en la interfaz.
+            is_budget_exceeded = True
+            budget = round(transport_cost + accommodation_cost, 2)
+            available = 0.0
+        else:
+            return {
+                "errors": errors + [
+                    "El transporte y el alojamiento superan el "
+                    "presupuesto disponible. Se necesitan opciones "
+                    "más económicas."
+                ]
+            }
 
 
 
@@ -307,6 +333,13 @@ def budget_agent(state: dict[str, Any]) -> dict[str, Any]:
         "estimatedTotalCost": total,
         "dailyBudget": round(total / days, 2),
         "breakdown": breakdown,
+        "isBudgetExceeded": is_budget_exceeded,
+        "userBudget": float(user_budget) if user_budget is not None else None,
+        "budgetNotice": (
+            f"Tu presupuesto personalizado ({currency} {float(user_budget):,.0f}) es inferior al costo base del viaje "
+            f"({currency} {total:,.0f} entre transporte y hospedaje). Diseñamos el plan con las tarifas más económicas y convenientes disponibles."
+            if is_budget_exceeded else None
+        ),
         "savingsTips": [
             "Las actividades y comidas no seleccionadas quedaron "
             "fuera del plan para respetar el presupuesto.",

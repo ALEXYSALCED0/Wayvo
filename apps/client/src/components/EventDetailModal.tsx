@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Event as PlanEvent } from '@wayvo/contracts';
 import {
   getKayakFlightUrl,
@@ -232,8 +233,8 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
   const actionLinks = getActionLinks();
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden animate-fade-in">
       <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-outline-variant/30 flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="p-5 bg-surface-container-low border-b border-outline-variant/20 flex items-start justify-between gap-4">
@@ -395,6 +396,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

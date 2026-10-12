@@ -130,7 +130,7 @@ export const OnboardingView: React.FC = () => {
       travelers,
       budgetCategory: mappedBudgetCategory,
       currency: 'COP',
-      approximateBudgetAmount: calculatedBudgetAmount,
+      approximateBudgetAmount: budgetTier === 'CUSTOM' ? customBudgetAmount : undefined,
       psychologicalAssessment: {
         spontaneityScore,
         comfortPriority,
@@ -142,6 +142,7 @@ export const OnboardingView: React.FC = () => {
       dietaryRestrictions: ['mariscos'],
       preferredStyle: TravelStyle.CULTURAL,
     };
+
 
     try {
       const response = await WayvoApi.planTrip(payload);
@@ -706,9 +707,9 @@ export const OnboardingView: React.FC = () => {
                       : 'text-on-surface-variant hover:text-primary'
                   }`}
                 >
-                  <span>Económico</span>
-                  <span className="text-[11px] font-mono text-secondary">
-                    ~ {formatCOP(DAILY_RATES.ECONOMICO * travelers * durationDays)}
+                  <span className="font-semibold">Económico</span>
+                  <span className="text-[11px] font-sans text-secondary">
+                    Hostales & Ahorro
                   </span>
                 </button>
 
@@ -721,9 +722,9 @@ export const OnboardingView: React.FC = () => {
                       : 'text-on-surface-variant hover:text-primary'
                   }`}
                 >
-                  <span>Estándar Plus</span>
-                  <span className="text-[11px] font-mono text-secondary">
-                    ~ {formatCOP(DAILY_RATES.ESTANDAR * travelers * durationDays)}
+                  <span className="font-semibold">Estándar Plus</span>
+                  <span className="text-[11px] font-sans text-secondary">
+                    Hoteles 3-4★ & Balance
                   </span>
                 </button>
 
@@ -736,9 +737,9 @@ export const OnboardingView: React.FC = () => {
                       : 'text-on-surface-variant hover:text-primary'
                   }`}
                 >
-                  <span>Lujo Boutique</span>
-                  <span className="text-[11px] font-mono text-secondary">
-                    ~ {formatCOP(DAILY_RATES.LUJO * travelers * durationDays)}
+                  <span className="font-semibold">Lujo Boutique</span>
+                  <span className="text-[11px] font-sans text-secondary">
+                    Resorts 5★ & Exclusividad
                   </span>
                 </button>
 
@@ -751,10 +752,11 @@ export const OnboardingView: React.FC = () => {
                       : 'text-on-surface-variant hover:text-primary'
                   }`}
                 >
-                  <span>Personalizado</span>
-                  <span className="text-[11px] font-mono text-secondary">A tu elección</span>
+                  <span className="font-semibold">Personalizado</span>
+                  <span className="text-[11px] font-sans text-secondary">Monto a tu medida</span>
                 </button>
               </div>
+
 
               {/* Tier Explanation Card */}
               <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex items-start gap-3">
@@ -810,9 +812,11 @@ export const OnboardingView: React.FC = () => {
               {/* Desglose Heurístico de Reparto (Stitch Metric Bar) */}
               <div className="p-4 rounded-xl bg-surface-container-low flex flex-col gap-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-primary">Inversión Estimada Consolidada:</span>
+                  <span className="font-semibold text-primary">
+                    {budgetTier === 'CUSTOM' ? 'Presupuesto Personalizado Asignado:' : 'Presupuesto Adaptativo Wayvo:'}
+                  </span>
                   <span className="font-mono font-bold text-secondary text-sm">
-                    {formatCOP(calculatedBudgetAmount)}
+                    {budgetTier === 'CUSTOM' ? formatCOP(customBudgetAmount) : 'Calculado en tiempo real con IA'}
                   </span>
                 </div>
 
@@ -828,6 +832,7 @@ export const OnboardingView: React.FC = () => {
                   <span>Experiencias (28%)</span>
                 </div>
               </div>
+
 
               {/* Action Buttons */}
               <div className="pt-4 flex items-center justify-between gap-4">

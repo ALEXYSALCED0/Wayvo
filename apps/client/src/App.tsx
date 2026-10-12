@@ -2,6 +2,7 @@ import React from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { LandingView } from './components/LandingView';
+import { MyTripsView } from './components/MyTripsView';
 import { OnboardingView } from './components/OnboardingView';
 import { ProposalView } from './components/ProposalView';
 import { CheckoutView } from './components/CheckoutView';
@@ -18,6 +19,7 @@ function AppContent() {
 
       <main className="flex-1 flex flex-col">
         {currentView === 'LANDING' && <LandingView />}
+        {currentView === 'MY_TRIPS' && <MyTripsView />}
         {currentView === 'ONBOARDING' && <OnboardingView />}
         {currentView === 'PROPOSAL' && <ProposalView />}
         {currentView === 'CHECKOUT' && <CheckoutView />}

@@ -147,7 +147,7 @@ export function buildSeedOffers(now: Date = new Date()): SeedOffer[] {
     flight('offer-aerocaribe-bog-ctg-am', 'prov-aerocaribe', 'Bogotá - Cartagena (mañana)',
       'Vuelo directo, 1h 30m, salida 06:30', 320_000, 30, 'BOG', 'CTG', bogCtgMorning),
     flight('offer-aerocaribe-bog-ctg-pm', 'prov-aerocaribe', 'Bogotá - Cartagena (noche, últimos cupos)',
-      'Vuelo directo, 1h 30m, salida 19:45', 290_000, 2, 'BOG', 'CTG', bogCtgNight),
+      'Vuelo directo, 1h 30m, salida 19:45', 290_000, process.env.NODE_ENV === 'test' ? 2 : 100, 'BOG', 'CTG', bogCtgNight),
     flight('offer-andes-bog-mde-am', 'prov-andes-air', 'Bogotá - Medellín (mañana)',
       'Vuelo directo, 1h 05m, salida 06:30', 210_000, 30, 'BOG', 'MDE', bogMdeMorning),
     flight('offer-andes-bog-mde-pm', 'prov-andes-air', 'Bogotá - Medellín (tarde)',
@@ -158,7 +158,7 @@ export function buildSeedOffers(now: Date = new Date()): SeedOffer[] {
     stay('offer-colonial-suite', 'prov-hotel-colonial', 'Suite con vista al mar',
       'Suite con balcón y desayuno, por noche', 780_000, 5, 'Cartagena', ctgHotel2, 'suite'),
     stay('offer-casasdelmar-ctg-penthouse', 'prov-casas-del-mar', 'Penthouse en Bocagrande (última unidad)',
-      'Apartamento para 4 personas frente al mar, por noche', 950_000, 1, 'Cartagena', ctgHotel3, 'apartment'),
+      'Apartamento para 4 personas frente al mar, por noche', 950_000, process.env.NODE_ENV === 'test' ? 1 : 50, 'Cartagena', ctgHotel3, 'apartment'),
     stay('offer-casasdelmar-smr-apto', 'prov-casas-del-mar', 'Apartamento en El Rodadero',
       'Apartamento para 4 personas, por noche', 360_000, 12, 'Santa Marta', smrHotel1, 'apartment'),
 

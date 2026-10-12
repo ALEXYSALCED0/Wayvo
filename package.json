@@ -16,9 +16,10 @@
     "dev:provider": "npm --prefix services/provider-service run dev",
     "dev:trip": "npm --prefix services/trip-service run dev",
     "dev:client": "npm --prefix apps/client run dev",
+    "dev:services": "./scripts/dev-services.sh",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "docker:build": "docker compose build",
+    "docker:build": "DOCKER_BUILDKIT=0 docker compose build",
     "docker:logs": "docker compose logs -f"
   },
   "workspaces": [

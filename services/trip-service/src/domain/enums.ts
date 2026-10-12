@@ -10,6 +10,7 @@ export enum EventType {
 
 export enum EventStatus {
   PENDING = 'PENDING',
+  IN_PROGRESS = 'IN_PROGRESS',
   COMPLETED = 'COMPLETED',
   ISSUE = 'ISSUE',
   CANCELLED = 'CANCELLED',
@@ -30,6 +31,7 @@ export enum IssueType {
 export enum TripStatus {
   PENDING = 'PENDING',
   CONFIRMED = 'CONFIRMED',
+  ACTIVE = 'ACTIVE',
   CANCELLED = 'CANCELLED',
 }
 

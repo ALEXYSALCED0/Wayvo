@@ -12,6 +12,7 @@ export enum EventType {
 
 export enum EventStatus {
   PENDING = 'PENDING',       // Programado / por realizar
+  IN_PROGRESS = 'IN_PROGRESS', // Comenzado / en curso
   COMPLETED = 'COMPLETED',   // Finalizado / concurrido
   ISSUE = 'ISSUE',           // Afectado por incidencia o disrupción
   CANCELLED = 'CANCELLED',   // Cancelado o sustituido
@@ -66,6 +67,9 @@ export interface Event {
   alternativeBadge?: string;
   alternatives?: AlternativeOption[];
   issueReason?: string;
+  replacedByTitle?: string;
+  replacesEventTitle?: string;
+  replacesEventId?: string;
 }
 
 export interface CreateEventInput {

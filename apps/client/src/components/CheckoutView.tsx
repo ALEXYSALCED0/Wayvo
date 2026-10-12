@@ -14,6 +14,7 @@ export const CheckoutView: React.FC = () => {
     setIsDevInspectorOpen,
     chaosMode,
     setChaosMode,
+    loadUserTrips,
   } = useApp();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -39,27 +40,77 @@ export const CheckoutView: React.FC = () => {
     );
   }
 
-  const { tripDraft, suggestedBookingItems } = planResult;
-  const items = suggestedBookingItems && suggestedBookingItems.length > 0 ? suggestedBookingItems : [
+  const { tripDraft, suggestedBookingItems: _unusedSuggested } = planResult;
+  const outboundFlight = planResult.transport?.outbound?.[0];
+  const inboundFlight = planResult.transport?.inbound?.[0];
+  const accommodation = planResult.accommodation;
+  const travelers = Math.max(1, tripDraft.travelers || 2);
+  const budget = planResult.budget;
+  const breakdown = budget?.breakdown;
+
+  // Sincronización exacta con los valores de la propuesta (ProposalView)
+  const transportBudget = breakdown?.transport ?? ((outboundFlight?.estimatedCost || 320000) + (inboundFlight?.estimatedCost || 0));
+  const accommodationBudget = breakdown?.accommodation ?? (accommodation?.estimatedCost || 420000);
+  const activitiesBudget = (breakdown?.activities ?? 0) + (breakdown?.food ?? 0);
+  const emergencyBudget = breakdown?.emergencyFund ?? 0;
+
+  // Costo total estimado sincronizado 1:1 con ProposalView
+  const totalAmount = budget?.estimatedTotalCost ?? (transportBudget + accommodationBudget + activitiesBudget + emergencyBudget);
+
+  // Distribución de transporte entre ida y vuelta (si aplica)
+  const outboundFlightCost = inboundFlight ? Math.round(transportBudget / 2) : transportBudget;
+  const outboundPerPerson = Math.round(outboundFlightCost / travelers);
+
+  const inboundFlightCost = inboundFlight ? (transportBudget - outboundFlightCost) : 0;
+  const inboundPerPerson = inboundFlight ? Math.round(inboundFlightCost / travelers) : 0;
+
+  // Items exactos para la orquestación y el desglose
+  const items = [
     {
       type: 'TRANSPORT' as any,
-      providerId: 'prov-aerocaribe',
-      offerId: 'offer-aerocaribe-bog-ctg-am',
-      description: `Vuelo Bogotá - ${tripDraft.destination}`,
-      quantity: tripDraft.travelers || 2,
-      unitPrice: 320000,
+      providerId: (outboundFlight as any)?.providerId || 'prov-aerocaribe',
+      offerId: (outboundFlight as any)?.offerId || 'offer-aerocaribe-bog-ctg-am',
+      description: outboundFlight?.airline
+        ? `Vuelo ${outboundFlight.airline} (${outboundFlight.flightNumber || 'Ida'}): ${tripDraft.origin} ➔ ${tripDraft.destination}`
+        : `Vuelo de Ida ${tripDraft.origin} ➔ ${tripDraft.destination}`,
+      quantity: travelers,
+      unitPrice: outboundPerPerson,
     },
+    ...(inboundFlight ? [{
+      type: 'TRANSPORT' as any,
+      providerId: (inboundFlight as any)?.providerId || 'prov-aerocaribe',
+      offerId: (inboundFlight as any)?.offerId || 'offer-aerocaribe-bog-ctg-pm',
+      description: `Vuelo ${inboundFlight.airline || 'Retorno'}: ${tripDraft.destination} ➔ ${tripDraft.origin}`,
+      quantity: travelers,
+      unitPrice: inboundPerPerson,
+    }] : []),
     {
       type: 'ACCOMMODATION' as any,
-      providerId: 'prov-hotel-colonial',
-      offerId: 'offer-colonial-standard',
-      description: `Hotel Colonial en ${tripDraft.destination}`,
+      providerId: (accommodation as any)?.providerId || 'prov-hotel-colonial',
+      offerId: (accommodation as any)?.offerId || 'offer-colonial-standard',
+      description: accommodation?.name
+        ? `${accommodation.name} (${accommodation.nights || 1} noches)`
+        : `Alojamiento en ${tripDraft.destination}`,
       quantity: 1,
-      unitPrice: 420000,
+      unitPrice: accommodationBudget,
     },
+    ...(activitiesBudget > 0 ? [{
+      type: 'ACTIVITY' as any,
+      providerId: 'prov-guias-cartagena',
+      offerId: 'offer-guia-ciudad-amurallada',
+      description: `Experiencias, gastronomía y actividades en destino`,
+      quantity: 1,
+      unitPrice: activitiesBudget,
+    }] : []),
+    ...(emergencyBudget > 0 ? [{
+      type: 'ACTIVITY' as any,
+      providerId: 'prov-ruta-cafetera',
+      offerId: 'offer-cafetera-finca',
+      description: `Fondo de imprevistos y contingencias estimadas`,
+      quantity: 1,
+      unitPrice: emergencyBudget,
+    }] : []),
   ];
-
-  const totalAmount = items.reduce((acc, curr) => acc + curr.unitPrice * curr.quantity, 0);
 
   const formatCOP = (val: number) => {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
@@ -79,6 +130,27 @@ export const CheckoutView: React.FC = () => {
       setSagaStep((prev) => (prev < 3 ? prev + 1 : prev));
     }, 700);
 
+    const allPlanEvents = (planResult.itinerary?.days || []).flatMap((d) =>
+      (d.events || []).map((evt) => ({
+        ...evt,
+        dayDate: d.date || tripDraft.startDate,
+      }))
+    );
+
+    const mappedEvents = allPlanEvents.map((evt, idx) => ({
+      type: (((evt.type as any) === 'ACCOMMODATION' ? 'HOTEL' : evt.type) || 'ACTIVITY') as any,
+      title: evt.title,
+      description: evt.description || '',
+      location: evt.location || tripDraft.destination,
+      startDateTime: evt.startDateTime || `${evt.dayDate}T09:00:00Z`,
+      endDateTime: evt.endDateTime,
+      time: evt.time || '09:00 AM',
+      order: idx + 1,
+      status: 'PENDING',
+      reservationStatus: (evt.reservationStatus as any) || 'NOT_RESERVED',
+      details: evt.details,
+    }));
+
     const payload: TripCheckoutRequest = {
       userId: tripDraft.userId || 'usr-client',
       currency: 'COP',
@@ -89,6 +161,7 @@ export const CheckoutView: React.FC = () => {
         origin: tripDraft.origin,
         title: tripDraft.title,
         travelers: tripDraft.travelers,
+        events: mappedEvents,
       },
       items,
     };
@@ -103,7 +176,6 @@ export const CheckoutView: React.FC = () => {
         setCheckoutResult(response.saga);
 
         if (response.saga.status === 'CONFIRMED' && response.saga.tripId) {
-          const allPlanEvents = planResult.itinerary?.days?.flatMap((d) => d.events) || [];
           try {
             const trip = await WayvoApi.getTrip(response.saga.tripId);
             if (trip && trip.destination === tripDraft.destination && trip.events && trip.events.length > 0) {
@@ -117,7 +189,7 @@ export const CheckoutView: React.FC = () => {
                 startDate: tripDraft.startDate,
                 endDate: tripDraft.endDate,
                 status: 'CONFIRMED',
-                events: allPlanEvents,
+                events: mappedEvents,
               } as any);
             }
           } catch {
@@ -129,9 +201,10 @@ export const CheckoutView: React.FC = () => {
               startDate: tripDraft.startDate,
               endDate: tripDraft.endDate,
               status: 'CONFIRMED',
-              events: allPlanEvents,
+              events: mappedEvents,
             } as any);
           }
+          await loadUserTrips();
         }
       }
     } catch (err: any) {
@@ -164,16 +237,16 @@ export const CheckoutView: React.FC = () => {
           <div className="flex items-center gap-2 mb-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary text-xs uppercase tracking-wider font-semibold">
               <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
-              {appMode === 'DEV' ? 'Saga Orchestration • Transacciones Distribuidas' : 'Confirmación Segura de Reserva'}
+              {appMode === 'DEV' ? 'Saga Orchestration • Transacciones Distribuidas' : 'Organizador de Viajes • Wayvo'}
             </span>
           </div>
           <h1 className="text-3xl font-bold text-primary">
-            {appMode === 'DEV' ? 'Saga Checkout en Vivo & Rollback' : 'Reserva de Vuelos y Hospedaje'}
+            {appMode === 'DEV' ? 'Saga Checkout en Vivo & Rollback' : 'Confirmación de Itinerario y Presupuesto'}
           </h1>
           <p className="text-sm text-on-surface-variant mt-1 max-w-2xl">
             {appMode === 'DEV'
               ? 'Orquestación atómica entre Trip Service, Booking Service y Provider Service con garantía de compensación automática ante fallos de inventario.'
-              : 'Verifica los detalles de tus vuelos y alojamiento antes de confirmar. Tu reserva está respaldada y protegida.'}
+              : 'Revisa y confirma los detalles estimados de tu viaje. Recuerda que Wayvo es un organizador integral; no procesamos cobros directos ni comisiones de intermediación.'}
           </p>
         </div>
 
@@ -213,20 +286,27 @@ export const CheckoutView: React.FC = () => {
                 ? 'Todos los microservicios y proveedores externos aseguraron la disponibilidad. El orquestador Saga cerró el contexto en estado consolidado.'
                 : 'Tus vuelos de ida y vuelta, hospedaje y experiencias han sido confirmados exitosamente. Hemos emitido tus códigos de abordaje y voucher oficial.'}
             </p>
-            <div className="pt-2">
+            <div className="pt-2 flex items-center gap-3 flex-wrap">
               <button
                 onClick={() => setCurrentView('ACTIVE_TRIP')}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-semibold shadow-sm hover:bg-secondary transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary rounded-xl text-xs font-semibold shadow-sm hover:bg-secondary transition-all"
               >
-                <span>Ver mi Viaje en Vivo</span>
+                <span>Ver Itinerario en Vivo</span>
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              </button>
+              <button
+                onClick={() => setCurrentView('MY_TRIPS')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-surface-container text-primary rounded-xl text-xs font-semibold hover:bg-surface-container-high transition-all border border-outline-variant/30"
+              >
+                <span className="material-symbols-outlined text-[16px]">luggage</span>
+                <span>Ir al Organizador (Mis Viajes)</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {(result?.status === 'COMPENSATED' || errorStatus) && (
+      {result?.status === 'COMPENSATED' && (
         <div className="stitch-card p-6 bg-surface-container-lowest rounded-xl flex items-start gap-4 border-l-4 border-l-error shadow-md animate-fade-in">
           <div className="w-10 h-10 rounded-full bg-error-container flex items-center justify-center flex-shrink-0 text-error">
             <span className="material-symbols-outlined text-[24px]">published_with_changes</span>
@@ -244,7 +324,7 @@ export const CheckoutView: React.FC = () => {
             </div>
             <p className="text-xs text-on-surface-variant leading-relaxed">
               {appMode === 'DEV'
-                ? result?.reason || errorStatus || 'Uno de los proveedores externos no confirmó cupo. El orquestador Saga canceló el viaje y liberó tus reservas provisionales automáticamente.'
+                ? result?.reason || 'Uno de los proveedores externos no confirmó cupo. El orquestador Saga canceló el viaje y liberó tus reservas provisionales automáticamente.'
                 : 'Uno de los cupos con aerolíneas o alojamiento no estuvo disponible de forma inmediata. No se ha aplicado ningún cobro a tu cuenta.'}
             </p>
             <div className="flex items-center gap-4 pt-2">
@@ -259,6 +339,43 @@ export const CheckoutView: React.FC = () => {
                 className="text-xs text-primary font-semibold hover:underline"
               >
                 Reintentar Reserva
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {errorStatus && result?.status !== 'COMPENSATED' && (
+        <div className="stitch-card p-6 bg-surface-container-lowest rounded-xl flex items-start gap-4 border-l-4 border-l-amber-500 shadow-md animate-fade-in">
+          <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0 text-amber-600">
+            <span className="material-symbols-outlined text-[24px]">cloud_off</span>
+          </div>
+          <div className="flex flex-col gap-1 flex-1">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-base font-bold text-amber-700">
+                {appMode === 'DEV'
+                  ? 'Microservicio de Reservas Fuera de Línea'
+                  : 'Servicio de reservas temporalmente no disponible'}
+              </span>
+              <span className="px-3 py-0.5 rounded-full bg-amber-500/20 text-amber-800 font-mono text-xs font-bold">
+                {appMode === 'DEV' ? 'HTTP 503 SERVICE_UNAVAILABLE' : 'Intenta nuevamente'}
+              </span>
+            </div>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              {errorStatus}
+            </p>
+            {appMode === 'DEV' && (
+              <p className="text-[11px] text-on-surface-variant/80 font-mono bg-surface-container-low p-2 rounded mt-1">
+                Tip de Desarrollo: Asegúrate de que los microservicios estén iniciados (<span className="text-primary font-semibold">npm run dev:services</span> o <span className="text-primary font-semibold">docker compose up -d</span>).
+              </p>
+            )}
+            <div className="flex items-center gap-4 pt-2">
+              <button
+                onClick={handleExecuteSaga}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-semibold hover:bg-secondary transition-colors"
+              >
+                <span className="material-symbols-outlined text-[14px]">refresh</span>
+                <span>Reintentar Conexión</span>
               </button>
             </div>
           </div>
@@ -477,15 +594,36 @@ export const CheckoutView: React.FC = () => {
                       <span className="material-symbols-outlined text-secondary text-[16px]">hotel</span>
                       Hospedaje Seleccionado
                     </span>
-                    <span className="text-[11px] font-semibold text-secondary">Desayuno Incluido</span>
+                    <span className="text-[11px] font-semibold text-secondary">
+                      {accommodation?.nights || 1} noches
+                    </span>
                   </div>
                   <div className="text-sm font-semibold text-primary">
-                    Hotel Colonial en {tripDraft.destination}
+                    {accommodation?.name || `Alojamiento en ${tripDraft.destination}`}
                   </div>
                   <p className="text-xs text-on-surface-variant mt-1">
-                    Check-in: {tripDraft.startDate} — Check-out: {tripDraft.endDate} • Habitación Estándar Climatizada.
+                    Check-in: {tripDraft.startDate} — Check-out: {tripDraft.endDate} • {accommodation?.rooms || 1} habitación(es) • {formatCOP(accommodationBudget)}.
                   </p>
                 </div>
+
+                {/* Experiencias y Gastronomía si existen */}
+                {activitiesBudget > 0 && (
+                  <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between md:col-span-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-secondary text-[16px]">attractions</span>
+                        Experiencias & Gastronomía
+                      </span>
+                      <span className="text-[11px] font-mono text-secondary font-semibold">Estimado Sugerido</span>
+                    </div>
+                    <div className="text-sm font-semibold text-primary">
+                      Actividades, tours y presupuesto gastronómico en {tripDraft.destination}
+                    </div>
+                    <p className="text-xs text-on-surface-variant mt-1">
+                      Estimación: {formatCOP(activitiesBudget)} distribuidos en tu cronograma de viaje.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Wayvo Traveler Guarantee Checklist */}
@@ -516,7 +654,7 @@ export const CheckoutView: React.FC = () => {
         <div className="lg:col-span-4 stitch-card p-6 bg-surface-container-lowest rounded-2xl flex flex-col gap-6">
           <div className="flex items-center gap-2 pb-3 border-b border-outline-variant/20">
             <span className="material-symbols-outlined text-secondary text-[22px]">receipt_long</span>
-            <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">Resumen de Reserva</h3>
+            <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">Resumen de Presupuesto Estimado</h3>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -525,7 +663,7 @@ export const CheckoutView: React.FC = () => {
                 <div className="flex flex-col">
                   <span className="font-semibold text-primary">{item.description}</span>
                   <span className="text-[11px] text-on-surface-variant">
-                    {item.quantity} unidad(es) • Prov: {item.providerId}
+                    {item.quantity} unidad(es)
                   </span>
                 </div>
                 <span className="font-mono font-bold text-primary">
@@ -535,11 +673,20 @@ export const CheckoutView: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex justify-between items-center pt-2">
-            <span className="text-sm font-semibold text-on-surface">Total Liquidado</span>
-            <span className="text-2xl font-extrabold text-primary font-mono">
-              {formatCOP(totalAmount)}
+          <div className="flex flex-col gap-1 pt-2 border-t border-outline-variant/30">
+            <div className="flex justify-between items-baseline">
+              <span className="text-sm font-semibold text-on-surface">Presupuesto Total Estimado</span>
+              <span className="text-2xl font-extrabold text-primary font-mono">
+                {formatCOP(totalAmount)}
+              </span>
+            </div>
+            <span className="text-[11px] text-on-surface-variant">
+              (Estimado aproximado • Wayvo es un gestor y no cobra nada)
             </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-[11px] text-on-surface-variant leading-relaxed">
+            💡 <strong>Nota del gestor:</strong> Wayvo no realiza ningún cobro ni cobra comisiones. Este valor es una estimación aproximada para ayudarte a organizar y presupuestar tu viaje.
           </div>
 
           <button
@@ -550,12 +697,12 @@ export const CheckoutView: React.FC = () => {
             {isProcessing ? (
               <>
                 <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
-                <span>{appMode === 'DEV' ? 'Orquestando Saga Distribuida...' : 'Confirmando tu reserva segura...'}</span>
+                <span>{appMode === 'DEV' ? 'Orquestando Saga Distribuida...' : 'Guardando y confirmando en tu organizador...'}</span>
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-[20px]">lock</span>
-                <span>{appMode === 'DEV' ? 'Ejecutar Reserva con Saga Transaccional' : 'Confirmar y Reservar Viaje'}</span>
+                <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                <span>{appMode === 'DEV' ? 'Confirmar Itinerario (Saga Transaccional)' : 'Confirmar Viaje'}</span>
               </>
             )}
           </button>
@@ -563,7 +710,7 @@ export const CheckoutView: React.FC = () => {
           <p className="text-[11px] text-on-surface-variant text-center">
             {appMode === 'DEV'
               ? 'Petición enrutada mediante el API Gateway Facade hacia el Saga Orchestrator.'
-              : 'Transacción cifrada y protegida. Disponibilidad garantizada en tiempo real.'}
+              : 'Al confirmar, tu viaje se guardará en tu organizador para seguimiento de cada evento.'}
           </p>
         </div>
       </div>

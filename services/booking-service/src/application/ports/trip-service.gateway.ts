@@ -6,6 +6,12 @@ export interface TripDraft {
   destination: string;
   startDate: string; // ISO 8601
   endDate: string;   // ISO 8601
+  origin?: string;
+  title?: string;
+  travelers?: number;
+  description?: string;
+  imageUrl?: string;
+  events?: any[];
 }
 
 export interface TripServiceGateway {

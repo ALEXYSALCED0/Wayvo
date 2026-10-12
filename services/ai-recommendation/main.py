@@ -11,6 +11,7 @@ from typing import Literal
 from adapters.error_handlers import register_error_handlers
 from application.chat_agent import ChatAgentError, chat_agent
 from application.graph import travel_graph
+from application.incident_agent import resolve_incident_agent
 
 load_dotenv()
 
@@ -172,14 +173,15 @@ def validate_budget(
         )
 
     if total > budget_limit + 0.01:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "message": "El plan supera el presupuesto indicado.",
-                "budgetLimit": budget_limit,
-                "estimatedTotalCost": total,
-            },
-        )
+        if not budget.get("isBudgetExceeded"):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "message": "El plan supera el presupuesto indicado.",
+                    "budgetLimit": budget_limit,
+                    "estimatedTotalCost": total,
+                },
+            )
 
 
 def validate_complete_result(result: dict) -> None:
@@ -272,6 +274,7 @@ def generate_plan(request: AIPlanRequest):
         "tripDraft": result["tripDraft"],
         "personality": result["personality_result"],
         "budget": budget,
+        "accommodation": result.get("selected_accommodation"),
         "transport": result["transport_result"],
         "experiences": result["experiences_result"],
         "itinerary": result["itinerary"],
@@ -303,6 +306,40 @@ def chat(request: AIChatRequest):
         ) from exc
 
     return {"success": True, "data": response}
+
+
+class ResolveIncidentRequest(BaseModel):
+    tripId: str | None = None
+    eventId: str | None = None
+    destination: str
+    eventTitle: str
+    eventType: str = "ACTIVITY"
+    startDateTime: str | None = None
+    time: str | None = None
+    incidentType: str = "MISSED"
+    userReason: str
+    surroundingItinerary: list[dict] = Field(default_factory=list)
+
+
+@app.post("/api/v1/ai/incidents/resolve")
+def resolve_incident(request: ResolveIncidentRequest):
+    """Genera alternativas de viaje inteligentes y dinámicas basadas en la eventualidad reportada."""
+    try:
+        data = resolve_incident_agent(
+            destination=request.destination,
+            event_title=request.eventTitle,
+            event_type=request.eventType,
+            event_time=request.time or request.startDateTime or "12:00 PM",
+            incident_type=request.incidentType,
+            user_reason=request.userReason,
+            surrounding_itinerary=request.surroundingItinerary,
+        )
+        return {"success": True, "data": data}
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error resolviendo la eventualidad: {str(exc)}",
+        ) from exc
 
 
 if __name__ == "__main__":

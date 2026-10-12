@@ -126,11 +126,13 @@ def _schedule_event(
     preferred_time: time,
     duration_hours: float,
     latest_end: time = DAY_END,
+    earliest_start: time = DAY_START,
     extra_details: dict | None = None,
 ) -> bool:
-    """Busca un horario libre a partir del horario preferido."""
+    """Busca un horario libre a partir del horario preferido, respetando earliest_start."""
     event_date = date.fromisoformat(day["date"])
-    preferred_start = datetime.combine(event_date, preferred_time)
+    earliest_dt = datetime.combine(event_date, earliest_start)
+    preferred_start = max(datetime.combine(event_date, preferred_time), earliest_dt)
     day_end = datetime.combine(event_date, latest_end)
 
     duration = timedelta(hours=duration_hours)
@@ -161,8 +163,8 @@ def _schedule_event(
 
         candidate += step
 
-    # Si no hay espacio desde el horario preferido, busca antes.
-    candidate = datetime.combine(event_date, DAY_START)
+    # Si no hay espacio desde el horario preferido, busca antes (pero nunca antes de earliest_start).
+    candidate = earliest_dt
 
     while candidate < preferred_start:
         end = candidate + duration
@@ -401,20 +403,58 @@ def itinerary_builder(state: TravelState) -> dict:
                 },
             )
 
+        # Determinar hora de llegada del vuelo/transporte de ida en el Día 1
+        day1_earliest_start = DAY_START
+        if outbound and days:
+            route = outbound[0]
+            dep_t = _departure_time(route, time(8, 0))
+            dur_h = _duration_hours(route.get("estimatedDuration", ""), fallback=2)
+            arr_dt = datetime.combine(date.fromisoformat(days[0]["date"]), dep_t) + timedelta(hours=dur_h)
+            avail_dt = arr_dt + timedelta(minutes=60)
+            day1_earliest_start = avail_dt.time()
+
+            # Evento de Check-in en el hotel
+            accommodation = state.get("selected_accommodation") or {}
+            hotel_name = accommodation.get("name")
+            if hotel_name:
+                checkin_time = (arr_dt + timedelta(minutes=40)).time()
+                _add_transport_event(
+                    day=days[0],
+                    trip_id=trip_id,
+                    title=f"Check-in en {hotel_name}",
+                    description=f"Llegada al hospedaje e instalación. {accommodation.get('description', '')}",
+                    event_type="ACCOMMODATION",
+                    location=accommodation.get("location", destination),
+                    cost=0.0,
+                    start_time=checkin_time,
+                    duration_hours=0.5,
+                    extra_details={
+                        "hotelName": hotel_name,
+                        "hotelType": accommodation.get("hotelType"),
+                        "bookingUrl": accommodation.get("bookingUrl"),
+                    },
+                )
+
         # Se utilizan las recomendaciones que dejó el budget_agent.
         activities = experiences.get("activities", [])
         gastronomy = experiences.get("gastronomy", [])
 
-        # Las actividades se distribuyen procurando respetar su franja horaria preferida.
+        # Las actividades se distribuyen procurando respetar su franja horaria preferida
+        # y NUNCA antes de la llegada del vuelo al destino.
         for index, activity in enumerate(activities):
             if not days:
                 break
 
-            day = days[index % len(days)]
-            preferred_time = ACTIVITY_TIMES.get(
-                activity.get("bestTimeOfDay"),
-                time(9, 0),
-            )
+            time_of_day = activity.get("bestTimeOfDay", "morning")
+            preferred_time = ACTIVITY_TIMES.get(time_of_day, time(9, 0))
+
+            if len(days) > 1 and day1_earliest_start >= time(14, 0) and time_of_day in ("morning", "afternoon"):
+                day_idx = 1 + (index % (len(days) - 1))
+            else:
+                day_idx = index % len(days)
+
+            day = days[day_idx]
+            day_earliest = day1_earliest_start if day_idx == 0 else DAY_START
 
             duration = _duration_hours(
                 activity.get("duration", ""),
@@ -448,6 +488,7 @@ def itinerary_builder(state: TravelState) -> dict:
                 cost=float(cost),
                 preferred_time=preferred_time,
                 duration_hours=duration,
+                earliest_start=day_earliest,
                 extra_details={
                     "operatorName": op_name,
                     "websiteUrl": website_url,
@@ -468,9 +509,16 @@ def itinerary_builder(state: TravelState) -> dict:
             if not days:
                 break
 
-            day = days[index % len(days)]
             meal_type = meal.get("mealType", "lunch")
             preferred_time = MEAL_TIMES.get(meal_type, time(12, 0))
+
+            if len(days) > 1 and day1_earliest_start >= time(14, 0) and meal_type in ("breakfast", "lunch"):
+                day_idx = 1 + (index % (len(days) - 1))
+            else:
+                day_idx = index % len(days)
+
+            day = days[day_idx]
+            day_earliest = day1_earliest_start if day_idx == 0 else DAY_START
 
             cost = meal.get("estimatedCost", 0)
             if (
@@ -499,6 +547,7 @@ def itinerary_builder(state: TravelState) -> dict:
                 cost=float(cost),
                 preferred_time=preferred_time,
                 duration_hours=1,
+                earliest_start=day_earliest,
                 extra_details={
                     "venueName": venue_name,
                     "dish": dish_name,

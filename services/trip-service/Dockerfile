@@ -5,12 +5,13 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 COPY package*.json ./
-COPY tsconfig*.json ./
+COPY shared/contracts ./shared/contracts
+COPY services/trip-service ./services/trip-service
 
-RUN npm install
+RUN npm install --workspace=shared/contracts --workspace=services/trip-service
+RUN npm run build --workspace=shared/contracts
 
-COPY src ./src/
-
+WORKDIR /app/services/trip-service
 RUN npm run build
 
 EXPOSE 3003

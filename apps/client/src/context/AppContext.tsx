@@ -7,7 +7,7 @@ import {
 } from '@wayvo/contracts';
 import { subscribeToTelemetry, TelemetryLogEntry, WayvoApi } from '../services/api';
 
-export type AppView = 'LANDING' | 'ONBOARDING' | 'PROPOSAL' | 'CHECKOUT' | 'ACTIVE_TRIP';
+export type AppView = 'LANDING' | 'MY_TRIPS' | 'ONBOARDING' | 'PROPOSAL' | 'CHECKOUT' | 'ACTIVE_TRIP';
 export type AppMode = 'USER' | 'DEV';
 
 interface AppContextType {
@@ -16,6 +16,12 @@ interface AppContextType {
   currentView: AppView;
   setCurrentView: (view: AppView) => void;
   
+  // User & Multi-Trip Hub State
+  userId: string;
+  setUserId: (id: string) => void;
+  userTrips: Trip[];
+  loadUserTrips: () => Promise<void>;
+
   // Trip & Plan State
   planResult: AIPlanRecommendationResult | null;
   setPlanResult: (plan: AIPlanRecommendationResult | null) => void;
@@ -37,6 +43,8 @@ interface AppContextType {
   setIsDevInspectorOpen: (open: boolean) => void;
   chaosMode: 'normal' | 'unavailable' | 'slow' | 'error';
   setChaosMode: (mode: 'normal' | 'unavailable' | 'slow' | 'error') => void;
+  devBypassTimeValidation: boolean;
+  setDevBypassTimeValidation: (bypass: boolean) => void;
 
   // Chat State
   isChatOpen: boolean;
@@ -49,8 +57,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [appMode, setAppMode] = useState<AppMode>('USER');
   const [currentView, setCurrentView] = useState<AppView>('LANDING');
 
+  const [userId, setUserId] = useState<string>(() => {
+    return localStorage.getItem('wayvo_user_id') || 'usr-client';
+  });
+  const [userTrips, setUserTrips] = useState<Trip[]>([]);
+
   const [planResult, setPlanResult] = useState<AIPlanRecommendationResult | null>(null);
-  const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
+  const [activeTrip, setActiveTripState] = useState<Trip | null>(null);
   const [checkoutResult, setCheckoutResult] = useState<ConfirmTripSagaResult | null>(null);
   const [compensationLog, setCompensationLog] = useState<CompensationLogOutput | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -58,6 +71,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [telemetryLogs, setTelemetryLogs] = useState<TelemetryLogEntry[]>([]);
   const [isDevInspectorOpen, setIsDevInspectorOpen] = useState(false);
   const [chaosMode, setChaosModeState] = useState<'normal' | 'unavailable' | 'slow' | 'error'>('normal');
+  const [devBypassTimeValidation, setDevBypassTimeValidationState] = useState<boolean>(() => {
+    return localStorage.getItem('wayvo_dev_bypass') === 'true';
+  });
+
+  const setActiveTrip = (trip: Trip | null) => {
+    setActiveTripState(trip);
+    if (trip?.id) {
+      localStorage.setItem('wayvo_active_trip_id', trip.id);
+      setUserTrips((prev) => {
+        const exists = prev.some((t) => t.id === trip.id);
+        if (exists) {
+          return prev.map((t) => (t.id === trip.id ? trip : t));
+        }
+        return [trip, ...prev];
+      });
+    } else {
+      localStorage.removeItem('wayvo_active_trip_id');
+    }
+  };
+
+  const setDevBypassTimeValidation = (bypass: boolean) => {
+    setDevBypassTimeValidationState(bypass);
+    localStorage.setItem('wayvo_dev_bypass', String(bypass));
+  };
+
+  const loadUserTrips = async () => {
+    try {
+      const trips = await WayvoApi.listTrips(userId);
+      setUserTrips(trips);
+    } catch {
+      // Si el servicio no responde inicialmente, mantener array actual
+    }
+  };
+
+  // Rehidratación al inicio desde localStorage y backend
+  useEffect(() => {
+    const rehydrate = async () => {
+      await loadUserTrips();
+      const savedTripId = localStorage.getItem('wayvo_active_trip_id');
+      if (savedTripId) {
+        try {
+          const trip = await WayvoApi.getTrip(savedTripId);
+          if (trip) {
+            setActiveTripState(trip);
+          }
+        } catch {
+          // Si el viaje guardado no existe en memoria/BD, limpiar
+          localStorage.removeItem('wayvo_active_trip_id');
+        }
+      }
+    };
+    rehydrate();
+  }, [userId]);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
@@ -89,6 +155,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setAppMode,
         currentView,
         setCurrentView,
+        userId,
+        setUserId,
+        userTrips,
+        loadUserTrips,
         planResult,
         setPlanResult,
         activeTrip,
@@ -105,6 +175,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsDevInspectorOpen,
         chaosMode,
         setChaosMode,
+        devBypassTimeValidation,
+        setDevBypassTimeValidation,
         isChatOpen,
         setIsChatOpen,
       }}

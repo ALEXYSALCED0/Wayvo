@@ -4,15 +4,15 @@ WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
 
-# Copiar contracts y package.json del gateway
 COPY package*.json ./
-COPY tsconfig*.json ./
+COPY shared/contracts ./shared/contracts
+COPY services/api-gateway ./services/api-gateway
 
-RUN npm install
+RUN npm install --workspace=shared/contracts --workspace=services/api-gateway
+RUN npm run build --workspace=shared/contracts
+RUN npm run build --workspace=services/api-gateway
 
-COPY src ./src/
-
-RUN npm run build
+WORKDIR /app/services/api-gateway
 
 EXPOSE 3000
 

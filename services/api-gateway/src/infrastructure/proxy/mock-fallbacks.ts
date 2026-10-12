@@ -56,6 +56,14 @@ export function tripMockFallback(req: Request, res: Response): void {
     return void res.status(200).json(response);
   }
 
+  if (req.method === 'DELETE') {
+    return void res.status(200).json({
+      success: true,
+      data: { deleted: true, tripId: req.params.id || 'mock-trip-id' },
+      message: 'Trip deleted successfully (mock fallback)',
+    });
+  }
+
   const response: ApiResponse = {
     success: true,
     data: isPost

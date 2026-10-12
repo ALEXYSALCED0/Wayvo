@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 
 export const LandingView: React.FC = () => {
-  const { setCurrentView, appMode } = useApp();
+  const { setCurrentView, appMode, userTrips } = useApp();
 
   return (
     <div className="w-full min-h-[calc(100vh-80px)] bg-surface flex flex-col justify-between animate-fade-in font-sans">
@@ -64,21 +64,33 @@ export const LandingView: React.FC = () => {
               </div>
             </div>
 
-            {/* Primary Action Button (Without "Ya soy usuario") */}
+            {/* Primary Action Buttons */}
             <div className="pt-2 flex flex-col items-start gap-3">
-              <button
-                onClick={() => setCurrentView('ONBOARDING')}
-                className="px-8 py-4 rounded-xl bg-secondary hover:bg-primary text-on-primary font-semibold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-3 group"
-              >
-                <span>Comenzar</span>
-                <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">
-                  arrow_forward
-                </span>
-              </button>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={() => setCurrentView('ONBOARDING')}
+                  className="px-8 py-4 rounded-xl bg-secondary hover:bg-primary text-on-primary font-semibold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-3 group"
+                >
+                  <span>Planificar Nuevo Viaje</span>
+                  <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">
+                    arrow_forward
+                  </span>
+                </button>
+
+                {userTrips.length > 0 && (
+                  <button
+                    onClick={() => setCurrentView('MY_TRIPS')}
+                    className="px-6 py-4 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary font-bold text-sm border border-outline-variant/30 transition-all flex items-center gap-2 shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-[20px] text-secondary">luggage</span>
+                    <span>Mis Viajes ({userTrips.length})</span>
+                  </button>
+                )}
+              </div>
 
               <div className="flex items-center gap-2 text-xs text-on-surface-variant">
                 <span className="material-symbols-outlined text-[16px] text-secondary">verified_user</span>
-                <span>Perfilamiento sin registro forzado inicial. Solo 2 minutos.</span>
+                <span>Organizador autónomo con IA reactiva a cambios e imprevistos.</span>
               </div>
             </div>
           </div>

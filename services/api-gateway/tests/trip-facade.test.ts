@@ -109,18 +109,22 @@ describe('TripFacade - GoF Structural Pattern Tests', () => {
       );
     });
 
-    it('should generate contract-compliant fallback plan when ai-recommendation is offline', async () => {
-      const realApp = createApp(); // Default instance with real HttpAiServiceGateway
-      const res = await request(realApp)
+    it('should return 500 server error when ai-recommendation is offline (no mockups policy)', async () => {
+      const failingAiService: AiServicePort = {
+        generatePlan: vi.fn().mockRejectedValue(new Error('Error con el servidor: no se pudo completar la consulta de IA')),
+      };
+      const facadeWithFailingAi = new TripFacade(
+        failingAiService,
+        mockBookingService,
+      );
+      const testApp = createApp({ tripFacade: facadeWithFailingAi });
+      const res = await request(testApp)
         .post('/api/v1/trips/plan')
         .send(samplePlanInput);
 
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.plan.planId).toBeDefined();
-      expect(res.body.data.plan.personality.analyzedStyle).toBeDefined();
-      expect(res.body.data.plan.budget.estimatedTotalCost).toBeGreaterThan(0);
-      expect(res.body.data.plan.suggestedBookingItems.length).toBeGreaterThan(0);
+      expect(res.status).toBe(500);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.message).toContain('Error con el servidor');
     });
 
     it('should validate request schema and reject malformed inputs', async () => {

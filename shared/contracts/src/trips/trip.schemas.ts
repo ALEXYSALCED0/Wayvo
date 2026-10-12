@@ -4,7 +4,10 @@ import { IssueType } from './incident.dto';
 import { TripStatus } from './trip.dto';
 
 export const tripStatusSchema = z.nativeEnum(TripStatus);
-export const eventTypeSchema = z.nativeEnum(EventType);
+export const eventTypeSchema = z.preprocess(
+  (val) => (val === 'ACCOMMODATION' ? EventType.HOTEL : val),
+  z.nativeEnum(EventType),
+);
 export const eventStatusSchema = z.nativeEnum(EventStatus);
 export const reservationStatusSchema = z.nativeEnum(ReservationStatus);
 export const issueTypeSchema = z.nativeEnum(IssueType);
