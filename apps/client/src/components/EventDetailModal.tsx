@@ -39,6 +39,40 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     return 'Actividad / Tour Guiado';
   };
 
+  const getExternalLink = () => {
+    const title = encodeURIComponent(event.title || 'actividad');
+    const dest = encodeURIComponent(destination || '');
+    const type = (event as any).type;
+    if (type === 'FLIGHT' || type === 'TRANSPORT') {
+      return {
+        url: `https://www.google.com/travel/flights?q=vuelos+a+${dest}`,
+        label: 'Ver Vuelos en Google Flights',
+        icon: 'flight_takeoff',
+      };
+    }
+    if (type === 'HOTEL' || type === 'ACCOMMODATION') {
+      return {
+        url: `https://www.google.com/travel/hotels?q=${title}+${dest}`,
+        label: 'Ver en Google Travel Hotels',
+        icon: 'hotel',
+      };
+    }
+    if (type === 'MEAL') {
+      return {
+        url: `https://www.google.com/maps/search/?api=1&query=${title}+${dest}`,
+        label: 'Ver Menú / Ubicación en Maps',
+        icon: 'restaurant',
+      };
+    }
+    return {
+      url: `https://www.google.com/search?q=${title}+${dest}+tickets+reservas`,
+      label: 'Ver Información y Reservas',
+      icon: 'open_in_new',
+    };
+  };
+
+  const externalLink = getExternalLink();
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-outline-variant/30 flex flex-col">
@@ -151,12 +185,21 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 bg-surface-container-low border-t border-outline-variant/20 flex justify-end">
+        <div className="p-4 bg-surface-container-low border-t border-outline-variant/20 flex items-center justify-between gap-3">
+          <a
+            href={externalLink.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary hover:text-on-secondary text-xs font-semibold transition-all shadow-sm"
+          >
+            <span className="material-symbols-outlined text-[16px]">{externalLink.icon}</span>
+            <span>{externalLink.label}</span>
+          </a>
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-semibold hover:bg-secondary transition-colors"
           >
-            Entendido
+            Cerrar
           </button>
         </div>
       </div>

@@ -264,6 +264,16 @@ export const ProposalView: React.FC = () => {
                     {formatCOP(Math.round((budget?.breakdown?.transport || 1200000) / 2))}
                   </span>
                 </div>
+                <a
+                  href={`https://www.google.com/travel/flights?q=vuelos+de+${encodeURIComponent(tripDraft.origin || 'Bogota')}+a+${encodeURIComponent(tripDraft.destination)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all mt-3 w-full border border-outline-variant/30"
+                >
+                  <span className="material-symbols-outlined text-[15px] text-secondary">flight_takeoff</span>
+                  <span>Ver Vuelos en Google Flights</span>
+                  <span className="material-symbols-outlined text-[13px] ml-auto">open_in_new</span>
+                </a>
               </div>
 
               {/* Inbound Flight Card (Vuelo de Vuelta / Regreso) */}
@@ -289,6 +299,16 @@ export const ProposalView: React.FC = () => {
                     {formatCOP(Math.round((budget?.breakdown?.transport || 1200000) / 2))}
                   </span>
                 </div>
+                <a
+                  href={`https://www.google.com/travel/flights?q=vuelos+de+${encodeURIComponent(tripDraft.destination)}+a+${encodeURIComponent(tripDraft.origin || 'Bogota')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all mt-3 w-full border border-outline-variant/30"
+                >
+                  <span className="material-symbols-outlined text-[15px] text-secondary">flight_land</span>
+                  <span>Ver Vuelos de Retorno</span>
+                  <span className="material-symbols-outlined text-[13px] ml-auto">open_in_new</span>
+                </a>
               </div>
 
               {/* Hotel Card */}
@@ -312,6 +332,16 @@ export const ProposalView: React.FC = () => {
                     {formatCOP(budget?.breakdown?.accommodation || 1260000)}
                   </span>
                 </div>
+                <a
+                  href={`https://www.google.com/travel/hotels?q=hoteles+en+${encodeURIComponent(tripDraft.destination)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all mt-3 w-full border border-outline-variant/30"
+                >
+                  <span className="material-symbols-outlined text-[15px] text-secondary">hotel</span>
+                  <span>Ver Hospedaje en Google Travel</span>
+                  <span className="material-symbols-outlined text-[13px] ml-auto">open_in_new</span>
+                </a>
               </div>
 
               {/* Experiences Card */}
@@ -335,6 +365,16 @@ export const ProposalView: React.FC = () => {
                     {formatCOP(budget?.breakdown?.activities || 700000)}
                   </span>
                 </div>
+                <a
+                  href={`https://www.google.com/search?q=tours+y+actividades+en+${encodeURIComponent(tripDraft.destination)}+tickets`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-secondary-fixed text-primary text-xs font-semibold transition-all mt-3 w-full border border-outline-variant/30"
+                >
+                  <span className="material-symbols-outlined text-[15px] text-secondary">confirmation_number</span>
+                  <span>Ver Entradas & Tours Oficiales</span>
+                  <span className="material-symbols-outlined text-[13px] ml-auto">open_in_new</span>
+                </a>
               </div>
             </div>
           </section>

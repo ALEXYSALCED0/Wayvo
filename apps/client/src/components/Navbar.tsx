@@ -12,7 +12,12 @@ export const Navbar: React.FC = () => {
     isDevInspectorOpen,
     setIsDevInspectorOpen,
     telemetryLogs,
+    activeTrip,
+    checkoutResult,
   } = useApp();
+
+  const isTripConfirmed =
+    activeTrip?.status === 'CONFIRMED' || checkoutResult?.status === 'CONFIRMED';
 
   // Active trip stages only displayed when navigating through the trip creation/monitoring flow
   const stages = [
@@ -31,7 +36,13 @@ export const Navbar: React.FC = () => {
         {/* Brand / Logo (WAYVO • TRAVEL INTELLIGENCE from Reference) */}
         <div
           className="flex items-center gap-3 cursor-pointer group"
-          onClick={() => setCurrentView('LANDING')}
+          onClick={() => {
+            if (!isTripConfirmed || appMode === 'DEV') {
+              setCurrentView('LANDING');
+            } else {
+              setCurrentView('ACTIVE_TRIP');
+            }
+          }}
         >
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary to-primary flex items-center justify-center text-on-primary shadow-sm group-hover:scale-105 transition-transform">
             <span className="material-symbols-outlined text-[22px]">near_me</span>
@@ -52,22 +63,36 @@ export const Navbar: React.FC = () => {
           <nav className="hidden md:flex items-center gap-1.5 p-1.5 bg-surface-container rounded-full animate-fade-in">
             {stages.map((stage) => {
               const isActive = currentView === stage.id;
+              const isLocked = isTripConfirmed && stage.id !== 'ACTIVE_TRIP' && appMode === 'USER';
+
               return (
                 <button
                   key={stage.id}
-                  onClick={() => setCurrentView(stage.id)}
+                  disabled={isLocked}
+                  onClick={() => !isLocked && setCurrentView(stage.id)}
+                  title={isLocked ? 'Viaje confirmado: pasos anteriores bloqueados' : undefined}
                   className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all flex items-center gap-2 whitespace-nowrap ${
-                    isActive
+                    isLocked
+                      ? 'opacity-40 cursor-not-allowed text-on-surface-variant'
+                      : isActive
                       ? 'bg-primary-container text-on-primary shadow-sm font-semibold'
                       : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-lowest/60'
                   }`}
                 >
                   <span
                     className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                      isActive ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant'
+                      isLocked
+                        ? 'bg-outline-variant/40 text-on-surface-variant'
+                        : isActive
+                        ? 'bg-white/20 text-white'
+                        : 'bg-surface-container-high text-on-surface-variant'
                     }`}
                   >
-                    {stage.step}
+                    {isLocked ? (
+                      <span className="material-symbols-outlined text-[11px]">lock</span>
+                    ) : (
+                      stage.step
+                    )}
                   </span>
                   <span>{appMode === 'DEV' ? stage.devLabel : stage.label}</span>
                 </button>

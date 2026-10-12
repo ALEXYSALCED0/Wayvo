@@ -297,15 +297,15 @@ export const OnboardingView: React.FC = () => {
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
-                    { id: 'solo', label: 'Solo', count: 1, icon: 'person' },
-                    { id: 'couple', label: 'En Pareja', count: 2, icon: 'favorite' },
-                    { id: 'friends', label: 'Con Amigos', count: 3, icon: 'groups' },
-                    { id: 'family', label: 'En Familia', count: 4, icon: 'family_restroom' },
+                    { id: 'solo', label: 'Solo', icon: 'person' },
+                    { id: 'couple', label: 'En Pareja', icon: 'favorite' },
+                    { id: 'friends', label: 'Con Amigos', icon: 'groups' },
+                    { id: 'family', label: 'En Familia', icon: 'family_restroom' },
                   ].map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => handleSocialSelect(item.id as any)}
+                      onClick={() => setSocialPreference(item.id as any)}
                       className={`p-3.5 rounded-xl border text-left transition-all flex flex-col gap-1.5 ${
                         socialPreference === item.id
                           ? 'border-secondary bg-secondary-fixed/40 shadow-sm'
@@ -319,9 +319,6 @@ export const OnboardingView: React.FC = () => {
                         )}
                       </div>
                       <span className="text-xs font-bold text-primary">{item.label}</span>
-                      <span className="text-[11px] text-on-surface-variant">
-                        {item.count} {item.count === 1 ? 'viajero' : 'viajeros'}
-                      </span>
                     </button>
                   ))}
                 </div>
@@ -885,10 +882,10 @@ export const OnboardingView: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="text-on-surface-variant">Modalidad:</span>
                 <span className="font-semibold text-primary capitalize">
-                  {socialPreference === 'solo' && 'Solo (1 persona)'}
-                  {socialPreference === 'couple' && 'En Pareja (2 personas)'}
-                  {socialPreference === 'friends' && `Con Amigos (${travelers} personas)`}
-                  {socialPreference === 'family' && `En Familia (${travelers} personas)`}
+                  {socialPreference === 'solo' && 'Solo'}
+                  {socialPreference === 'couple' && 'En Pareja'}
+                  {socialPreference === 'friends' && 'Con Amigos'}
+                  {socialPreference === 'family' && 'En Familia'}
                 </span>
               </div>
 
