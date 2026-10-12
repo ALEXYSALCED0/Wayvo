@@ -20,7 +20,7 @@ Plataforma inteligente de planificación, reservas y gestión dinámica de viaje
 ```text
 wayvo-monorepo/
 ├── apps/
-│   └── client/                 # React Native / Expo (Web y Móvil) [Puertos 8081 / 19006]
+│   └── client/                 # React + Vite (Web y Responsive Mobile) [Puerto 5173]
 ├── services/
 │   ├── api-gateway/            # Express / Node.js [Puerto 3000] -> Patrón Facade
 │   ├── booking-service/        # Node.js + TypeScript [Puerto 3001] -> Patrón Saga
@@ -46,7 +46,7 @@ wayvo-monorepo/
 | **`provider-service`**| Node.js / TypeScript | `3002` | PostgreSQL `provider_db` (`5434:5432`) |
 | **`trip-service`**    | Node.js / TypeScript | `3003` | PostgreSQL `trip_db` (`5435:5432`) |
 | **`ai-recommendation`**| Python / FastAPI | `8000` | Vector Store / Stateless Agent Graph |
-| **`client`**          | Expo React Native Web | `8081` / `19006` | N/A (Frontend Client) |
+| **`client`**          | React + Vite Responsive | `5173` | N/A (Frontend Client) |
 
 ---
 
@@ -71,7 +71,7 @@ npm run dev:gateway      # Puerto 3000
 npm run dev:booking      # Puerto 3001
 npm run dev:provider     # Puerto 3002
 npm run dev:trip         # Puerto 3003
-npm run dev:client       # Expo Web / Metro
+npm run dev:client       # Puerto 5173 (Vite Web / Responsive)
 ```
 
 ---

@@ -170,10 +170,9 @@ services:
       dockerfile: Dockerfile
     container_name: wayvo-client
     environment:
-      EXPO_PUBLIC_API_URL: http://localhost:3000
+      VITE_API_URL: http://localhost:3000
     ports:
-      - "8081:8081"
-      - "19006:19006"
+      - "5173:5173"
     depends_on:
       - api-gateway
     profiles:

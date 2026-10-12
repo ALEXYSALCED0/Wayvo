@@ -15,7 +15,7 @@
     "dev:booking": "npm --prefix services/booking-service run dev",
     "dev:provider": "npm --prefix services/provider-service run dev",
     "dev:trip": "npm --prefix services/trip-service run dev",
-    "dev:client": "npm --prefix apps/client run start",
+    "dev:client": "npm --prefix apps/client run dev",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:build": "docker compose build",

@@ -2,28 +2,26 @@
   "name": "@wayvo/client",
   "version": "1.0.0",
   "private": true,
-  "description": "Wayvo Multi-Platform Client (Expo React Native Web & Mobile)",
-  "main": "index.js",
+  "description": "Wayvo Responsive Client (React + Vite + TypeScript)",
+  "type": "module",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@wayvo/contracts": "*",
-    "expo": "~51.0.0",
-    "expo-status-bar": "~1.12.1",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "react-native": "0.74.5",
-    "react-native-web": "~0.19.10"
+    "lucide-react": "^0.475.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0",
-    "@types/react": "~18.2.45",
-    "@types/react-dom": "~18.2.25",
-    "typescript": "^5.3.3"
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.9.0",
+    "vite": "^5.4.14"
   }
 }
