@@ -8,16 +8,15 @@ import { CheckoutView } from './components/CheckoutView';
 import { ActiveTripView } from './components/ActiveTripView';
 import { DevInspectorHUD } from './components/DevInspectorHUD';
 import { AIChatDrawer } from './components/AIChatDrawer';
-import { MessageSquare, Terminal } from 'lucide-react';
 
 function AppContent() {
   const { currentView, isChatOpen, setIsChatOpen, appMode, isDevInspectorOpen, setIsDevInspectorOpen } = useApp();
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div className="min-h-screen flex flex-col bg-surface font-sans text-on-surface antialiased relative">
       <Navbar />
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <main className="flex-1 flex flex-col">
         {currentView === 'LANDING' && <LandingView />}
         {currentView === 'ONBOARDING' && <OnboardingView />}
         {currentView === 'PROPOSAL' && <ProposalView />}
@@ -25,31 +24,26 @@ function AppContent() {
         {currentView === 'ACTIVE_TRIP' && <ActiveTripView />}
       </main>
 
+      {/* Footer */}
+      <footer className="w-full py-6 px-4 md:px-8 border-t border-outline-variant/30 bg-surface-container-lowest text-center text-xs text-on-surface-variant flex flex-col sm:flex-row items-center justify-between gap-3 max-w-7xl mx-auto">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-primary">Wayvo</span>
+          <span>• Azure Clarity Travel Platform</span>
+        </div>
+        <div className="font-mono text-[11px] text-secondary">
+          GoF: Facade • Saga • Adapter • Mediator | AI: LangGraph
+        </div>
+        <div>Diseño de Software 2 • Universidad del Norte</div>
+      </footer>
+
       {/* Floating Action Button for AI Chat */}
       {!isChatOpen && (
         <button
           onClick={() => setIsChatOpen(true)}
           title="Abrir Asistente de Viajes IA"
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            width: '54px',
-            height: '54px',
-            borderRadius: 'var(--radius-full)',
-            background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: 'var(--shadow-glow)',
-            zIndex: 40,
-            transition: 'transform 0.2s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary-container hover:bg-primary text-on-primary flex items-center justify-center shadow-xl hover:scale-105 transition-all z-40"
         >
-          <MessageSquare size={24} />
+          <span className="material-symbols-outlined text-[26px]">smart_toy</span>
         </button>
       )}
 
@@ -58,25 +52,9 @@ function AppContent() {
         <button
           onClick={() => setIsDevInspectorOpen(true)}
           title="Abrir Panel de Telemetría Dev"
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: '24px',
-            padding: '10px 18px',
-            borderRadius: 'var(--radius-full)',
-            background: 'rgba(15, 23, 42, 0.9)',
-            border: '1px solid var(--border-accent)',
-            color: '#fff',
-            fontSize: '12px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-            zIndex: 40,
-          }}
+          className="fixed bottom-6 left-6 px-4 py-2.5 rounded-full bg-primary text-on-primary text-xs font-bold flex items-center gap-2 shadow-xl hover:bg-secondary transition-all z-40 border border-secondary-fixed/30"
         >
-          <Terminal size={16} color="var(--color-primary)" />
+          <span className="material-symbols-outlined text-[18px] text-secondary-fixed">terminal</span>
           <span>Inspector de Red & Caos</span>
         </button>
       )}

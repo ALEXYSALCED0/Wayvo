@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { ShieldCheck, ShieldAlert, CheckCircle2, XCircle, ArrowRight, Loader2, RotateCcw, AlertTriangle, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { WayvoApi } from '../services/api';
 import { TripCheckoutRequest, ConfirmTripSagaResult } from '@wayvo/contracts';
 
-export function CheckoutView() {
+export const CheckoutView: React.FC = () => {
   const {
     planResult,
     setCurrentView,
@@ -14,6 +13,7 @@ export function CheckoutView() {
     appMode,
     setIsDevInspectorOpen,
     chaosMode,
+    setChaosMode,
   } = useApp();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -23,20 +23,23 @@ export function CheckoutView() {
 
   if (!planResult) {
     return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        No hay un viaje para procesar en checkout.
-        <br />
+      <div className="w-full max-w-4xl mx-auto my-16 p-8 text-center bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm">
+        <span className="material-symbols-outlined text-[48px] text-secondary mb-3">shopping_cart</span>
+        <h2 className="text-xl font-bold text-primary mb-2">No hay un itinerario para reservar</h2>
+        <p className="text-sm text-on-surface-variant mb-6">
+          Por favor completa el onboarding para generar una propuesta de viaje antes del checkout.
+        </p>
         <button
           onClick={() => setCurrentView('ONBOARDING')}
-          style={{ marginTop: '16px', color: 'var(--color-primary)', fontWeight: 600 }}
+          className="px-6 py-2.5 rounded-full bg-primary-container text-on-primary text-sm font-semibold hover:bg-primary transition-all shadow-sm"
         >
-          Ir a Planificar
+          Ir a Onboarding
         </button>
       </div>
     );
   }
 
-  const { tripDraft, suggestedBookingItems, budget } = planResult;
+  const { tripDraft, suggestedBookingItems } = planResult;
   const items = suggestedBookingItems && suggestedBookingItems.length > 0 ? suggestedBookingItems : [
     {
       type: 'TRANSPORT' as any,
@@ -56,8 +59,11 @@ export function CheckoutView() {
     },
   ];
 
-
   const totalAmount = items.reduce((acc, curr) => acc + curr.unitPrice * curr.quantity, 0);
+
+  const formatCOP = (val: number) => {
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
+  };
 
   const handleExecuteSaga = async () => {
     setIsProcessing(true);
@@ -97,12 +103,10 @@ export function CheckoutView() {
         setCheckoutResult(response.saga);
 
         if (response.saga.status === 'CONFIRMED' && response.saga.tripId) {
-          // Fetch the created trip to populate ActiveTrip view
           try {
             const trip = await WayvoApi.getTrip(response.saga.tripId);
             setActiveTrip(trip);
           } catch {
-            // Fallback trip mock if query fails
             setActiveTrip({
               id: response.saga.tripId,
               userId: tripDraft.userId || 'usr-client',
@@ -118,7 +122,9 @@ export function CheckoutView() {
       }
     } catch (err: any) {
       clearInterval(timer);
-      setErrorStatus(err.message);
+      // In Saga compensation (409), the response might carry error details
+      setErrorStatus(err.message || 'Transacción revertida por compensación');
+      setSagaStep(3);
     } finally {
       setIsProcessing(false);
     }
@@ -137,200 +143,303 @@ export function CheckoutView() {
   };
 
   return (
-    <div style={{ flex: 1, padding: '32px 20px', maxWidth: '860px', margin: '0 auto', width: '100%' }}>
-      {/* Title */}
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '28px', fontWeight: 800 }}>Confirmación y Checkout del Viaje</h2>
-        <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-          Transacción distribuida mediante el patrón <strong>Saga con Orquestación</strong>.
-        </p>
-      </div>
-
-      {/* Order Summary Card */}
-      <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '16px' }}>Resumen de Reservas a Confirmar</h3>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-          {items.map((item, index) => (
-            <div
-              key={index}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                background: 'rgba(0, 0, 0, 0.25)',
-                borderRadius: '8px',
-                fontSize: '13px',
-              }}
-            >
-              <div>
-                <span style={{ fontWeight: 600, color: '#fff' }}>{item.description}</span>
-                <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                  Proveedor: {item.providerId} • Cantidad: {item.quantity}
-                </div>
-              </div>
-              <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                ${Number(item.unitPrice * item.quantity).toLocaleString()} COP
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
-          <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>Total a Pagar</span>
-          <span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-success)' }}>
-            ${Number(totalAmount).toLocaleString()} COP
-          </span>
-        </div>
-      </div>
-
-      {/* Saga Execution Stepper Card */}
-      {(isProcessing || result) && (
-        <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShieldCheck size={18} color="var(--color-primary)" />
-            <span>Progreso de la Transacción Distribuida (Saga Orchestrator)</span>
-          </h3>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: sagaStep >= 1 ? 'var(--color-success)' : 'var(--text-dim)' }}>
-              {sagaStep >= 1 ? <CheckCircle2 size={16} /> : <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1px solid var(--text-dim)' }} />}
-              <span>1. [Trip Service] Creando viaje en estado PENDING</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: sagaStep >= 2 ? 'var(--color-success)' : 'var(--text-dim)' }}>
-              {sagaStep >= 2 ? <CheckCircle2 size={16} /> : <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1px solid var(--text-dim)' }} />}
-              <span>2. [Booking Service] Registrando reserva en estado PENDING</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: sagaStep >= 3 ? (result?.status === 'COMPENSATED' ? 'var(--color-danger)' : 'var(--color-success)') : 'var(--text-dim)' }}>
-              {sagaStep >= 3 ? (result?.status === 'COMPENSATED' ? <XCircle size={16} /> : <CheckCircle2 size={16} />) : <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1px solid var(--text-dim)' }} />}
-              <span>3. [Provider Service] Bloqueando cupo con proveedores externos</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: result?.status === 'CONFIRMED' ? 'var(--color-success)' : result?.status === 'COMPENSATED' ? 'var(--color-warning)' : 'var(--text-dim)' }}>
-              {result?.status === 'CONFIRMED' ? (
-                <CheckCircle2 size={16} color="var(--color-success)" />
-              ) : result?.status === 'COMPENSATED' ? (
-                <RotateCcw size={16} color="var(--color-warning)" />
-              ) : (
-                <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1px solid var(--text-dim)' }} />
-              )}
-              <span>
-                {result?.status === 'CONFIRMED'
-                  ? '4. Confirmación Global (Trip & Booking CONFIRMED)'
-                  : result?.status === 'COMPENSATED'
-                  ? '4. 🔄 Rollback Compensatorio LIFO: Cancelación de reserva y viaje completada'
-                  : '4. Finalizando transacción'}
-              </span>
-            </div>
+    <div className="w-full bg-surface py-8 px-4 md:px-8 max-w-7xl mx-auto flex flex-col gap-8 animate-fade-in">
+      {/* Title Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-outline-variant/30 pb-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary font-mono text-xs uppercase tracking-wider font-semibold">
+              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+              Saga Orchestration • Transacciones Distribuidas
+            </span>
           </div>
-        </div>
-      )}
-
-      {/* Outcome Results */}
-      {result && result.status === 'CONFIRMED' && (
-        <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--color-success)', borderRadius: 'var(--radius-lg)', padding: '24px', marginBottom: '24px', textAlign: 'center' }}>
-          <CheckCircle2 size={40} color="var(--color-success)" style={{ margin: '0 auto 12px' }} />
-          <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#fff', marginBottom: '6px' }}>¡Viaje Confirmado con Éxito!</h3>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-            Tu código oficial de reserva es: <strong style={{ color: 'var(--color-success)' }}>{result.reservationCode}</strong>
+          <h1 className="text-3xl font-bold text-primary">Saga Checkout en Vivo & Rollback</h1>
+          <p className="text-sm text-on-surface-variant mt-1 max-w-2xl">
+            Orquestación atómica entre <strong>Trip Service</strong>, <strong>Booking Service</strong> y <strong>Provider Service</strong> con garantía de compensación automática ante fallos de inventario.
           </p>
-
-          <button
-            onClick={() => setCurrentView('ACTIVE_TRIP')}
-            style={{
-              background: 'var(--color-success)',
-              color: '#000',
-              padding: '12px 24px',
-              borderRadius: 'var(--radius-full)',
-              fontSize: '15px',
-              fontWeight: 700,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
-            <span>Ver mi Viaje en el Timeline Activo</span>
-            <ArrowRight size={16} />
-          </button>
         </div>
-      )}
 
-      {result && result.status === 'COMPENSATED' && (
-        <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--color-warning)', borderRadius: 'var(--radius-lg)', padding: '24px', marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-            <RotateCcw size={28} color="var(--color-warning)" />
-            <div>
-              <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#fff' }}>Saga Compensada (Rollback Automático Exitoso)</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                Fallo en el paso: <strong>{result.failedStep}</strong> ({result.reason || 'Sin cupo disponible'}).
-              </p>
-            </div>
-          </div>
-
-          <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: 1.5, marginBottom: '16px' }}>
-            Gracias al patrón Saga, el viaje y la reserva fueron cancelados automáticamente sin cobrar cargos indebidos.
-            Tus fondos y estado se mantienen íntegros y consistentes.
-          </p>
-
-          <div style={{ display: 'flex', gap: '12px' }}>
+        {/* Chaos Injection Toggle (in DEV mode) */}
+        {appMode === 'DEV' && (
+          <div className="flex items-center gap-2 bg-surface-container-low p-2 rounded-xl border border-outline-variant/30">
+            <span className="text-xs font-mono text-on-surface-variant">Simular Caos:</span>
             <button
-              onClick={handleInspectCompensationLog}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                borderRadius: 'var(--radius-full)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#fff',
-                fontSize: '12px',
-                fontWeight: 600,
-              }}
+              onClick={() => setChaosMode(chaosMode === 'unavailable' ? 'normal' : 'unavailable')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                chaosMode === 'unavailable'
+                  ? 'bg-error text-on-error shadow-sm'
+                  : 'bg-surface-container text-primary hover:bg-secondary-fixed'
+              }`}
             >
-              <FileText size={14} />
-              <span>Ver Compensation Log de Auditoría</span>
+              {chaosMode === 'unavailable' ? 'Caos Activado (Rollback)' : 'Proveedor Normal (201 OK)'}
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Dynamic Status Banners (Stitch checkout.html) */}
+      {result?.status === 'CONFIRMED' && (
+        <div className="stitch-card p-6 bg-surface-container-lowest rounded-xl flex items-start gap-4 border-l-4 border-l-secondary shadow-md animate-fade-in">
+          <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center flex-shrink-0 text-primary">
+            <span className="material-symbols-outlined text-[24px]">verified</span>
+          </div>
+          <div className="flex flex-col gap-1 flex-1">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-base font-bold text-primary">Reserva Emitida con Éxito</span>
+              <span className="px-3 py-0.5 rounded-full bg-surface-container-high text-primary font-mono text-xs font-bold">
+                PNR: {result.reservationCode || 'AZR-88492-CO'}
+              </span>
+            </div>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              Todos los microservicios y proveedores externos aseguraron la disponibilidad. El orquestador Saga cerró el contexto en estado consolidado.
+            </p>
+            <div className="pt-2">
+              <button
+                onClick={() => setCurrentView('ACTIVE_TRIP')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-semibold shadow-sm hover:bg-secondary transition-colors"
+              >
+                <span>Ver mi Viaje en Vivo</span>
+                <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Action CTA Button */}
-      {!result && (
-        <button
-          onClick={handleExecuteSaga}
-          disabled={isProcessing}
-          style={{
-            width: '100%',
-            background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
-            color: '#fff',
-            padding: '16px',
-            borderRadius: 'var(--radius-full)',
-            fontSize: '16px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            boxShadow: 'var(--shadow-glow)',
-            opacity: isProcessing ? 0.7 : 1,
-          }}
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 size={18} className="spin" />
-              <span>Orquestando Saga Distribuida...</span>
-            </>
-          ) : (
-            <>
-              <ShieldCheck size={18} />
-              <span>Confirmar y Reservar Viaje (Ejecutar Saga)</span>
-            </>
-          )}
-        </button>
+      {(result?.status === 'COMPENSATED' || errorStatus) && (
+        <div className="stitch-card p-6 bg-surface-container-lowest rounded-xl flex items-start gap-4 border-l-4 border-l-error shadow-md animate-fade-in">
+          <div className="w-10 h-10 rounded-full bg-error-container flex items-center justify-center flex-shrink-0 text-error">
+            <span className="material-symbols-outlined text-[24px]">published_with_changes</span>
+          </div>
+          <div className="flex flex-col gap-1 flex-1">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-base font-bold text-error">
+                Compensación Automática Ejecutada (Saga Rollback)
+              </span>
+              <span className="px-3 py-0.5 rounded-full bg-error-container text-on-error-container font-mono text-xs font-bold">
+                HTTP 409 SAGA_COMPENSATED
+              </span>
+            </div>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              {result?.reason || errorStatus || 'Uno de los proveedores externos no confirmó cupo. El orquestador Saga canceló el viaje y liberó tus reservas provisionales automáticamente.'}
+            </p>
+            <div className="flex items-center gap-4 pt-2">
+              <span className="font-mono text-xs text-error flex items-center gap-1.5 font-medium">
+                <span className="material-symbols-outlined text-[14px]">lock_reset</span>
+                Reversión completada en sub-segundo
+              </span>
+              <button
+                onClick={handleExecuteSaga}
+                className="text-xs text-primary font-semibold hover:underline"
+              >
+                Reintentar Reserva
+              </button>
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* Main Grid: Visualizador del Orquestador (8 cols) + Resumen de Pago (4 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Visualizador del Orquestador Reactivo (Stitch timeline) */}
+        <div className="lg:col-span-8 stitch-card p-6 md:p-8 bg-surface-container-lowest rounded-2xl flex flex-col gap-6">
+          <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4">
+            <div className="flex flex-col">
+              <span className="text-xs font-mono text-secondary uppercase font-semibold tracking-wider">
+                Flujo de Estados Saga
+              </span>
+              <span className="text-lg font-bold text-primary">Visualizador del Orquestador Reactivo</span>
+            </div>
+            <div className="flex items-center gap-2 bg-surface-container-low px-3 py-1 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+              <span className="font-mono text-xs text-on-surface-variant">Graph-ID: #saga-core</span>
+            </div>
+          </div>
+
+          {/* Stepper Vertical */}
+          <div className="relative py-2">
+            <div className="absolute left-6 top-8 bottom-8 w-0.5 bg-surface-container-highest z-0"></div>
+            <div className="flex flex-col gap-6 relative z-10">
+              {/* Node 1: Trip Service */}
+              <div className="flex items-start gap-4">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                    sagaStep >= 1
+                      ? 'bg-primary text-on-primary shadow-sm'
+                      : 'bg-surface-container text-outline'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">account_tree</span>
+                </div>
+                <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-primary">1. Trip Service</span>
+                      <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/trips</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
+                      {sagaStep >= 1 ? '201 CREATED' : 'STANDBY'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">
+                    Inicialización del contexto de viaje en estado PENDING y asignación de identificador único.
+                  </p>
+                </div>
+              </div>
+
+              {/* Node 2: Booking Service */}
+              <div className="flex items-start gap-4">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                    sagaStep >= 2
+                      ? 'bg-primary text-on-primary shadow-sm'
+                      : 'bg-surface-container text-outline'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">bookmark_add</span>
+                </div>
+                <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-primary">2. Booking Service</span>
+                      <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/bookings</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
+                      {sagaStep >= 2 ? '201 PENDING' : 'STANDBY'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">
+                    Creación de la reserva y persistencia de items con Correlation ID trazable.
+                  </p>
+                </div>
+              </div>
+
+              {/* Node 3: Provider Service */}
+              <div className="flex items-start gap-4">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                    sagaStep >= 3
+                      ? result?.status === 'COMPENSATED' || errorStatus
+                        ? 'bg-error text-on-error shadow-sm'
+                        : 'bg-primary text-on-primary shadow-sm'
+                      : 'bg-surface-container text-outline'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">sync_alt</span>
+                </div>
+                <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-primary">3. Provider Service</span>
+                      <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/providers/reserve</span>
+                    </div>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full font-mono text-xs font-semibold ${
+                        result?.status === 'COMPENSATED' || errorStatus
+                          ? 'bg-error-container text-error'
+                          : sagaStep >= 3
+                          ? 'bg-surface-container-highest text-primary'
+                          : 'bg-surface-container text-outline'
+                      }`}
+                    >
+                      {result?.status === 'COMPENSATED' || errorStatus
+                        ? '409 COMPENSATED'
+                        : sagaStep >= 3
+                        ? '200 RESERVED'
+                        : 'STANDBY'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">
+                    {result?.status === 'COMPENSATED' || errorStatus
+                      ? 'Proveedor no disponible. Se disparó rollback automático liberando viaje y reserva.'
+                      : 'Verificación de catálogo y reserva de cupos atómicos con proveedores externos.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Node 4: Confirm Trip */}
+              <div className="flex items-start gap-4">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                    sagaStep >= 4 && result?.status === 'CONFIRMED'
+                      ? 'bg-secondary text-on-secondary shadow-sm'
+                      : 'bg-surface-container text-outline'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">verified_user</span>
+                </div>
+                <div className="flex flex-col gap-1 flex-1 bg-surface-container-low p-4 rounded-xl border border-outline-variant/30">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-primary">4. Confirmación Final</span>
+                      <span className="font-mono text-xs text-on-surface-variant">POST /api/v1/trips/:id/confirm</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
+                      {sagaStep >= 4 && result?.status === 'CONFIRMED' ? 'CONFIRMED' : 'STANDBY'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">
+                    Bloqueo de pago y transición del viaje a estado activo consolidado.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Order Summary & Checkout Trigger */}
+        <div className="lg:col-span-4 stitch-card p-6 bg-surface-container-lowest rounded-2xl flex flex-col gap-6">
+          <div className="flex items-center gap-2 pb-3 border-b border-outline-variant/20">
+            <span className="material-symbols-outlined text-secondary text-[22px]">receipt_long</span>
+            <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">Resumen de Reserva</h3>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {items.map((item, idx) => (
+              <div key={idx} className="flex justify-between items-start text-xs pb-3 border-b border-outline-variant/20">
+                <div className="flex flex-col">
+                  <span className="font-semibold text-primary">{item.description}</span>
+                  <span className="text-[11px] text-on-surface-variant">
+                    {item.quantity} unidad(es) • Prov: {item.providerId}
+                  </span>
+                </div>
+                <span className="font-mono font-bold text-primary">
+                  {formatCOP(item.unitPrice * item.quantity)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-sm font-semibold text-on-surface">Total Liquidado</span>
+            <span className="text-2xl font-extrabold text-primary font-mono">
+              {formatCOP(totalAmount)}
+            </span>
+          </div>
+
+          <button
+            onClick={handleExecuteSaga}
+            disabled={isProcessing}
+            className="w-full py-3.5 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isProcessing ? (
+              <>
+                <span className="material-symbols-outlined animate-spin text-[20px]">sync</span>
+                <span>Orquestando Saga Distribuida...</span>
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-[20px]">lock</span>
+                <span>Ejecutar Reserva con Saga Transaccional</span>
+              </>
+            )}
+          </button>
+
+          <p className="text-[11px] text-on-surface-variant text-center">
+            Petición enrutada mediante el API Gateway Facade hacia el Saga Orchestrator de Joshua.
+          </p>
+        </div>
+      </div>
     </div>
   );
-}
+};

@@ -1,268 +1,351 @@
 import React, { useState } from 'react';
-import { Compass, DollarSign, Calendar, Clock, MapPin, CheckCircle, ArrowRight, Sparkles, Shield, Utensils, Plane, Hotel } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-export function ProposalView() {
+export const ProposalView: React.FC = () => {
   const { planResult, setCurrentView } = useApp();
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
 
   if (!planResult) {
     return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        No hay un plan activo actualmente.
-        <br />
+      <div className="w-full max-w-4xl mx-auto my-16 p-8 text-center bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm">
+        <span className="material-symbols-outlined text-[48px] text-secondary mb-3">travel_explore</span>
+        <h2 className="text-xl font-bold text-primary mb-2">No hay un itinerario activo</h2>
+        <p className="text-sm text-on-surface-variant mb-6">
+          Por favor inicia el flujo de planificación con IA para generar tu propuesta personalizada.
+        </p>
         <button
           onClick={() => setCurrentView('ONBOARDING')}
-          style={{ marginTop: '16px', color: 'var(--color-primary)', fontWeight: 600 }}
+          className="px-6 py-2.5 rounded-full bg-primary-container text-on-primary text-sm font-semibold hover:bg-primary transition-all shadow-sm"
         >
-          Volver a Planificar
+          Ir a Onboarding & Psicometría
         </button>
       </div>
     );
   }
 
-  const { personality, budget, transport, itinerary, suggestedBookingItems, tripDraft } = planResult;
+  const { tripDraft, personality, itinerary, budget, suggestedBookingItems } = planResult;
   const days = itinerary?.days || [];
-  const currentDay = days[selectedDayIndex] || days[0];
+  const activeDay = days[selectedDayIndex] || days[0];
+
+  const formatCOP = (val?: number) => {
+    if (!val) return '$0 COP';
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(val);
+  };
 
   return (
-    <div style={{ flex: 1, padding: '32px 20px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
-      {/* Title & Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Itinerario Multiagente Consolidado
-          </span>
-          <h2 style={{ fontSize: '32px', fontWeight: 800 }}>Viaje a {tripDraft.destination}</h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-            {tripDraft.startDate} al {tripDraft.endDate} • {tripDraft.travelers || 2} Viajeros
-          </p>
-        </div>
-
-        <button
-          onClick={() => setCurrentView('CHECKOUT')}
-          style={{
-            background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
-            color: '#fff',
-            padding: '14px 26px',
-            borderRadius: 'var(--radius-full)',
-            fontSize: '15px',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: 'var(--shadow-glow)',
-          }}
-        >
-          <span>Continuar al Checkout</span>
-          <ArrowRight size={18} />
-        </button>
-      </div>
-
-      {/* Grid: Personality & Budget Overview */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '28px' }}>
-        {/* Personality Insights Card */}
-        <div style={{ background: 'var(--bg-card)', padding: '22px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <Sparkles size={18} color="var(--color-accent)" />
-            <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Perfil Psicológico Detectado</h3>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-            <span style={{ background: 'rgba(139, 92, 246, 0.15)', color: 'var(--color-accent)', padding: '4px 10px', borderRadius: 'var(--radius-full)', fontSize: '12px', fontWeight: 600 }}>
-              Estilo: {personality?.analyzedStyle || 'Cultural'}
+    <div className="w-full bg-surface pb-12 animate-fade-in">
+      {/* Top Context Header & Flight Telemetry Bar (from Stitch proposal.html) */}
+      <section className="w-full px-4 md:px-8 py-4 bg-surface-container-low border-b border-outline-variant/30 shadow-sm">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-mono text-xs uppercase tracking-wider font-semibold">
+              Plan ID: #{tripDraft.destination.slice(0, 3).toUpperCase()}-{Date.now().toString().slice(-4)}
             </span>
-            <span style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--color-primary)', padding: '4px 10px', borderRadius: 'var(--radius-full)', fontSize: '12px', fontWeight: 600 }}>
-              Ritmo: {personality?.dominantPace || 'Equilibrado'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-semibold text-primary">{tripDraft.origin || 'Bogotá (BOG)'}</span>
+              <span className="material-symbols-outlined text-secondary text-[20px]">arrow_right_alt</span>
+              <span className="text-lg font-semibold text-primary">{tripDraft.destination}</span>
+            </div>
           </div>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            {personality?.traitSummary || 'Plan optimizado para una inmersión auténtica y balanceada.'}
-          </p>
-        </div>
-
-        {/* Budget Breakdown Card */}
-        <div style={{ background: 'var(--bg-card)', padding: '22px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <DollarSign size={18} color="var(--color-success)" />
-              <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Desglose de Presupuesto</h3>
+          <div className="flex items-center gap-6 flex-wrap">
+            <div className="flex items-center gap-1.5 text-on-surface-variant text-xs">
+              <span className="material-symbols-outlined text-[18px]">calendar_today</span>
+              <span>{tripDraft.startDate} — {tripDraft.endDate}</span>
             </div>
-            <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-success)' }}>
-              ${Number(budget?.estimatedTotalCost || 0).toLocaleString()} COP
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '8px 12px', borderRadius: '8px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Transporte:</span>
-              <div style={{ fontWeight: 700, color: '#fff' }}>${Number(budget?.breakdown?.transport || 0).toLocaleString()}</div>
-            </div>
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '8px 12px', borderRadius: '8px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Alojamiento:</span>
-              <div style={{ fontWeight: 700, color: '#fff' }}>${Number(budget?.breakdown?.accommodation || 0).toLocaleString()}</div>
-            </div>
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '8px 12px', borderRadius: '8px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Actividades:</span>
-              <div style={{ fontWeight: 700, color: '#fff' }}>${Number(budget?.breakdown?.activities || 0).toLocaleString()}</div>
-            </div>
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '8px 12px', borderRadius: '8px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Alimentación:</span>
-              <div style={{ fontWeight: 700, color: '#fff' }}>${Number(budget?.breakdown?.food || 0).toLocaleString()}</div>
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
+              <span className="h-2 w-2 rounded-full bg-secondary animate-pulse"></span>
+              <span>LangGraph State: PROPOSAL_READY</span>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Suggested Booking Items Section (Items listos para checkout con proveedores) */}
-      {suggestedBookingItems && suggestedBookingItems.length > 0 && (
-        <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', marginBottom: '28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '17px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Shield size={18} color="var(--color-primary)" />
-              <span>Ofertas Verificadas del Catálogo de Proveedores (Listas para Checkout)</span>
-            </h3>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              Cruzadas por provider_catalog_agent
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
-            {suggestedBookingItems.map((item, index) => (
-              <div
-                key={index}
-                style={{
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-accent)', textTransform: 'uppercase' }}>
-                      {item.type}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{item.providerId}</span>
-                  </div>
-                  <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', marginBottom: '4px' }}>{item.description}</h4>
+      {/* Main Content Layout (Stitch: 8 cols left, 4 cols right) */}
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 flex flex-col lg:flex-row gap-8">
+        {/* Left Column (8 cols): Profiler Card + Day Timeline + Bookable Units */}
+        <div className="w-full lg:w-8/12 flex flex-col gap-8">
+          {/* 1. Tarjeta de Personalidad del Viaje (ProfilerAgent) */}
+          <article className="stitch-card p-6 md:p-8 bg-surface-container rounded-2xl relative overflow-hidden border border-outline-variant/30">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 relative z-10">
+              <div className="space-y-2 max-w-xl">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary text-[22px]">psychology</span>
+                  <span className="font-mono text-xs uppercase tracking-wider text-secondary font-semibold">
+                    ProfilerAgent Síntesis Psicométrica
+                  </span>
                 </div>
+                <h2 className="text-2xl font-bold text-primary">
+                  {personality?.analyzedStyle || 'Explorador Cultural Gastronómico'}
+                </h2>
+                <p className="text-sm text-on-surface-variant leading-relaxed">
+                  {personality?.traitSummary ||
+                    'Itinerario equilibrado combinando patrimonio histórico, gastronomía marina y descansos programados para optimizar el gasto energético.'}
+                </p>
+              </div>
 
-                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '8px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Cant: {item.quantity}</span>
-                  <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-success)' }}>
-                    ${Number(item.unitPrice * item.quantity).toLocaleString()} COP
+              {/* Score & Balance Meter */}
+              <div className="flex md:flex-col items-center md:items-end justify-between gap-2 bg-surface-container-lowest p-4 rounded-xl shadow-sm shrink-0 border border-outline-variant/20">
+                <div className="text-left md:text-right">
+                  <span className="text-[11px] text-on-surface-variant block uppercase tracking-wide font-medium">
+                    Afinidad Neuro-Viajera
+                  </span>
+                  <span className="text-3xl font-extrabold text-primary">94%</span>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-surface-container text-secondary font-mono text-xs font-semibold">
+                  Calibración Alta
+                </span>
+              </div>
+            </div>
+
+            {/* Metrics Ribbons */}
+            <div className="mt-6 pt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-outline-variant/20">
+              <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm border border-outline-variant/20">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-medium text-on-surface">Ritmo Equilibrado</span>
+                  <span className="font-mono text-xs text-secondary font-semibold">65% Actividad • 35% Relax</span>
+                </div>
+                <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden flex">
+                  <div className="bg-primary h-full rounded-l-full" style={{ width: '65%' }}></div>
+                  <div className="bg-secondary-container h-full rounded-r-full" style={{ width: '35%' }}></div>
+                </div>
+              </div>
+
+              <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm border border-outline-variant/20">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs font-medium text-on-surface">Frecuencia Sensorial</span>
+                  <span className="font-mono text-xs text-secondary font-semibold">Gastronomía & Cultura</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-on-surface-variant">
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[16px] text-secondary">restaurant</span>
+                    <span>Reservas de Autor</span>
+                  </span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[16px] text-secondary">museum</span>
+                    <span>Tours Culturales</span>
                   </span>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          </article>
 
-      {/* Day by Day Interactive Schedule */}
-      <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
-        <h3 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Calendar size={18} color="var(--color-primary)" />
-          <span>Cronograma Diario del Itinerario</span>
-        </h3>
+          {/* 2. Timeline Día por Día interactivo */}
+          <section className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-mono text-xs uppercase tracking-wider text-secondary font-semibold">
+                  Secuencia Operativa
+                </span>
+                <h3 className="text-xl font-bold text-primary">Cronograma Diario Calibrado</h3>
+              </div>
+              <span className="text-xs text-on-surface-variant hidden sm:inline">Zona horaria: COT (UTC-5)</span>
+            </div>
 
-        {/* Day Selector Tabs */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '16px' }}>
-          {days.map((day, idx) => (
-            <button
-              key={idx}
-              onClick={() => setSelectedDayIndex(idx)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '13px',
-                fontWeight: 600,
-                background: selectedDayIndex === idx ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.05)',
-                color: selectedDayIndex === idx ? '#fff' : 'var(--text-muted)',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              Día {day.dayNumber || idx + 1} ({day.date})
-            </button>
-          ))}
-        </div>
-
-        {/* Selected Day Events Feed */}
-        {currentDay && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {currentDay.events?.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Día libre o sin actividades programadas.</p>
-            ) : (
-              currentDay.events?.map((evt: any, i: number) => (
-                <div
-                  key={evt.id || i}
-                  style={{
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid var(--border-light)',
-                    borderRadius: '12px',
-                    padding: '14px 18px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '14px',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '8px',
-                      background: 'rgba(59, 130, 246, 0.15)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--color-primary)',
-                      flexShrink: 0,
-                    }}
+            {/* Day Selector Tabs (Stitch Pills) */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              {days.map((day, idx) => {
+                const isSelected = selectedDayIndex === idx;
+                return (
+                  <button
+                    key={day.dayNumber || idx}
+                    onClick={() => setSelectedDayIndex(idx)}
+                    className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
+                      isSelected
+                        ? 'bg-primary-container text-on-primary shadow-sm font-semibold'
+                        : 'bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container'
+                    }`}
                   >
-                    {evt.type === 'FLIGHT' || evt.type === 'TRANSPORT' ? (
-                      <Plane size={18} />
-                    ) : evt.type === 'MEAL' ? (
-                      <Utensils size={18} />
-                    ) : evt.type === 'HOTEL' ? (
-                      <Hotel size={18} />
-                    ) : (
-                      <Compass size={18} />
-                    )}
-                  </div>
+                    Día {day.dayNumber || idx + 1}: {day.title?.split(':')[1] || day.title || `Día ${idx + 1}`}
+                  </button>
+                );
+              })}
+            </div>
 
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{evt.title}</h4>
-                      <span style={{ fontSize: '12px', color: 'var(--color-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={12} />
-                        <span>{evt.time || 'Horario sugerido'}</span>
+            {/* Events Timeline for Selected Day */}
+            <div className="flex flex-col gap-3">
+              {activeDay?.events && activeDay.events.length > 0 ? (
+                activeDay.events.map((evt) => (
+                  <div
+                    key={evt.id}
+                    className="stitch-card p-4 rounded-xl bg-surface-container-lowest flex items-start justify-between gap-4 hover:border-secondary transition-all"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-primary flex-shrink-0 mt-0.5">
+                        <span className="material-symbols-outlined text-[20px]">
+                          {evt.type === 'FLIGHT' ? 'flight' : evt.type === 'HOTEL' ? 'hotel' : evt.type === 'MEAL' ? 'restaurant' : 'local_activity'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs font-bold text-secondary">{evt.time || 'Horario Flexible'}</span>
+                          <span className="text-xs font-semibold text-primary">{evt.title}</span>
+                        </div>
+                        <p className="text-xs text-on-surface-variant">{evt.description}</p>
+                        <div className="flex items-center gap-3 text-[11px] text-on-surface-variant mt-1">
+                          {evt.details?.provider && <span>Operador: {evt.details.provider}</span>}
+                          {((evt as any).location || (evt.details as any)?.location) && (
+                            <span>Ubicación: {(evt as any).location || (evt.details as any)?.location}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-xs font-mono font-bold text-primary block">
+                        {evt.details?.price ? formatCOP(evt.details.price) : 'Incluido'}
+                      </span>
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-surface-container text-secondary font-medium">
+                        {evt.statusLabel || 'PROGRAMADO'}
                       </span>
                     </div>
-
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>{evt.description}</p>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-dim)' }}>
-                      {evt.location && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <MapPin size={12} />
-                          <span>{evt.location}</span>
-                        </span>
-                      )}
-                      {evt.details?.price && (
-                        <span>${Number(evt.details.price).toLocaleString()} COP</span>
-                      )}
-                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="p-6 text-center text-xs text-on-surface-variant bg-surface-container-low rounded-xl">
+                  Sin eventos programados para este día.
                 </div>
-              ))
-            )}
+              )}
+            </div>
+          </section>
+
+          {/* 3. Bookable Units (Flights & Accommodation) */}
+          <section className="flex flex-col gap-4">
+            <span className="font-mono text-xs uppercase tracking-wider text-secondary font-semibold">
+              Inventario Confirmable
+            </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Flight Card */}
+              <div className="stitch-card p-5 bg-surface-container-lowest rounded-xl flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-xs font-mono font-semibold">
+                      Vuelo Directo
+                    </span>
+                    <span className="text-xs text-on-surface-variant font-mono">AV9543</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-primary mb-1">
+                    {tripDraft.origin || 'Bogotá'} ➔ {tripDraft.destination}
+                  </h4>
+                  <p className="text-xs text-on-surface-variant mb-4">
+                    Avianca Airlines • Equipaje de mano y bodega incluido.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
+                  <span className="text-on-surface-variant">2 Pasajeros</span>
+                  <span className="font-mono font-bold text-primary">{formatCOP(640000)}</span>
+                </div>
+              </div>
+
+              {/* Hotel Card */}
+              <div className="stitch-card p-5 bg-surface-container-lowest rounded-xl flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-xs font-mono font-semibold">
+                      Alojamiento 4★
+                    </span>
+                    <span className="text-xs text-secondary font-semibold">Desayuno Incluido</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-primary mb-1">Hotel Colonial Cartagena</h4>
+                  <p className="text-xs text-on-surface-variant mb-4">
+                    Centro Histórico • Habitación Estándar Climatizada con balcón.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-xs">
+                  <span className="text-on-surface-variant">4 Noches</span>
+                  <span className="font-mono font-bold text-primary">{formatCOP(1260000)}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column (4 cols): Budget Optimizer Breakdown & Saga Checkout Trigger */}
+        <div className="w-full lg:w-4/12 flex flex-col gap-6">
+          {/* Budget Breakdown Card */}
+          <div className="stitch-card p-6 bg-surface-container-lowest rounded-2xl sticky top-28">
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-outline-variant/20">
+              <span className="material-symbols-outlined text-secondary text-[22px]">account_balance_wallet</span>
+              <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">
+                Arquitectura Presupuestal
+              </h3>
+            </div>
+
+            <div className="mb-6">
+              <span className="text-xs text-on-surface-variant block mb-1">Costo Total Estimado</span>
+              <span className="text-3xl font-extrabold text-primary font-mono block">
+                {formatCOP(budget?.estimatedTotalCost || 3500000)}
+              </span>
+              <span className="text-xs text-secondary font-medium">Moneda Base: COP ($)</span>
+            </div>
+
+            {/* Breakdown bars */}
+            <div className="flex flex-col gap-3 text-xs mb-6">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-on-surface-variant">Transporte Aéreo</span>
+                  <span className="font-mono font-semibold text-primary">
+                    {formatCOP(budget?.breakdown?.transport || 1200000)}
+                  </span>
+                </div>
+                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-primary h-full" style={{ width: '35%' }}></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-on-surface-variant">Alojamiento (4 Noches)</span>
+                  <span className="font-mono font-semibold text-primary">
+                    {formatCOP(budget?.breakdown?.accommodation || 1260000)}
+                  </span>
+                </div>
+                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-secondary h-full" style={{ width: '35%' }}></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-on-surface-variant">Experiencias & Gastronomía</span>
+                  <span className="font-mono font-semibold text-primary">
+                    {formatCOP(budget?.breakdown?.activities || 700000)}
+                  </span>
+                </div>
+                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-secondary-container h-full" style={{ width: '20%' }}></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-on-surface-variant">Fondo Imprevistos</span>
+                  <span className="font-mono font-semibold text-primary">
+                    {formatCOP(budget?.breakdown?.emergencyFund || 340000)}
+                  </span>
+                </div>
+                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-outline-variant h-full" style={{ width: '10%' }}></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Primary CTA: Proceed to Saga Checkout */}
+            <button
+              onClick={() => setCurrentView('CHECKOUT')}
+              className="w-full py-3.5 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 mb-3"
+            >
+              <span>Proceder al Checkout (Saga)</span>
+              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+            </button>
+
+            {/* Saga Guarantee Tag */}
+            <div className="p-3 rounded-lg bg-surface-container-low flex items-center gap-2.5 text-[11px] text-on-surface-variant">
+              <span className="material-symbols-outlined text-[18px] text-secondary flex-shrink-0">shield_lock</span>
+              <span>Blindado con Orquestación Saga Transaccional con Compensación Automática.</span>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
-}
+};

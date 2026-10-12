@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Terminal, X, Trash2, AlertTriangle, RefreshCw, ChevronDown, ChevronRight, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-export function DevInspectorHUD() {
+export const DevInspectorHUD: React.FC = () => {
   const {
     isDevInspectorOpen,
     setIsDevInspectorOpen,
@@ -10,299 +9,209 @@ export function DevInspectorHUD() {
     clearTelemetry,
     chaosMode,
     setChaosMode,
+    compensationLog,
   } = useApp();
 
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'TELEMETRY' | 'CHAOS' | 'COMPENSATION'>('TELEMETRY');
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
 
   if (!isDevInspectorOpen) return null;
 
+  const selectedLog = telemetryLogs.find((l) => l.id === selectedLogId) || telemetryLogs[0];
+
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        right: 0,
-        width: '100%',
-        maxWidth: '720px',
-        maxHeight: '480px',
-        background: 'rgba(10, 15, 29, 0.96)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid var(--border-accent)',
-        borderBottom: 'none',
-        borderRadius: '16px 16px 0 0',
-        zIndex: 100,
-        boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.8)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* HUD Header */}
-      <div
-        style={{
-          padding: '12px 18px',
-          borderBottom: '1px solid var(--border-light)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'rgba(255, 255, 255, 0.03)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Terminal size={16} color="var(--color-primary)" />
-          <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.03em', color: '#fff' }}>
-            TELEMETRÍA EN VIVO Y CONTROLES DE CAOS (SAGA / MEDIATOR / ADAPTER)
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            onClick={clearTelemetry}
-            title="Limpiar logs"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: '11px',
-              color: 'var(--text-muted)',
-              padding: '4px 8px',
-              borderRadius: '6px',
-              background: 'rgba(255, 255, 255, 0.05)',
-            }}
-          >
-            <Trash2 size={12} />
-            <span>Limpiar</span>
-          </button>
-          <button
-            onClick={() => setIsDevInspectorOpen(false)}
-            style={{ color: 'var(--text-muted)', display: 'flex' }}
-          >
-            <X size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* Chaos Controls Toolbar */}
-      <div
-        style={{
-          padding: '8px 18px',
-          background: 'rgba(30, 41, 59, 0.5)',
-          borderBottom: '1px solid var(--border-subtle)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '8px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <ShieldAlert size={14} color="var(--color-warning)" />
-          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-            Simulador Provider-Service (Adapter / Fallos Saga):
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <button
-            onClick={() => setChaosMode('normal')}
-            style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontWeight: 600,
-              background: chaosMode === 'normal' ? 'var(--color-success)' : 'rgba(255, 255, 255, 0.05)',
-              color: '#fff',
-            }}
-          >
-            Normal (OK)
-          </button>
-          <button
-            onClick={() => setChaosMode('unavailable')}
-            style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontWeight: 600,
-              background: chaosMode === 'unavailable' ? 'var(--color-danger)' : 'rgba(255, 255, 255, 0.05)',
-              color: '#fff',
-            }}
-            title="Fuerza a que los proveedores reporten sin cupo para probar el rollback de la Saga"
-          >
-            Forzar Sin Cupo (409 Rollback)
-          </button>
-          <button
-            onClick={() => setChaosMode('slow')}
-            style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontWeight: 600,
-              background: chaosMode === 'slow' ? 'var(--color-warning)' : 'rgba(255, 255, 255, 0.05)',
-              color: '#fff',
-            }}
-          >
-            Lento (Timeout)
-          </button>
-          <button
-            onClick={() => setChaosMode('error')}
-            style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontWeight: 600,
-              background: chaosMode === 'error' ? 'var(--color-danger)' : 'rgba(255, 255, 255, 0.05)',
-              color: '#fff',
-            }}
-          >
-            Error 502
-          </button>
-        </div>
-      </div>
-
-      {/* Log Feed */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {telemetryLogs.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)', fontSize: '13px' }}>
-            No hay llamadas registradas aún. Interactúa con la app para inspeccionar peticiones en vivo.
+    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[540px] bg-surface-container-lowest shadow-2xl flex flex-col border-l border-outline-variant/30 animate-fade-in">
+      {/* Header */}
+      <div className="p-4 bg-primary text-on-primary flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[20px] text-secondary-fixed">terminal</span>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold tracking-tight">Inspector de Red & Telemetría Dev</span>
+            <span className="text-[10px] font-mono text-secondary-fixed">Gateway Facade Port :3000</span>
           </div>
-        ) : (
-          telemetryLogs.map((log) => {
-            const isExpanded = expandedLogId === log.id;
-            const isSuccess = log.status && log.status >= 200 && log.status < 300;
-            const isCompensated = log.status === 409;
+        </div>
+        <button
+          onClick={() => setIsDevInspectorOpen(false)}
+          className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-on-primary flex items-center justify-center transition-colors"
+        >
+          <span className="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
 
-            return (
-              <div
-                key={log.id}
-                style={{
-                  background: 'rgba(17, 24, 39, 0.7)',
-                  borderRadius: '8px',
-                  border: `1px solid ${
-                    isSuccess
-                      ? 'rgba(16, 185, 129, 0.3)'
-                      : isCompensated
-                      ? 'rgba(245, 158, 11, 0.3)'
-                      : 'rgba(239, 68, 68, 0.3)'
-                  }`,
-                  overflow: 'hidden',
-                }}
+      {/* Tabs */}
+      <div className="flex items-center gap-1 p-2 bg-surface-container border-b border-outline-variant/20 text-xs">
+        <button
+          onClick={() => setActiveTab('TELEMETRY')}
+          className={`flex-1 py-1.5 rounded-lg font-semibold transition-all ${
+            activeTab === 'TELEMETRY'
+              ? 'bg-surface-container-lowest text-primary shadow-sm'
+              : 'text-on-surface-variant hover:text-on-surface'
+          }`}
+        >
+          Tráfico HTTP ({telemetryLogs.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('CHAOS')}
+          className={`flex-1 py-1.5 rounded-lg font-semibold transition-all ${
+            activeTab === 'CHAOS'
+              ? 'bg-surface-container-lowest text-primary shadow-sm'
+              : 'text-on-surface-variant hover:text-on-surface'
+          }`}
+        >
+          Inyección de Caos
+        </button>
+        <button
+          onClick={() => setActiveTab('COMPENSATION')}
+          className={`flex-1 py-1.5 rounded-lg font-semibold transition-all ${
+            activeTab === 'COMPENSATION'
+              ? 'bg-surface-container-lowest text-primary shadow-sm'
+              : 'text-on-surface-variant hover:text-on-surface'
+          }`}
+        >
+          Log Saga
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        {activeTab === 'TELEMETRY' && (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-on-surface-variant font-medium">Peticiones capturadas en vivo:</span>
+              <button
+                onClick={clearTelemetry}
+                className="text-xs text-secondary font-semibold hover:underline"
               >
-                <div
-                  onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                  style={{
-                    padding: '8px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontFamily: 'monospace',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    <span
-                      style={{
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        background: log.method === 'POST' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(139, 92, 246, 0.2)',
-                        color: log.method === 'POST' ? 'var(--color-primary)' : 'var(--color-accent)',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {log.method}
-                    </span>
-                    <span style={{ color: '#fff', fontWeight: 600 }}>{log.endpoint}</span>
-                  </div>
+                Limpiar consola
+              </button>
+            </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {log.durationMs && (
-                      <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>{log.durationMs}ms</span>
-                    )}
-                    <span
-                      style={{
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        background: isSuccess
-                          ? 'rgba(16, 185, 129, 0.2)'
-                          : isCompensated
-                          ? 'rgba(245, 158, 11, 0.2)'
-                          : 'rgba(239, 68, 68, 0.2)',
-                        color: isSuccess
-                          ? 'var(--color-success)'
-                          : isCompensated
-                          ? 'var(--color-warning)'
-                          : 'var(--color-danger)',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {log.status || 'ERR'}
-                    </span>
-                    <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>{log.timestamp}</span>
-                  </div>
-                </div>
+            {telemetryLogs.length === 0 ? (
+              <div className="p-8 text-center text-xs text-on-surface-variant bg-surface-container-low rounded-xl">
+                No hay peticiones registradas aún. Interactúa con las pantallas para ver el tráfico HTTP y sus correlation IDs.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {telemetryLogs.slice(0, 15).map((log) => {
+                  const isSelected = selectedLog?.id === log.id;
+                  const isError = log.status && log.status >= 400;
 
-                {isExpanded && (
-                  <div
-                    style={{
-                      padding: '10px 14px',
-                      background: 'rgba(0, 0, 0, 0.3)',
-                      borderTop: '1px solid var(--border-subtle)',
-                      fontSize: '11px',
-                      fontFamily: 'monospace',
-                    }}
-                  >
-                    <div style={{ marginBottom: '6px', color: 'var(--color-primary)' }}>
-                      <strong>Correlation ID:</strong> {log.correlationId}
+                  return (
+                    <div
+                      key={log.id}
+                      onClick={() => setSelectedLogId(log.id)}
+                      className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-secondary bg-surface-container ring-1 ring-secondary'
+                          : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-container'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-primary">{log.method}</span>
+                          <span className="font-mono text-on-surface-variant truncate max-w-[220px]">
+                            {log.endpoint}
+                          </span>
+                        </div>
+                        <span
+                          className={`font-mono font-bold px-2 py-0.5 rounded-full text-[10px] ${
+                            isError
+                              ? 'bg-error-container text-error'
+                              : 'bg-surface-container-highest text-primary'
+                          }`}
+                        >
+                          {log.status || 'ERR'} ({log.durationMs || 0}ms)
+                        </span>
+                      </div>
+                      <div className="font-mono text-[10px] text-outline truncate">
+                        x-correlation-id: {log.correlationId}
+                      </div>
                     </div>
+                  );
+                })}
 
-                    {Boolean(log.requestPayload) && (
-                      <div style={{ marginBottom: '8px' }}>
-                        <div style={{ color: 'var(--text-muted)', marginBottom: '2px' }}>Request Body:</div>
-                        <pre
-                          style={{
-                            background: 'rgba(0, 0, 0, 0.5)',
-                            padding: '6px',
-                            borderRadius: '4px',
-                            overflowX: 'auto',
-                            maxHeight: '120px',
-                            color: '#cbd5e1',
-                          }}
-                        >
-                          {JSON.stringify(log.requestPayload, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-
-                    {Boolean(log.responsePayload) && (
-                      <div>
-                        <div style={{ color: 'var(--text-muted)', marginBottom: '2px' }}>Response Body:</div>
-                        <pre
-                          style={{
-                            background: 'rgba(0, 0, 0, 0.5)',
-                            padding: '6px',
-                            borderRadius: '4px',
-                            overflowX: 'auto',
-                            maxHeight: '160px',
-                            color: isSuccess ? '#86efac' : isCompensated ? '#fde047' : '#fca5a5',
-                          }}
-                        >
-                          {JSON.stringify(log.responsePayload, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-
-                    {log.error && (
-                      <div style={{ color: 'var(--color-danger)', marginTop: '4px' }}>
-                        <strong>Error:</strong> {log.error}
-                      </div>
-                    )}
+                {/* Selected Log Inspector */}
+                {selectedLog && (
+                  <div className="mt-4 p-4 rounded-xl bg-primary text-on-primary text-xs font-mono overflow-x-auto shadow-md">
+                    <span className="text-secondary-fixed block font-bold mb-2">Detalles del Paquete HTTP:</span>
+                    <div className="text-[11px] leading-relaxed">
+                      <div>Method: {selectedLog.method}</div>
+                      <div>Endpoint: {selectedLog.endpoint}</div>
+                      <div>Status: {selectedLog.status}</div>
+                      <div>Duration: {selectedLog.durationMs}ms</div>
+                      <div className="text-secondary-fixed mt-2">Correlation-ID:</div>
+                      <div className="text-white/80">{selectedLog.correlationId}</div>
+                      {Boolean(selectedLog.responsePayload) && (
+                        <>
+                          <div className="text-secondary-fixed mt-2">Response Envelope:</div>
+                          <pre className="text-[10px] bg-black/30 p-2 rounded mt-1 overflow-x-auto">
+                            {JSON.stringify(selectedLog.responsePayload, null, 2)}
+                          </pre>
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-            );
-          })
+            )}
+          </>
+        )}
+
+        {activeTab === 'CHAOS' && (
+          <div className="flex flex-col gap-4 text-xs">
+            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30">
+              <span className="font-bold text-primary block mb-1">Inyector de Caos (Provider Service)</span>
+              <p className="text-on-surface-variant leading-relaxed">
+                Modifica el comportamiento en caliente del adaptador de proveedores para demostrar la resiliencia
+                de la Saga transaccional y el rollback automático ante caídas de terceros.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { mode: 'normal', label: 'Normal (Sin Caos)', desc: '200 OK / Disponibilidad completa' },
+                { mode: 'unavailable', label: 'No Disponible', desc: 'Dispara HTTP 409 COMPENSATED' },
+                { mode: 'slow', label: 'Latencia Lenta', desc: 'Inyecta 5000ms de retraso simulado' },
+                { mode: 'error', label: 'Error 500', desc: 'Simula caída interna de proveedor' },
+              ].map((item) => (
+                <button
+                  key={item.mode}
+                  onClick={() => setChaosMode(item.mode as any)}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    chaosMode === item.mode
+                      ? 'border-secondary bg-secondary-fixed/30 ring-1 ring-secondary shadow-sm'
+                      : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-container'
+                  }`}
+                >
+                  <span className="font-bold text-primary block mb-1">{item.label}</span>
+                  <span className="text-[11px] text-on-surface-variant">{item.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'COMPENSATION' && (
+          <div className="flex flex-col gap-4 text-xs">
+            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30">
+              <span className="font-bold text-primary block mb-1">Auditoría del Registro de Compensación</span>
+              <p className="text-on-surface-variant leading-relaxed">
+                Muestra los pasos exactos ejecutados durante el rollback de la Saga para asegurar consistencia eventual.
+              </p>
+            </div>
+
+            {compensationLog ? (
+              <pre className="p-4 rounded-xl bg-primary text-on-primary text-[11px] font-mono overflow-x-auto shadow-md">
+                {JSON.stringify(compensationLog, null, 2)}
+              </pre>
+            ) : (
+              <div className="p-6 text-center text-xs text-on-surface-variant bg-surface-container-low rounded-xl">
+                Aún no se ha cargado ningún log de compensación. Ejecuta una reserva con fallo de proveedor para ver la reversión.
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
-}
+};

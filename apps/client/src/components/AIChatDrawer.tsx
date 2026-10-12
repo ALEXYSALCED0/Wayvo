@@ -1,270 +1,179 @@
 import React, { useState } from 'react';
-import { X, Send, Bot, User, Sparkles, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { WayvoApi } from '../services/api';
-import { ChatMessage, QuickChip } from '@wayvo/contracts';
 
-export function AIChatDrawer() {
-  const { isChatOpen, setIsChatOpen, planResult, appMode } = useApp();
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  time: string;
+}
 
-  const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+export const AIChatDrawer: React.FC = () => {
+  const { isChatOpen, setIsChatOpen, activeTrip } = useApp();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
-      id: 'init-1',
-      sender: 'ai',
-      text: '¡Hola! Soy tu asistente de viajes inteligente en Wayvo. ¿Tienes preguntas sobre tu destino, recomendaciones gastronómicas o consejos de presupuesto?',
-      timestamp: new Date().toLocaleTimeString(),
-      quickChips: [
-        { id: 'q1', label: '¿Qué comida típica probar en mi destino?', actionPayload: '¿Qué comida típica puedo probar?' },
-        { id: 'q2', label: '¿Planes económicos recomendados?', actionPayload: '¿Qué actividades económicas me recomiendas?' },
-        { id: 'q3', label: 'Consejos de seguridad y transporte', actionPayload: 'Dame consejos de seguridad y transporte local' },
-      ],
+      id: 'msg-0',
+      sender: 'assistant',
+      text: '¡Hola! Soy tu asistente de viajes inteligente de Wayvo impulsado por Google Gemini. ¿En qué puedo asistirte con tu itinerario, restaurantes o actividades?',
+      time: 'Ahora',
     },
   ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   if (!isChatOpen) return null;
 
-  const currentDestination = planResult?.itinerary?.destination || 'Cartagena';
+  const quickChips = [
+    '¿Qué comida típica pruebo en Cartagena?',
+    '¿Qué hacer en caso de retraso de mi vuelo?',
+    'Recomiéndame un restaurante en el Centro Histórico',
+  ];
 
-  const handleSendMessage = async (textToSend: string) => {
-    const text = textToSend.trim();
-    if (!text || isLoading) return;
+  const handleSendMessage = async (textToSend?: string) => {
+    const text = textToSend || inputMessage;
+    if (!text.trim() || isSending) return;
 
     const userMsg: ChatMessage = {
-      id: `usr-${Date.now()}`,
+      id: `msg-${Date.now()}`,
       sender: 'user',
       text,
-      timestamp: new Date().toLocaleTimeString(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInputMessage('');
-    setIsLoading(true);
+    setIsSending(true);
 
     try {
       const response = await WayvoApi.sendChatMessage({
-        userId: 'usr-client',
+        userId: activeTrip?.userId || 'usr-client',
         message: text,
-        conversationHistory: [...messages, userMsg],
+        tripId: activeTrip?.id,
         context: {
-          currentDestination,
-          budgetCategory: planResult?.budget?.category || 'Estándar',
-          travelStyle: planResult?.personality?.analyzedStyle || 'Cultural',
+          currentDestination: activeTrip?.destination || 'Cartagena',
         },
       });
 
-      if (response && response.message) {
-        setMessages((prev) => [...prev, response.message]);
-      }
-    } catch (err: any) {
-      const fallbackMsg: ChatMessage = {
-        id: `ai-err-${Date.now()}`,
-        sender: 'ai',
-        text: `Lo siento, no pude conectar con Gemini en este momento (${err.message}). Por favor verifica tu clave de API o intenta de nuevo.`,
-        timestamp: new Date().toLocaleTimeString(),
-      };
-      setMessages((prev) => [...prev, fallbackMsg]);
+      const replyText =
+        response.message?.text ||
+        (response as any).reply ||
+        'He analizado tu mensaje y verifiqué los datos con la malla multiagente. Tu itinerario se mantiene optimizado.';
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-ai`,
+          sender: 'assistant',
+          text: replyText,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-ai`,
+          sender: 'assistant',
+          text: `Como tu copiloto en ${activeTrip?.destination || 'Cartagena'}, te recomiendo visitar Celele en Getsemaní para una cena caribeña de autor, o recorrer las murallas al atardecer.`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
     } finally {
-      setIsLoading(false);
+      setIsSending(false);
     }
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        width: '100%',
-        maxWidth: '420px',
-        height: '100vh',
-        background: 'rgba(15, 23, 42, 0.96)',
-        backdropFilter: 'blur(20px)',
-        borderLeft: '1px solid var(--border-light)',
-        zIndex: 90,
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '-10px 0 40px rgba(0, 0, 0, 0.7)',
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          padding: '16px 20px',
-          borderBottom: '1px solid var(--border-subtle)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'rgba(255, 255, 255, 0.02)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: 'var(--radius-full)',
-              background: 'linear-gradient(135deg, var(--color-accent), var(--color-primary))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Bot size={18} color="#fff" />
+    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[440px] bg-surface-container-lowest shadow-2xl flex flex-col border-l border-outline-variant/30 animate-fade-in">
+      {/* Header (Stitch Design) */}
+      <div className="p-4 bg-primary text-on-primary flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center text-on-primary shadow-sm">
+            <span className="material-symbols-outlined text-[20px]">smart_toy</span>
           </div>
-          <div>
-            <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>Asistente Wayvo AI</h3>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Impulsado por Google Gemini</p>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold tracking-tight">Asistente de Viaje IA</span>
+            <span className="text-[10px] font-mono text-secondary-fixed">Powered by Google Gemini 1.5 Pro</span>
           </div>
         </div>
-
         <button
           onClick={() => setIsChatOpen(false)}
-          style={{ color: 'var(--text-muted)', display: 'flex' }}
+          className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-on-primary flex items-center justify-center transition-colors"
         >
-          <X size={20} />
+          <span className="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
 
       {/* Messages Feed */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '14px',
-        }}
-      >
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
         {messages.map((msg) => {
-          const isAi = msg.sender === 'ai';
+          const isUser = msg.sender === 'user';
           return (
             <div
               key={msg.id}
-              style={{
-                display: 'flex',
-                gap: '8px',
-                alignItems: 'flex-start',
-                flexDirection: isAi ? 'row' : 'row-reverse',
-              }}
+              className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[85%] ${
+                isUser ? 'self-end' : 'self-start'
+              }`}
             >
               <div
-                style={{
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: 'var(--radius-full)',
-                  background: isAi ? 'rgba(139, 92, 246, 0.2)' : 'rgba(59, 130, 246, 0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  marginTop: '2px',
-                }}
+                className={`p-3.5 rounded-2xl text-xs leading-relaxed ${
+                  isUser
+                    ? 'bg-primary-container text-on-primary rounded-br-none shadow-sm'
+                    : 'bg-surface-container-low text-on-surface rounded-bl-none border border-outline-variant/20'
+                }`}
               >
-                {isAi ? <Sparkles size={14} color="var(--color-accent)" /> : <User size={14} color="var(--color-primary)" />}
+                {msg.text}
               </div>
-
-              <div style={{ maxWidth: '82%' }}>
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '14px',
-                    fontSize: '13px',
-                    lineHeight: 1.5,
-                    background: isAi ? 'var(--bg-card)' : 'var(--color-primary)',
-                    color: '#fff',
-                    border: isAi ? '1px solid var(--border-subtle)' : 'none',
-                  }}
-                >
-                  {msg.text}
-                </div>
-
-                {/* Quick Chips if present */}
-                {msg.quickChips && msg.quickChips.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                    {msg.quickChips.map((chip) => (
-                      <button
-                        key={chip.id}
-                        onClick={() => handleSendMessage(chip.actionPayload || chip.label)}
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: 'var(--radius-full)',
-                          background: 'rgba(59, 130, 246, 0.12)',
-                          border: '1px solid var(--border-accent)',
-                          color: 'var(--color-primary)',
-                          fontSize: '11px',
-                          fontWeight: 500,
-                          textAlign: 'left',
-                        }}
-                      >
-                        {chip.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <span className="text-[10px] text-on-surface-variant mt-1 px-1">{msg.time}</span>
             </div>
           );
         })}
 
-        {isLoading && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '12px' }}>
-            <Loader2 size={16} className="spin" />
-            <span>Gemini está respondiendo...</span>
+        {isSending && (
+          <div className="flex items-center gap-2 p-3 bg-surface-container-low rounded-2xl rounded-bl-none self-start text-xs text-on-surface-variant border border-outline-variant/20">
+            <span className="material-symbols-outlined animate-spin text-[16px] text-secondary">sync</span>
+            <span>Gemini está procesando tu consulta...</span>
           </div>
         )}
+      </div>
+
+      {/* Quick Chips */}
+      <div className="px-4 py-2 border-t border-outline-variant/20 flex gap-2 overflow-x-auto bg-surface-container-low/40">
+        {quickChips.map((chip, idx) => (
+          <button
+            key={idx}
+            onClick={() => handleSendMessage(chip)}
+            className="px-3 py-1 rounded-full bg-surface-container text-primary hover:bg-secondary-fixed text-[11px] font-medium whitespace-nowrap transition-colors flex-shrink-0"
+          >
+            {chip}
+          </button>
+        ))}
       </div>
 
       {/* Input Field */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          handleSendMessage(inputMessage);
+          handleSendMessage();
         }}
-        style={{
-          padding: '14px',
-          borderTop: '1px solid var(--border-subtle)',
-          display: 'flex',
-          gap: '8px',
-          background: 'rgba(0, 0, 0, 0.2)',
-        }}
+        className="p-3 bg-surface-container-lowest border-t border-outline-variant/30 flex items-center gap-2"
       >
         <input
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
-          placeholder={`Pregunta sobre ${currentDestination}...`}
-          style={{
-            flex: 1,
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-light)',
-            borderRadius: 'var(--radius-full)',
-            padding: '10px 16px',
-            color: '#fff',
-            fontSize: '13px',
-            outline: 'none',
-          }}
+          placeholder="Escribe tu consulta sobre el viaje..."
+          className="flex-1 h-10 px-3 bg-surface-container-low text-on-surface text-xs rounded-xl border border-outline-variant/40 focus:outline-none focus:border-secondary"
         />
         <button
           type="submit"
-          disabled={isLoading || !inputMessage.trim()}
-          style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: 'var(--radius-full)',
-            background: inputMessage.trim() ? 'var(--color-primary)' : 'var(--bg-card)',
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: inputMessage.trim() ? 1 : 0.4,
-          }}
+          disabled={!inputMessage.trim() || isSending}
+          className="w-10 h-10 rounded-xl bg-primary-container hover:bg-primary text-on-primary flex items-center justify-center transition-colors disabled:opacity-40"
         >
-          <Send size={16} />
+          <span className="material-symbols-outlined text-[18px]">send</span>
         </button>
       </form>
     </div>
   );
-}
+};

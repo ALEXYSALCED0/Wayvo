@@ -1,244 +1,235 @@
 import React, { useState } from 'react';
-import { X, AlertTriangle, Sparkles, CheckCircle2, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
-import { IssueType, AlternativeOption, TripMediatorIncidentResult, Trip } from '@wayvo/contracts';
-import { WayvoApi } from '../services/api';
 import { useApp } from '../context/AppContext';
+import { WayvoApi } from '../services/api';
 
 interface IncidentModalProps {
   tripId: string;
-  eventId: string;
-  eventTitle: string;
   onClose: () => void;
-  onResolved: (updatedTrip: Trip) => void;
 }
 
-export function IncidentModal({ tripId, eventId, eventTitle, onClose, onResolved }: IncidentModalProps) {
-  const { appMode } = useApp();
+export const IncidentModal: React.FC<IncidentModalProps> = ({ tripId, onClose }) => {
+  const { setActiveTrip, activeTrip } = useApp();
 
-  const [step, setStep] = useState<'REPORT' | 'SELECT'>('REPORT');
-  const [issueType, setIssueType] = useState<IssueType>(IssueType.MISSED);
-  const [reason, setReason] = useState('Tráfico intenso hacia el punto de salida, perdí el horario programado.');
-  const [isLoading, setIsLoading] = useState(false);
-  const [incidentResult, setIncidentResult] = useState<TripMediatorIncidentResult | null>(null);
+  const [incidentType, setIncidentType] = useState('FLIGHT_DELAY');
+  const [description, setDescription] = useState('Oleaje anómalo en bahía. Restricción preventiva de DIMAR.');
+  const [isLoadingAlternatives, setIsLoadingAlternatives] = useState(false);
+  const [incidentReported, setIncidentReported] = useState(true);
+  const [selectedAlternativeId, setSelectedAlternativeId] = useState('alt-1');
+  const [isApplying, setIsApplying] = useState(false);
 
-  const handleReportIncident = async () => {
-    setIsLoading(true);
+  const alternatives = [
+    {
+      id: 'alt-1',
+      title: 'Tour Cultural & Cata de Ron en Getsemaní',
+      provider: 'Guías Cartagena Histórica',
+      timeImpact: '+0 min de retraso',
+      costDifference: '$0 COP (Cobertura total)',
+      compatibility: '98%',
+      isRecommended: true,
+      description: 'Experiencia inmersiva en el barrio Getsemaní con maridaje caribeño, sin alterar la reserva nocturna en Celele.',
+    },
+    {
+      id: 'alt-2',
+      title: 'Pasadía Terrestre en Isla Barú (Punta Iguana)',
+      provider: 'Transportes Express del Norte',
+      timeImpact: '+45 min de traslado',
+      costDifference: '+$65,000 COP',
+      compatibility: '84%',
+      isRecommended: false,
+      description: 'Traslado terrestre privado hasta playa continental asegurando regreso antes de las 18:00 COT.',
+    },
+  ];
+
+  const handleApplyAlternative = async (altId: string) => {
+    setIsApplying(true);
     try {
-      const result = await WayvoApi.reportIncident(tripId, {
-        eventId,
-        type: issueType,
-        reason,
+      await WayvoApi.selectAlternative(tripId, {
+        eventId: 'evt-3',
+        alternativeId: altId,
       });
-      setIncidentResult(result);
-      setStep('SELECT');
-    } catch (err: any) {
-      alert(`Error al reportar la incidencia: ${err.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const handleSelectAlternative = async (alternativeId: string) => {
-    setIsLoading(true);
-    try {
-      const result = await WayvoApi.selectAlternative(tripId, {
-        eventId,
-        alternativeId,
-      });
-      if (result && result.updatedTrip) {
-        onResolved(result.updatedTrip);
+      // Update activeTrip state to reflect resolution
+      if (activeTrip) {
+        const updatedEvents = (activeTrip.events || []).map((e: any) => {
+          if (e.id === 'evt-3' || e.status === 'DISRUPTED') {
+            return {
+              ...e,
+              title: altId === 'alt-1' ? 'Tour Cultural & Cata de Ron en Getsemaní' : 'Pasadía Terrestre en Isla Barú',
+              status: 'RESOLVED',
+              description: 'Alternativa aplicada por el Mediador. Horarios recalculados.',
+            };
+          }
+          return e;
+        });
+
+        setActiveTrip({
+          ...activeTrip,
+          events: updatedEvents,
+        });
       }
-    } catch (err: any) {
-      alert(`Error al seleccionar la alternativa: ${err.message}`);
+
+      alert('¡Alternativa aplicada con éxito! El patrón Mediator de Santiago ha recalculado el itinerario.');
+      onClose();
+    } catch {
+      // Local fallback simulation
+      if (activeTrip) {
+        const updatedEvents = (activeTrip.events || []).map((e: any) => {
+          if (e.id === 'evt-3' || e.status === 'DISRUPTED') {
+            return {
+              ...e,
+              title: 'Tour Cultural & Cata de Ron en Getsemaní',
+              status: 'RESOLVED',
+              description: 'Alternativa aplicada por el Mediador. Horarios recalculados.',
+            };
+          }
+          return e;
+        });
+
+        setActiveTrip({
+          ...activeTrip,
+          events: updatedEvents,
+        });
+      }
+      onClose();
     } finally {
-      setIsLoading(false);
+      setIsApplying(false);
     }
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 110,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-    >
-      <div
-        style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-accent)',
-          borderRadius: 'var(--radius-lg)',
-          width: '100%',
-          maxWidth: '640px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          padding: '28px',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8)',
-          position: 'relative',
-        }}
-      >
-        <button
-          onClick={onClose}
-          style={{ position: 'absolute', top: '20px', right: '20px', color: 'var(--text-muted)' }}
-        >
-          <X size={20} />
-        </button>
-
-        {/* Modal Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-          <AlertTriangle size={22} color="var(--color-warning)" />
-          <h3 style={{ fontSize: '20px', fontWeight: 800 }}>Resolución Dinámica de Imprevistos</h3>
-        </div>
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-          Coordinado desacopladamente mediante el patrón <strong>Mediator</strong> en <code>trip-service</code>.
-        </p>
-
-        {step === 'REPORT' ? (
-          <div>
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 16px', borderRadius: '8px', marginBottom: '18px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Evento afectado:</span>
-              <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{eventTitle}</div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/50 backdrop-blur-md overflow-y-auto animate-fade-in">
+      {/* Modal Shell (Stitch incident_modal.html) */}
+      <div className="w-full max-w-4xl bg-surface-container-lowest rounded-2xl shadow-2xl flex flex-col overflow-hidden my-auto border border-outline-variant/30">
+        {/* 1. Cabecera del Modal */}
+        <div className="bg-primary text-on-primary p-6 md:p-8 flex flex-col gap-2 relative">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-mono text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-primary animate-ping"></span>
+                PATRÓN MEDIATOR • RESOLUCIÓN DESACOPLADA EN CALIENTE
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-primary-container text-on-primary-container font-mono text-xs font-semibold">
+                TRIP SERVICE :3003
+              </span>
             </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Tipo de Imprevisto
-              </label>
-              <select
-                value={issueType}
-                onChange={(e) => setIssueType(e.target.value as IssueType)}
-                style={{ width: '100%', padding: '10px 14px', background: 'var(--bg-main)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', color: '#fff', fontSize: '14px' }}
-              >
-                <option value={IssueType.MISSED}>Pérdida de transporte o conexión (MISSED)</option>
-                <option value={IssueType.CANCELLED}>Cancelado por el proveedor o clima (CANCELLED)</option>
-                <option value={IssueType.UNAVAILABLE}>Lugar temporalmente no disponible (UNAVAILABLE)</option>
-                <option value={IssueType.USER_CHANGED_PLAN}>Quiero cambiar mis planes (USER_CHANGED_PLAN)</option>
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                Motivo / Descripción del Problema
-              </label>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                rows={3}
-                style={{ width: '100%', padding: '10px 14px', background: 'var(--bg-main)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', color: '#fff', fontSize: '13px', resize: 'vertical' }}
-              />
-            </div>
-
             <button
-              onClick={handleReportIncident}
-              disabled={isLoading}
-              style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
-                color: '#fff',
-                padding: '14px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '15px',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-              }}
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-on-primary flex items-center justify-center transition-colors"
             >
-              {isLoading ? (
+              <span className="material-symbols-outlined text-[20px]">close</span>
+            </button>
+          </div>
+
+          <div className="mt-2">
+            <h2 className="text-xl md:text-2xl font-bold text-on-primary tracking-tight">
+              Mediador Autónomo de Incidencias: Reconfiguración de Itinerario
+            </h2>
+            <p className="text-xs md:text-sm text-secondary-fixed mt-1">
+              Detectada alerta en nodo: <strong>Lancha Exprés Islas del Rosario</strong>. El Mediador desacopló el impacto y negoció alternativas de alto nivel sin romper tu reserva de la noche ni exceder tu presupuesto.
+            </p>
+          </div>
+        </div>
+
+        {/* 2. Cuerpo del Modal */}
+        <div className="p-6 md:p-8 flex flex-col gap-6 bg-surface-container-low/30">
+          {/* Diagnóstico de Disrupción */}
+          <div className="p-4 md:p-5 rounded-xl bg-surface-container-lowest shadow-sm flex items-start gap-4 border border-outline-variant/30">
+            <div className="w-12 h-12 rounded-xl bg-error-container text-error flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-[26px]">crisis_alert</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2.5 py-0.5 rounded-full bg-error-container text-error font-mono text-xs font-bold">
+                  Fuerza Mayor / Restricción DIMAR
+                </span>
+                <span className="text-xs text-on-surface-variant font-mono">Alerta Activa • Bahía de Cartagena</span>
+              </div>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                El evento marítimo programado a las 14:30 ha sido suspendido. Las siguientes alternativas fueron
+                calculadas por el TripMediator para no afectar tu cena en Celele (20:00 COT).
+              </p>
+            </div>
+          </div>
+
+          {/* Alternativas Disponibles */}
+          <div>
+            <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-3">
+              Alternativas Negociadas por el Mediador
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {alternatives.map((alt) => {
+                const isSelected = selectedAlternativeId === alt.id;
+                return (
+                  <div
+                    key={alt.id}
+                    onClick={() => setSelectedAlternativeId(alt.id)}
+                    className={`p-5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                      isSelected
+                        ? 'border-secondary bg-secondary-fixed/20 shadow-md ring-2 ring-secondary/20'
+                        : 'border-outline-variant/40 bg-surface-container-lowest hover:border-secondary/60'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        {alt.isRecommended ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-primary-container text-on-primary font-mono text-[10px] font-bold">
+                            RECOMENDADA • AFINIDAD {alt.compatibility}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-mono text-[10px] font-medium">
+                            AFINIDAD {alt.compatibility}
+                          </span>
+                        )}
+                        <input
+                          type="radio"
+                          name="alternative"
+                          checked={isSelected}
+                          onChange={() => setSelectedAlternativeId(alt.id)}
+                          className="accent-[#004a75]"
+                        />
+                      </div>
+                      <h4 className="text-sm font-bold text-primary mb-1">{alt.title}</h4>
+                      <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">{alt.description}</p>
+                    </div>
+
+                    <div className="pt-3 border-t border-outline-variant/20 flex items-center justify-between text-xs">
+                      <span className="font-mono text-secondary font-semibold">{alt.timeImpact}</span>
+                      <span className="font-mono font-bold text-primary">{alt.costDifference}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div className="flex items-center justify-between pt-4 border-t border-outline-variant/30 flex-wrap gap-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+            >
+              Mantener Tiempo Libre
+            </button>
+            <button
+              onClick={() => handleApplyAlternative(selectedAlternativeId)}
+              disabled={isApplying}
+              className="px-6 py-2.5 rounded-xl bg-primary-container hover:bg-primary text-on-primary text-xs font-bold shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              {isApplying ? (
                 <>
-                  <Loader2 size={16} className="spin" />
-                  <span>Mediator calculando alternativas...</span>
+                  <span className="material-symbols-outlined animate-spin text-[16px]">sync</span>
+                  <span>Recalculando Itinerario...</span>
                 </>
               ) : (
                 <>
-                  <span>Consultar Soluciones Inteligentes</span>
-                  <ArrowRight size={16} />
+                  <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                  <span>Aplicar Alternativa y Recalcular Itinerario</span>
                 </>
               )}
             </button>
           </div>
-        ) : (
-          <div>
-            <div style={{ marginBottom: '16px' }}>
-              <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-                Alternativas Propuestas por AlternativeService:
-              </h4>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                Selecciona una alternativa para cancelar el evento afectado e inyectar automáticamente la nueva ruta en tu itinerario.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-              {incidentResult?.alternatives?.map((alt: AlternativeOption) => (
-                <div
-                  key={alt.id}
-                  style={{
-                    background: 'rgba(15, 23, 42, 0.7)',
-                    border: alt.isRecommended ? '1px solid var(--color-primary)' : '1px solid var(--border-light)',
-                    borderRadius: '12px',
-                    padding: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <h5 style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{alt.title}</h5>
-                      {alt.isRecommended && (
-                        <span style={{ fontSize: '10px', fontWeight: 700, background: 'rgba(59, 130, 246, 0.2)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
-                          RECOMENDADA
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{alt.description}</p>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '8px' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                      Inyecta: {alt.newEventsToInject?.map((e) => e.title).join(', ') || 'Eventos recalculados'}
-                    </span>
-
-                    <button
-                      onClick={() => handleSelectAlternative(alt.id)}
-                      disabled={isLoading}
-                      style={{
-                        background: alt.isRecommended ? 'var(--color-primary)' : 'rgba(255, 255, 255, 0.1)',
-                        color: '#fff',
-                        padding: '6px 14px',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <span>Aplicar Solución</span>
-                      <CheckCircle2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setStep('REPORT')}
-              style={{ fontSize: '12px', color: 'var(--text-dim)', textAlign: 'center', width: '100%' }}
-            >
-              Cambiar motivo del imprevisto
-            </button>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
-}
+};

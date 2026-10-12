@@ -1,246 +1,290 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, MapPin, AlertCircle, CheckCircle2, AlertTriangle, Plane, Utensils, Hotel, Compass, ArrowLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { IncidentModal } from './IncidentModal';
-import { Event, Trip } from '@wayvo/contracts';
 
-export function ActiveTripView() {
-  const { activeTrip, setActiveTrip, setCurrentView, appMode } = useApp();
-
-  const [incidentTargetEvent, setIncidentTargetEvent] = useState<Event | null>(null);
+export const ActiveTripView: React.FC = () => {
+  const { activeTrip, setCurrentView } = useApp();
+  const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [selectedDayFilter, setSelectedDayFilter] = useState('ALL');
 
   if (!activeTrip) {
     return (
-      <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        No hay ningún viaje activo en este momento.
-        <br />
+      <div className="w-full max-w-4xl mx-auto my-16 p-8 text-center bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm">
+        <span className="material-symbols-outlined text-[48px] text-secondary mb-3">luggage</span>
+        <h2 className="text-xl font-bold text-primary mb-2">No hay un viaje activo confirmado</h2>
+        <p className="text-sm text-on-surface-variant mb-6">
+          Ejecuta la reserva en el Checkout para activar tu viaje y monitorearlo en tiempo real.
+        </p>
         <button
-          onClick={() => setCurrentView('ONBOARDING')}
-          style={{ marginTop: '16px', color: 'var(--color-primary)', fontWeight: 600 }}
+          onClick={() => setCurrentView('CHECKOUT')}
+          className="px-6 py-2.5 rounded-full bg-primary-container text-on-primary text-sm font-semibold hover:bg-primary transition-all shadow-sm"
         >
-          Planificar un nuevo viaje
+          Ir al Checkout
         </button>
       </div>
     );
   }
 
-  const events = activeTrip.events || [];
+  const events = activeTrip.events && activeTrip.events.length > 0 ? activeTrip.events : [
+    {
+      id: 'evt-1',
+      title: 'Vuelo Bogotá (BOG) ➔ Cartagena (CTG)',
+      time: '08:00 AM - 09:30 AM',
+      type: 'TRANSPORT',
+      status: 'COMPLETED',
+      location: 'Aeropuerto Rafael Núñez',
+      description: 'Avianca AV9543 • Vuelo confirmado y arribado a tiempo.',
+    },
+    {
+      id: 'evt-2',
+      title: 'Check-in Hotel Colonial Cartagena',
+      time: '11:00 AM',
+      type: 'ACCOMMODATION',
+      status: 'COMPLETED',
+      location: 'Centro Histórico',
+      description: 'Habitación estándar con vista al jardín colonial.',
+    },
+    {
+      id: 'evt-3',
+      title: 'Excursión Lancha Rápida Islas del Rosario',
+      time: '02:30 PM',
+      type: 'ACTIVITY',
+      status: 'DISRUPTED',
+      location: 'Muelle de la Bodeguita',
+      description: 'Alerta por oleaje anómalo (DIMAR). El Mediador tiene alternativas listas.',
+    },
+    {
+      id: 'evt-4',
+      title: 'Cena de Degustación en Celele',
+      time: '08:00 PM',
+      type: 'MEAL',
+      status: 'PENDING',
+      location: 'Barrio Getsemaní',
+      description: 'Mesa reservada para 2 personas en jardín interior.',
+    },
+  ];
 
   return (
-    <div style={{ flex: 1, padding: '32px 20px', maxWidth: '900px', margin: '0 auto', width: '100%' }}>
-      {/* Back button */}
-      <button
-        onClick={() => setCurrentView('LANDING')}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          color: 'var(--text-muted)',
-          fontSize: '13px',
-          marginBottom: '16px',
-        }}
-      >
-        <ArrowLeft size={16} />
-        <span>Volver a Inicio</span>
-      </button>
-
-      {/* Trip Header Banner */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9))',
-          border: '1px solid var(--border-accent)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '28px',
-          marginBottom: '28px',
-          boxShadow: 'var(--shadow-card)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
-          <div>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Viaje Activo • Gestión en Vivo
-            </span>
-            <h2 style={{ fontSize: '30px', fontWeight: 800, color: '#fff' }}>{activeTrip.title || `Viaje a ${activeTrip.destination}`}</h2>
+    <div className="w-full bg-surface pb-12 animate-fade-in">
+      {/* Top Banner (from Stitch active_trip.html) */}
+      <section className="w-full px-4 md:px-8 py-6 bg-surface-container-low border-b border-outline-variant/30 shadow-sm">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-mono text-xs font-semibold">
+                IATA DEST: {activeTrip.destination.slice(0, 3).toUpperCase()}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-xs font-medium">
+                {activeTrip.startDate} — {activeTrip.endDate}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-surface-container-lowest text-secondary font-mono text-xs shadow-sm">
+                Hora Local: COT (GMT-5)
+              </span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-primary">
+              {activeTrip.destination}, Colombia
+            </h1>
+            <p className="text-xs md:text-sm text-on-surface-variant">
+              Expedición Cultural Inteligente • Monitoreo Autónomo con Patrón Mediator
+            </p>
+            <div className="flex items-center gap-6 pt-1 text-xs text-on-surface">
+              <span className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[18px] text-secondary">sunny</span>
+                <span>31°C Soleado con brisa marina</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-on-surface-variant">
+                <span className="material-symbols-outlined text-[18px]">air</span>
+                <span>Viento NE 16 kt • Oleaje moderado</span>
+              </span>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <span
-              style={{
-                background: 'rgba(16, 185, 129, 0.15)',
-                color: 'var(--color-success)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '12px',
-                fontWeight: 700,
-              }}
-            >
-              {activeTrip.status || 'CONFIRMED'}
-            </span>
+          {/* Cards de Métricas & Estado */}
+          <div className="flex flex-col sm:flex-row items-stretch gap-4 w-full lg:w-auto">
+            {/* Ciclo del Viaje */}
+            <div className="p-4 bg-surface-container-lowest rounded-xl shadow-sm min-w-[220px] border border-outline-variant/20">
+              <div className="flex justify-between items-center mb-1 text-xs">
+                <span className="text-on-surface-variant uppercase font-medium">Ciclo del Viaje</span>
+                <span className="font-mono font-bold text-primary">50% Listo</span>
+              </div>
+              <div className="text-sm font-bold text-primary mb-2">Día 2 <span className="text-xs font-normal text-on-surface-variant">de 4 días</span></div>
+              <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+                <div className="bg-primary h-full rounded-full" style={{ width: '50%' }}></div>
+              </div>
+            </div>
+
+            {/* Estado Operativo & Mediador */}
+            <div className="p-4 bg-surface-container-lowest rounded-xl shadow-sm min-w-[240px] border border-outline-variant/20">
+              <div className="flex justify-between items-center mb-1 text-xs">
+                <span className="text-on-surface-variant uppercase font-medium">Estado Operativo</span>
+                <span className="h-2 w-2 rounded-full bg-secondary animate-pulse"></span>
+              </div>
+              <div className="flex items-center gap-1.5 text-primary text-sm font-bold mb-1">
+                <span className="material-symbols-outlined text-[18px] text-secondary">verified_user</span>
+                <span>En Curso</span>
+              </div>
+              <button
+                onClick={() => setIsIncidentModalOpen(true)}
+                className="w-full mt-2 py-1.5 px-3 rounded-lg bg-surface-container-highest text-primary hover:bg-secondary-fixed transition-colors text-xs font-semibold flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px] text-secondary">alt_route</span>
+                <span>Simular Imprevisto (Mediador)</span>
+              </button>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <MapPin size={15} color="var(--color-primary)" />
-            <span>Destino: {activeTrip.destination}</span>
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Calendar size={15} color="var(--color-primary)" />
-            <span>{activeTrip.startDate} — {activeTrip.endDate}</span>
-          </span>
-        </div>
-      </div>
+      {/* Main Content (Stitch: 8 cols left, 4 cols right) */}
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Timeline Cronológico */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
+          <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+            <h2 className="text-lg font-bold text-primary">Timeline Cronológico en Vivo</h2>
+            <div className="flex items-center gap-1 bg-surface-container p-1 rounded-full text-xs">
+              <button
+                onClick={() => setSelectedDayFilter('ALL')}
+                className={`px-3 py-1 rounded-full transition-all ${
+                  selectedDayFilter === 'ALL'
+                    ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm'
+                    : 'text-on-surface-variant hover:text-primary'
+                }`}
+              >
+                Todos los Eventos
+              </button>
+              <button
+                onClick={() => setSelectedDayFilter('TODAY')}
+                className={`px-3 py-1 rounded-full transition-all ${
+                  selectedDayFilter === 'TODAY'
+                    ? 'bg-primary-container text-on-primary font-semibold shadow-sm'
+                    : 'text-on-surface-variant hover:text-primary'
+                }`}
+              >
+                Hoy (Día 2)
+              </button>
+            </div>
+          </div>
 
-      {/* Events Timeline */}
-      <div style={{ background: 'var(--bg-card)', padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Clock size={18} color="var(--color-primary)" />
-            <span>Timeline Cronológico de Actividades</span>
-          </h3>
-          <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{events.length} Eventos Programados</span>
-        </div>
-
-        {events.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', padding: '24px' }}>
-            No hay eventos cargados para este viaje.
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {events.map((evt: Event, index: number) => {
-              const isIssue = evt.status === 'ISSUE';
-              const isCancelled = evt.status === 'CANCELLED';
+          {/* Cards de Eventos */}
+          <div className="flex flex-col gap-4">
+            {events.map((evt) => {
+              const isDisrupted = evt.status === 'DISRUPTED';
               const isCompleted = evt.status === 'COMPLETED';
 
               return (
                 <div
-                  key={evt.id || index}
-                  style={{
-                    background: isIssue ? 'rgba(239, 68, 68, 0.08)' : 'rgba(15, 23, 42, 0.6)',
-                    border: `1px solid ${
-                      isIssue ? 'var(--color-danger)' : isCancelled ? 'var(--border-subtle)' : 'var(--border-light)'
-                    }`,
-                    borderRadius: '12px',
-                    padding: '16px 20px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    gap: '16px',
-                    opacity: isCancelled ? 0.5 : 1,
-                  }}
+                  key={evt.id}
+                  className={`stitch-card p-5 rounded-xl flex items-start justify-between gap-4 transition-all ${
+                    isDisrupted
+                      ? 'bg-error-container/30 border-error/40'
+                      : 'bg-surface-container-lowest hover:border-secondary'
+                  }`}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', flex: 1 }}>
+                  <div className="flex items-start gap-4">
                     <div
-                      style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '8px',
-                        background: isIssue ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.15)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: isIssue ? 'var(--color-danger)' : 'var(--color-primary)',
-                        flexShrink: 0,
-                      }}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        isDisrupted
+                          ? 'bg-error-container text-error'
+                          : isCompleted
+                          ? 'bg-surface-container-highest text-secondary'
+                          : 'bg-surface-container text-primary'
+                      }`}
                     >
-                      {evt.type === 'FLIGHT' || evt.type === 'TRANSPORT' ? (
-                        <Plane size={18} />
-                      ) : evt.type === 'MEAL' ? (
-                        <Utensils size={18} />
-                      ) : evt.type === 'HOTEL' ? (
-                        <Hotel size={18} />
-                      ) : (
-                        <Compass size={18} />
-                      )}
+                      <span className="material-symbols-outlined text-[20px]">
+                        {isDisrupted
+                          ? 'crisis_alert'
+                          : evt.type === 'TRANSPORT'
+                          ? 'flight'
+                          : evt.type === 'ACCOMMODATION'
+                          ? 'hotel'
+                          : evt.type === 'MEAL'
+                          ? 'restaurant'
+                          : 'tour'}
+                      </span>
                     </div>
 
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <h4
-                          style={{
-                            fontSize: '15px',
-                            fontWeight: 700,
-                            color: '#fff',
-                            textDecoration: isCancelled ? 'line-through' : 'none',
-                          }}
-                        >
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-xs font-bold text-secondary">{evt.time}</span>
+                        <h3 className={`text-sm font-bold ${isDisrupted ? 'text-error' : 'text-primary'}`}>
                           {evt.title}
-                        </h4>
-
-                        {/* Status Badges */}
-                        {isIssue && (
-                          <span style={{ fontSize: '10px', fontWeight: 700, background: 'var(--color-danger)', color: '#fff', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
-                            DISRUPCIÓN REPORTADA
-                          </span>
-                        )}
-                        {isCancelled && (
-                          <span style={{ fontSize: '10px', fontWeight: 700, background: 'var(--border-light)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
-                            CANCELADO / SUSTITUIDO
-                          </span>
-                        )}
-                        {evt.isAlternative && (
-                          <span style={{ fontSize: '10px', fontWeight: 700, background: 'rgba(16, 185, 129, 0.2)', color: 'var(--color-success)', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
-                            NUEVA RUTA INYECTADA
-                          </span>
-                        )}
+                        </h3>
                       </div>
-
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                        {evt.description}
-                      </p>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', color: 'var(--text-dim)' }}>
-                        <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{evt.time}</span>
-                        {evt.location && <span>• {evt.location}</span>}
-                      </div>
+                      <p className="text-xs text-on-surface-variant">{evt.description}</p>
+                      {evt.location && (
+                        <span className="text-[11px] text-on-surface-variant flex items-center gap-1 mt-0.5">
+                          <span className="material-symbols-outlined text-[14px]">location_on</span>
+                          {evt.location}
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Incident Report Button */}
-                  {!isCancelled && (
-                    <div>
+                  <div className="text-right flex-shrink-0">
+                    <span
+                      className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                        isDisrupted
+                          ? 'bg-error text-on-error shadow-sm'
+                          : isCompleted
+                          ? 'bg-surface-container-high text-primary'
+                          : 'bg-surface-container text-on-surface-variant'
+                      }`}
+                    >
+                      {isDisrupted ? 'ALERTA DISRUPCIÓN' : isCompleted ? '✓ COMPLETADO' : 'PROGRAMADO'}
+                    </span>
+                    {isDisrupted && (
                       <button
-                        onClick={() => setIncidentTargetEvent(evt)}
-                        style={{
-                          background: isIssue ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.1)',
-                          border: `1px solid ${isIssue ? 'var(--color-danger)' : 'rgba(245, 158, 11, 0.3)'}`,
-                          color: isIssue ? 'var(--color-danger)' : 'var(--color-warning)',
-                          padding: '6px 14px',
-                          borderRadius: 'var(--radius-full)',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          whiteSpace: 'nowrap',
-                        }}
+                        onClick={() => setIsIncidentModalOpen(true)}
+                        className="block mt-2 text-xs font-bold text-error hover:underline"
                       >
-                        <AlertTriangle size={13} />
-                        <span>{isIssue ? 'Ver Alternativas' : 'Reportar Imprevisto'}</span>
+                        Resolver Ahora ➔
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
-        )}
+        </div>
+
+        {/* Right Column: Mediador & Concierge Panel */}
+        <div className="lg:col-span-4 flex flex-col gap-6">
+          <div className="stitch-card p-6 bg-surface-container-lowest rounded-2xl border border-outline-variant/30">
+            <div className="flex items-center gap-2 pb-3 mb-4 border-b border-outline-variant/20">
+              <span className="material-symbols-outlined text-secondary text-[22px]">alt_route</span>
+              <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">
+                Patrón Mediator Autónomo
+              </h3>
+            </div>
+
+            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 mb-4">
+              <span className="text-xs font-mono font-bold text-error block mb-1">
+                Disrupción Registrada en Cola
+              </span>
+              <p className="text-xs text-on-surface-variant leading-relaxed">
+                Condición marítima anómala en bahía de Cartagena. El <strong>TripMediator</strong> de Santiago recalculó
+                alternativas terrestres y gastronómicas de igual valor.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setIsIncidentModalOpen(true)}
+              className="w-full py-3 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
+            >
+              <span className="material-symbols-outlined text-[18px]">handshake</span>
+              <span>Abrir Mediador de Incidentes</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Incident Modal (Mediator Flow) */}
-      {incidentTargetEvent && (
+      {/* Incident Modal Trigger */}
+      {isIncidentModalOpen && (
         <IncidentModal
           tripId={activeTrip.id}
-          eventId={incidentTargetEvent.id}
-          eventTitle={incidentTargetEvent.title}
-          onClose={() => setIncidentTargetEvent(null)}
-          onResolved={(updated) => {
-            setActiveTrip(updated);
-            setIncidentTargetEvent(null);
-          }}
+          onClose={() => setIsIncidentModalOpen(false)}
         />
       )}
     </div>
   );
-}
+};
