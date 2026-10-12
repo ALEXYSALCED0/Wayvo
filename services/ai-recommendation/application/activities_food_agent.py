@@ -78,23 +78,16 @@ Reglas:
 """
 
     try:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-3.5-flash",
-            temperature=0,
-            google_api_key=api_key,
-        )
+        from application.llm_client import invoke_gemini
 
-        response = llm.invoke(prompt)
-        content = response.content
+        text = invoke_gemini(prompt, temperature=0.0)
+        clean_text = text.strip()
+        if clean_text.startswith("```"):
+            clean_text = clean_text.split("\n", 1)[1]
+            if clean_text.endswith("```"):
+                clean_text = clean_text.rsplit("```", 1)[0]
 
-        if isinstance(content, list):
-            content = "".join(
-                item.get("text", "")
-                for item in content
-                if isinstance(item, dict)
-            )
-
-        result = json.loads(content)
+        result = json.loads(clean_text)
 
         gastronomy = result.get("gastronomy", [])
         activities = result.get("activities", [])

@@ -84,26 +84,9 @@ Reglas:
 """
 
     try:
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-3.5-flash",
-            temperature=0.7,
-            google_api_key=api_key,
-        )
+        from application.llm_client import invoke_gemini
 
-        response = llm.invoke(prompt)
-        content = response.content
-
-        if isinstance(content, list):
-            content = "".join(
-                item.get("text", "")
-                for item in content
-                if isinstance(item, dict)
-            )
-
-        text = str(content).strip()
-
-        if not text:
-            raise ValueError("Gemini devolvió una respuesta vacía.")
+        text = invoke_gemini(prompt, temperature=0.7)
 
     except Exception as exc:
         raise ChatAgentError(f"Error en chat_agent: {exc}") from exc
