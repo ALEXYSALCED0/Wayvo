@@ -232,13 +232,15 @@ def _departure_time(route: dict, default: time) -> time:
 
 
 def _booking_item(item_type: str, item: dict, description: str) -> dict:
+    quantity = item.get("quantity") or 1
+    unit_price = item.get("unitPrice") or item.get("nightlyRate") or item.get("estimatedCost") or 0
     return {
         "type": item_type,
-        "providerId": item["providerId"],
-        "offerId": item["offerId"],
+        "providerId": item.get("providerId") or f"prov-{item_type.lower()}",
+        "offerId": item.get("offerId") or f"offer-{item_type.lower()}",
         "description": description,
-        "quantity": item["quantity"],
-        "unitPrice": item["unitPrice"],
+        "quantity": quantity,
+        "unitPrice": unit_price,
     }
 
 
@@ -362,6 +364,11 @@ def itinerary_builder(state: TravelState) -> dict:
                     "airline": airline,
                     "flightNumber": flight_num,
                     "airlineBookingUrl": airline_url,
+                    "googleFlightsUrl": route.get("googleFlightsUrl"),
+                    "origin": origin,
+                    "destination": destination,
+                    "tripDestination": destination,
+                    "isReturn": False,
                 },
             )
 
@@ -400,26 +407,40 @@ def itinerary_builder(state: TravelState) -> dict:
                     "airline": airline,
                     "flightNumber": flight_num,
                     "airlineBookingUrl": airline_url,
+                    "googleFlightsUrl": route.get("googleFlightsUrl"),
+                    "origin": destination,
+                    "destination": origin,
+                    "tripDestination": destination,
+                    "isReturn": True,
                 },
             )
 
         # Determinar hora de llegada del vuelo/transporte de ida en el Día 1
         day1_earliest_start = DAY_START
+        day1_is_travel_only = False
         if outbound and days:
             route = outbound[0]
             dep_t = _departure_time(route, time(8, 0))
             dur_h = _duration_hours(route.get("estimatedDuration", ""), fallback=2)
-            arr_dt = datetime.combine(date.fromisoformat(days[0]["date"]), dep_t) + timedelta(hours=dur_h)
+            d0_date = date.fromisoformat(days[0]["date"])
+            arr_dt = datetime.combine(d0_date, dep_t) + timedelta(hours=dur_h)
             avail_dt = arr_dt + timedelta(minutes=60)
-            day1_earliest_start = avail_dt.time()
+            
+            # Si el vuelo llega al día siguiente o después de las 20:00, el Día 1 es de viaje
+            if arr_dt.date() > d0_date or arr_dt.time() >= time(20, 0):
+                day1_is_travel_only = True
+                day1_earliest_start = time(22, 0)
+            else:
+                day1_earliest_start = avail_dt.time()
 
             # Evento de Check-in en el hotel
             accommodation = state.get("selected_accommodation") or {}
             hotel_name = accommodation.get("name")
             if hotel_name:
-                checkin_time = (arr_dt + timedelta(minutes=40)).time()
+                checkin_day = days[1] if (arr_dt.date() > d0_date and len(days) > 1) else days[0]
+                checkin_time = (arr_dt + timedelta(minutes=40)).time() if arr_dt.date() == d0_date else time(10, 0)
                 _add_transport_event(
-                    day=days[0],
+                    day=checkin_day,
                     trip_id=trip_id,
                     title=f"Check-in en {hotel_name}",
                     description=f"Llegada al hospedaje e instalación. {accommodation.get('description', '')}",
@@ -448,8 +469,11 @@ def itinerary_builder(state: TravelState) -> dict:
             time_of_day = activity.get("bestTimeOfDay", "morning")
             preferred_time = ACTIVITY_TIMES.get(time_of_day, time(9, 0))
 
-            if len(days) > 1 and day1_earliest_start >= time(14, 0) and time_of_day in ("morning", "afternoon"):
-                day_idx = 1 + (index % (len(days) - 1))
+            if len(days) > 1 and (day1_is_travel_only or day1_earliest_start >= time(15, 0)):
+                if day1_is_travel_only or time_of_day in ("morning", "afternoon") or day1_earliest_start >= time(19, 0):
+                    day_idx = 1 + (index % (len(days) - 1))
+                else:
+                    day_idx = 0
             else:
                 day_idx = index % len(days)
 
@@ -512,8 +536,11 @@ def itinerary_builder(state: TravelState) -> dict:
             meal_type = meal.get("mealType", "lunch")
             preferred_time = MEAL_TIMES.get(meal_type, time(12, 0))
 
-            if len(days) > 1 and day1_earliest_start >= time(14, 0) and meal_type in ("breakfast", "lunch"):
-                day_idx = 1 + (index % (len(days) - 1))
+            if len(days) > 1 and (day1_is_travel_only or day1_earliest_start >= time(15, 0)):
+                if day1_is_travel_only or meal_type in ("breakfast", "lunch") or day1_earliest_start >= time(21, 0):
+                    day_idx = 1 + (index % (len(days) - 1))
+                else:
+                    day_idx = 0
             else:
                 day_idx = index % len(days)
 
@@ -565,7 +592,20 @@ def itinerary_builder(state: TravelState) -> dict:
                 )
 
         for day in days:
-            day["events"].sort(key=lambda event: event["startDateTime"])
+            if day.get("dayNumber") == 1:
+                # El vuelo/transporte de ida SIEMPRE es el primer evento del Día 1
+                day["events"].sort(key=lambda event: (
+                    0 if (event.get("type") in ("TRANSPORT", "FLIGHT") and not event.get("details", {}).get("isReturn")) else 1,
+                    event.get("startDateTime", "")
+                ))
+            elif day.get("dayNumber") == len(days):
+                # El vuelo de retorno se programa hacia el final del último día
+                day["events"].sort(key=lambda event: (
+                    1 if (event.get("type") in ("TRANSPORT", "FLIGHT") and event.get("details", {}).get("isReturn")) else 0,
+                    event.get("startDateTime", "")
+                ))
+            else:
+                day["events"].sort(key=lambda event: event.get("startDateTime", ""))
 
             for order, event in enumerate(day["events"], start=1):
                 event["order"] = order

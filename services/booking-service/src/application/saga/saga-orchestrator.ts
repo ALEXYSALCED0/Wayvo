@@ -82,8 +82,15 @@ export class SagaOrchestrator {
 
       // c. provider-service verifica y bloquea disponibilidad externa
       reservationCode = await this.step(correlationId, SagaStep.RESERVE_PROVIDER, async () => {
+        const itemsWithMetadata = booking.items.map((bItem, idx) => ({
+          type: bItem.type,
+          providerId: bItem.providerId,
+          offerId: bItem.offerId,
+          quantity: bItem.quantity,
+          metadata: (input.items[idx] as any)?.metadata,
+        }));
         const result = await this.providers.reserve(
-          { bookingId: booking.id, items: booking.items },
+          { bookingId: booking.id, items: itemsWithMetadata },
           correlationId,
         );
         if (!result.available) {

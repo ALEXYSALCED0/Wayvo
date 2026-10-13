@@ -40,7 +40,8 @@ export class AlojamientoAdapter implements IProveedorExterno {
     );
 
     // La API devuelve todos los hoteles de la ciudad, se queda el de la oferta
-    const hotel = hotels.find((h) => h.hotelCode === ref.hotelCode);
+    const hotel = hotels.find((h) => h.hotelCode === ref.hotelCode)
+      || hotels.find((h) => h.hotelName.toLowerCase().includes(ref.hotelCode.toLowerCase()));
     if (!hotel) {
       return {
         available: false,

@@ -61,7 +61,10 @@ def provider_catalog_agent(state: TravelState) -> dict:
         and offer["destination"] == destination_code
     ]
 
-    if flights:
+    current_outbound = state.get("transport_result", {}).get("outbound", [])
+    has_real_flights = any(f.get("isRealApi") for f in current_outbound)
+
+    if flights and not has_real_flights:
         transport = dict(state.get("transport_result", {}))
         transport["outbound"] = [
             {

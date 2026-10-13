@@ -305,7 +305,22 @@ export const ProposalView: React.FC = () => {
                     )}
                   </div>
                 </div>
+                {/* Actions Outbound */}
                 <div className="flex flex-col gap-2 mt-3">
+                  {((outboundFlight as any)?.googleFlightsUrl || (outboundFlight as any)?.details?.googleFlightsUrl || (outboundFlight as any)?.extra_details?.googleFlightsUrl) && (
+                    <a
+                      href={(outboundFlight as any)?.googleFlightsUrl || (outboundFlight as any)?.details?.googleFlightsUrl || (outboundFlight as any)?.extra_details?.googleFlightsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-secondary text-on-secondary hover:bg-secondary/90 text-xs font-bold transition-all shadow-xs"
+                      title="Ver vuelo exacto confirmado en Google Flights"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">flight</span>
+                      <span>Ver Vuelo en Google Flights</span>
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                    </a>
+                  )}
+
                   <a
                     href={getKayakFlightUrl({
                       origin: tripDraft.origin,
@@ -318,10 +333,10 @@ export const ProposalView: React.FC = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-secondary text-xs font-bold transition-all shadow-xs"
-                    title="Reservar el vuelo más económico encontrado en Kayak"
+                    title={`Reservar vuelos con destino ${tripDraft.destination} en Kayak`}
                   >
                     <span className="material-symbols-outlined text-[16px]">travel_explore</span>
-                    <span>Reservar en Kayak</span>
+                    <span>Reservar Vuelos hacia {tripDraft.destination} en Kayak</span>
                     <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                   </a>
 
@@ -378,29 +393,55 @@ export const ProposalView: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 mt-3">
+                  {((inboundFlight as any)?.googleFlightsUrl || (inboundFlight as any)?.details?.googleFlightsUrl || (inboundFlight as any)?.extra_details?.googleFlightsUrl) && (
+                    <a
+                      href={(inboundFlight as any)?.googleFlightsUrl || (inboundFlight as any)?.details?.googleFlightsUrl || (inboundFlight as any)?.extra_details?.googleFlightsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-secondary text-on-secondary hover:bg-secondary/90 text-xs font-bold transition-all shadow-xs"
+                      title="Ver vuelo de regreso confirmado en Google Flights"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">flight</span>
+                      <span>Ver Retorno en Google Flights</span>
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                    </a>
+                  )}
+
                   <a
                     href={getKayakFlightUrl({
-                      origin: tripDraft.destination,
-                      destination: tripDraft.origin,
-                      startDate: tripDraft.endDate,
+                      origin: tripDraft.origin,
+                      destination: tripDraft.destination,
+                      startDate: tripDraft.startDate,
+                      endDate: tripDraft.endDate,
                       travelers: tripDraft.travelers || 2,
                       airline: 'ALL',
                     })}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-secondary text-xs font-bold transition-all shadow-xs"
-                    title="Reservar el vuelo de retorno más económico encontrado en Kayak"
+                    title={`Reservar viaje completo ida y vuelta con destino ${tripDraft.destination} en Kayak`}
                   >
-                    <span className="material-symbols-outlined text-[16px]">flight_land</span>
-                    <span>Reservar en Kayak</span>
+                    <span className="material-symbols-outlined text-[16px]">travel_explore</span>
+                    <span>Reservar Ida y Vuelta a {tripDraft.destination} en Kayak</span>
                     <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                   </a>
 
                   <div className="flex items-center justify-between text-[11px] text-on-surface-variant px-1 pt-0.5">
                     <a
+                      href={(inboundFlight as any)?.airlineBookingUrl || 'https://www.avianca.com/co/es/'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-primary hover:underline flex items-center gap-0.5 font-medium"
+                      title="Ver portal oficial de la aerolínea para el regreso"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">public</span>
+                      <span>Web oficial {inboundFlight?.airline || 'aerolínea'}</span>
+                      <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+                    </a>
+                    <a
                       href={getDespegarFlightUrl({
-                        origin: tripDraft.destination,
-                        destination: tripDraft.origin,
+                        origin: tripDraft.origin,
+                        destination: tripDraft.destination,
                         startDate: tripDraft.startDate,
                         endDate: tripDraft.endDate,
                         travelers: tripDraft.travelers || 2,
@@ -409,10 +450,9 @@ export const ProposalView: React.FC = () => {
                       rel="noopener noreferrer"
                       className="hover:text-primary hover:underline flex items-center gap-0.5 font-medium"
                     >
-                      <span>Ver Retorno en Despegar</span>
+                      <span>Ver en Despegar</span>
                       <span className="material-symbols-outlined text-[11px]">open_in_new</span>
                     </a>
-                    <span className="text-secondary font-mono text-[10px]">Cualquier aerolínea</span>
                   </div>
                 </div>
               </div>

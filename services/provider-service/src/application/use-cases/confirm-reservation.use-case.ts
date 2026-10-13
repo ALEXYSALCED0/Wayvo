@@ -126,14 +126,36 @@ export class ConfirmReservationUseCase {
         provider.verify();
         await this.providers.save(provider);
       }
+      if (offer && item.metadata && Object.keys(item.metadata).length > 0) {
+        offer.updateMetadata({ ...offer.metadata, ...item.metadata });
+        await this.offers.save(offer);
+      }
       if (!offer) {
-        const [flightNum] = flightNumbersFor('BOG', 'CTG');
-        const [htlCode] = hotelCodesFor('Cartagena');
+        const orig = (item.metadata?.originAirport as string) || 'BOG';
+        const dest = (item.metadata?.destinationAirport as string) || 'CTG';
+        const [flightNum] = flightNumbersFor(orig, dest);
+        const city = (item.metadata?.cityCode as string) || (item.metadata?.city as string) || 'Cartagena';
+        const [htlCode] = hotelCodesFor(city);
+        const flightFromOffer = item.offerId.startsWith('offer-')
+          ? item.offerId.replace(/^offer-/, '').replace(/-/g, ' ').toUpperCase()
+          : undefined;
         const metadata = item.type === 'TRANSPORT'
-          ? { originAirport: 'BOG', destinationAirport: 'CTG', departureDate: '2026-11-10', flightNumber: flightNum }
+          ? {
+              originAirport: orig,
+              destinationAirport: dest,
+              departureDate: (item.metadata?.departureDate as string) || '2026-11-10',
+              flightNumber: (item.metadata?.flightNumber as string) || flightFromOffer || flightNum,
+              ...(item.metadata || {}),
+            }
           : item.type === 'ACCOMMODATION'
-          ? { cityCode: 'Cartagena', hotelCode: htlCode, checkInDate: '2026-11-10', checkOutDate: '2026-11-14' }
-          : {};
+          ? {
+              cityCode: city,
+              hotelCode: (item.metadata?.hotelCode as string) || htlCode,
+              checkInDate: (item.metadata?.checkInDate as string) || '2026-11-10',
+              checkOutDate: (item.metadata?.checkOutDate as string) || '2026-11-14',
+              ...(item.metadata || {}),
+            }
+          : { ...(item.metadata || {}) };
         offer = ServiceOffer.create({
           id: item.offerId,
           providerId: item.providerId,

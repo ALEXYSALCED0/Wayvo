@@ -130,6 +130,7 @@ def budget_agent(state: dict[str, Any]) -> dict[str, Any]:
     # Solo los errores nuevos de este nodo: LangGraph los suma al estado.
     errors = []
     nights = _nights(state)
+    travelers = int(state.get("travelers", 1) or 1)
 
     budget = state.get("approximateBudgetAmount")
     if budget is None:
@@ -214,39 +215,27 @@ def budget_agent(state: dict[str, Any]) -> dict[str, Any]:
     accommodation_cost = _valid_cost(accommodation)
 
     user_budget = state.get("approximateBudgetAmount")
-    # Si el usuario no indicó un monto fijo, el presupuesto sugerido se ajusta
-    # dinámicamente para cubrir el costo real de vuelos/hoteles de ese destino,
-    # siempre que no sea un costo absurdo o astronómico (ej: > 20M COP para viaje corto).
-    max_reasonable_budget = 20_000_000 if currency == "COP" else 5_000
-    if user_budget is None and budget is not None:
-        needed = transport_cost + accommodation_cost + (float(budget) * 0.3)
-        if needed > float(budget) and (transport_cost + accommodation_cost) <= max_reasonable_budget:
-            budget = round(transport_cost + accommodation_cost + float(budget), 2)
-
-    available = round(
-        float(budget) - transport_cost - accommodation_cost,
-        2,
-    )
-
+    base_essential = transport_cost + accommodation_cost
     is_budget_exceeded = False
-    if available < 0:
-        if user_budget is not None:
-            # Presupuesto personalizado insuficiente: no arrojar error.
-            # En su lugar, cubrir transporte y alojamiento con las opciones mínimas
-            # e informar amablemente en la interfaz.
+
+    # El presupuesto es un referente dinámico para la IA según el destino:
+    # Si el costo base real (vuelos transcontinentales, hoteles internacionales)
+    # supera el estimado por defecto, el presupuesto se adapta a la realidad del destino.
+    if user_budget is None:
+        default_estimate = float(budget or 0)
+        extra_allocation = max(default_estimate * 0.25, 400_000.0 * max(1, travelers))
+        budget = round(base_essential + extra_allocation, 2)
+        available = extra_allocation
+    else:
+        user_num = float(user_budget)
+        if user_num < base_essential:
             is_budget_exceeded = True
-            budget = round(transport_cost + accommodation_cost, 2)
-            available = 0.0
+            extra_allocation = 200_000.0 * max(1, travelers)
+            budget = round(base_essential + extra_allocation, 2)
+            available = extra_allocation
         else:
-            return {
-                "errors": errors + [
-                    "El transporte y el alojamiento superan el "
-                    "presupuesto disponible. Se necesitan opciones "
-                    "más económicas."
-                ]
-            }
-
-
+            budget = user_num
+            available = round(user_num - base_essential, 2)
 
     activities = [
         item
@@ -310,13 +299,8 @@ def budget_agent(state: dict[str, Any]) -> dict[str, Any]:
         2,
     )
 
-    if total > float(budget) + 0.01:
-        return {
-            "errors": errors + [
-                "No fue posible ajustar las recomendaciones "
-                "al presupuesto."
-            ]
-        }
+    # El presupuesto final siempre se calibra con el costo total consolidado
+    budget = max(float(budget), total)
 
     breakdown = {
         "transport": round(transport_cost, 2),

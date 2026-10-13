@@ -138,6 +138,7 @@ export const ActiveTripView: React.FC = () => {
           userId: planResult.tripDraft?.userId || 'usr-client',
           title: planResult.tripDraft?.title || `Viaje a ${planResult.tripDraft?.destination}`,
           destination: planResult.tripDraft?.destination,
+          origin: planResult.tripDraft?.origin,
           startDate: planResult.tripDraft?.startDate,
           endDate: planResult.tripDraft?.endDate,
           status: 'CONFIRMED',

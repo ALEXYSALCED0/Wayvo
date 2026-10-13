@@ -7,6 +7,7 @@ export interface CheckAvailabilityItemInput {
   providerId: string;
   offerId: string;
   quantity: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CheckAvailabilityInput {
