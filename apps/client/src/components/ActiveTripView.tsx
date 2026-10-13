@@ -857,6 +857,7 @@ export const ActiveTripView: React.FC = () => {
         <EventDetailModal
           event={selectedEventModal}
           destination={currentTrip.destination}
+          origin={currentTrip.origin}
           onClose={() => setSelectedEventModal(null)}
         />
       )}

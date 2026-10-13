@@ -15,12 +15,14 @@ import {
 interface EventDetailModalProps {
   event: PlanEvent | null;
   destination: string;
+  origin?: string;
   onClose: () => void;
 }
 
 export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   event,
   destination,
+  origin,
   onClose,
 }) => {
   if (!event) return null;
@@ -93,11 +95,37 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
       const isLatam = airlineName.toLowerCase().includes('latam');
       const airlineKey = isLatam ? 'LATAM' : 'AVIANCA';
 
+      // Determinar origen y destino de vuelo con precisión
+      let flightOrigin = origin || 'Bogotá';
+      let flightDest = destination;
+
+      if (event.title.includes('➔')) {
+        const parts = event.title.split('➔');
+        const p1 = parts[0]
+          .replace(/vuelo/i, '')
+          .replace(/de ida/i, '')
+          .replace(/de regreso/i, '')
+          .replace(/de retorno/i, '')
+          .trim();
+        const p2 = parts[1].trim();
+        if (p1) flightOrigin = p1;
+        if (p2) flightDest = p2;
+      } else if (
+        event.title.toLowerCase().includes('regreso') ||
+        event.title.toLowerCase().includes('retorno') ||
+        event.title.toLowerCase().includes('vuelta') ||
+        event.title.toLowerCase().includes('salida')
+      ) {
+        // En vuelo de regreso se sale del destino hacia la ciudad de origen
+        flightOrigin = destination;
+        flightDest = origin || 'Bogotá';
+      }
+
       links.push({
-        label: `Ver Vuelos ${airlineName} (Ruta y Fechas Cargadas)`,
+        label: `Ver Vuelos ${airlineName} (${flightOrigin} ➔ ${flightDest})`,
         url: getKayakFlightUrl({
-          origin: 'Bogotá',
-          destination,
+          origin: flightOrigin,
+          destination: flightDest,
           startDate: (event as any).startDateTime?.split('T')[0] || '',
           travelers: 2,
           airline: airlineKey,

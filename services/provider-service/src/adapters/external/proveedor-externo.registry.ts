@@ -3,7 +3,7 @@ import { ProveedorExternoResolver } from '../../application/ports/proveedor-exte
 import { ServiceOfferType } from '../../domain/value-objects/service-offer-type';
 import { AdapterNotRegisteredError } from './errors';
 
-// Se decide qué adapter atiende cada tipo
+// Se decide que adapter atiende cada tipo
 export class ProveedorExternoRegistry implements ProveedorExternoResolver {
   private readonly adapters: ReadonlyMap<ServiceOfferType, IProveedorExterno>;
 

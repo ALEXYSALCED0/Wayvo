@@ -697,6 +697,7 @@ export const ProposalView: React.FC = () => {
         <EventDetailModal
           event={selectedEventModal}
           destination={tripDraft.destination}
+          origin={tripDraft.origin}
           onClose={() => setSelectedEventModal(null)}
         />
       )}
