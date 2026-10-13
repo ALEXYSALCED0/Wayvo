@@ -19,6 +19,8 @@ export interface EventProps {
   issueReason?: string;
   alternatives?: AlternativeOption[];
   details?: EventDetails;
+  replacedByTitle?: string;
+  replacesEventTitle?: string;
 }
 
 export interface EventDetails {
@@ -44,13 +46,15 @@ export class Event {
   readonly startDateTime: Date;
   readonly endDateTime?: Date;
   readonly location?: string;
-  readonly reservationStatus: ReservationStatus;
+  private _reservationStatus: ReservationStatus;
   readonly isAlternative: boolean;
   readonly details?: EventDetails;
   order: number;
   private _status: EventStatus;
   private _issueReason?: string;
   private _alternatives: AlternativeOption[];
+  private _replacedByTitle?: string;
+  private _replacesEventTitle?: string;
 
   constructor(props: EventProps) {
     if (props.endDateTime && props.endDateTime < props.startDateTime) {
@@ -64,13 +68,19 @@ export class Event {
     this.startDateTime = props.startDateTime;
     this.endDateTime = props.endDateTime;
     this.location = props.location;
-    this.reservationStatus = props.reservationStatus ?? ReservationStatus.NOT_RESERVED;
+    this._reservationStatus = props.reservationStatus ?? ReservationStatus.NOT_RESERVED;
     this.isAlternative = props.isAlternative ?? false;
     this.details = props.details;
     this.order = props.order ?? 0;
     this._status = props.status ?? EventStatus.PENDING;
     this._issueReason = props.issueReason;
     this._alternatives = props.alternatives ?? [];
+    this._replacedByTitle = props.replacedByTitle;
+    this._replacesEventTitle = props.replacesEventTitle;
+  }
+
+  get reservationStatus(): ReservationStatus {
+    return this._reservationStatus;
   }
 
   get status(): EventStatus {
@@ -85,9 +95,37 @@ export class Event {
     return [...this._alternatives];
   }
 
-  // Solo es posible reportar un problema en un evento pendiente
+  get replacedByTitle(): string | undefined {
+    return this._replacedByTitle;
+  }
+
+  get replacesEventTitle(): string | undefined {
+    return this._replacesEventTitle;
+  }
+
+  // Confirmar reserva por el usuario
+  setReservationStatus(status: ReservationStatus): void {
+    this._reservationStatus = status;
+  }
+
+  // Iniciar evento
+  start(): void {
+    if (this._status !== EventStatus.PENDING) {
+      throw new InvalidTripStateError(`No se puede iniciar un evento ${this._status}`);
+    }
+    this._status = EventStatus.IN_PROGRESS;
+  }
+
+  complete(): void {
+    if (this._status !== EventStatus.PENDING && this._status !== EventStatus.IN_PROGRESS) {
+      throw new InvalidTripStateError(`No se puede completar un evento ${this._status}`);
+    }
+    this._status = EventStatus.COMPLETED;
+  }
+
+  // Solo es posible reportar un problema en un evento pendiente o en progreso
   markIssue(reason: string, alternatives: AlternativeOption[]): void {
-    if (this._status !== EventStatus.PENDING && this._status !== EventStatus.ISSUE) {
+    if (this._status !== EventStatus.PENDING && this._status !== EventStatus.IN_PROGRESS && this._status !== EventStatus.ISSUE) {
       throw new InvalidTripStateError(
         `No se puede reportar un problema en un evento ${this._status}`,
       );
@@ -98,19 +136,14 @@ export class Event {
   }
 
   // Evento queda cancelado (sustituido por una alternativa o descartado).
-  cancel(): void {
-    if (this._status !== EventStatus.PENDING && this._status !== EventStatus.ISSUE) {
+  cancel(reason?: string, replacedByTitle?: string): void {
+    if (this._status !== EventStatus.PENDING && this._status !== EventStatus.IN_PROGRESS && this._status !== EventStatus.ISSUE) {
       throw new InvalidTripStateError(`No se puede cancelar un evento ${this._status}`);
     }
     this._status = EventStatus.CANCELLED;
+    if (reason) this._issueReason = reason;
+    if (replacedByTitle) this._replacedByTitle = replacedByTitle;
     this._alternatives = [];
-  }
-
-  complete(): void {
-    if (this._status !== EventStatus.PENDING) {
-      throw new InvalidTripStateError(`No se puede completar un evento ${this._status}`);
-    }
-    this._status = EventStatus.COMPLETED;
   }
 
   findAlternative(alternativeId: string): AlternativeOption {

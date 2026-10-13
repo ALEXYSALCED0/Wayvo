@@ -2,22 +2,19 @@ FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# Dependencias del sistema requeridas por Prisma
 RUN apk add --no-cache openssl libc6-compat
 
 COPY package*.json ./
-COPY tsconfig*.json ./
-COPY prisma ./prisma/
+COPY shared/contracts ./shared/contracts
+COPY services/provider-service ./services/provider-service
 
-RUN npm install
+RUN npm install --workspace=shared/contracts --workspace=services/provider-service
+RUN npm run build --workspace=shared/contracts
 
-COPY src ./src/
-
-# Generar cliente Prisma y compilar TypeScript
+WORKDIR /app/services/provider-service
 RUN npx prisma generate
 RUN npm run build
 
 EXPOSE 3002
 
-# Aplica las migraciones, carga el catálogo inicial (sin pisar datos existentes) y arranca
 CMD ["npm", "run", "start:prod"]

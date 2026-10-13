@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from datetime import date
 from math import ceil
+
 from typing import Any
 
 from domain.budget_rates import (
@@ -38,20 +41,37 @@ def _estimate_accommodation(
     state: dict[str, Any],
     nights: int,
 ) -> dict[str, Any] | None:
-    """Estima el alojamiento con la tarifa de la categoría elegida."""
+    """Estima el alojamiento con un hotel real de la categoría elegida."""
     rates = NIGHTLY_RATE_PER_ROOM.get(state.get("currency", "COP"))
 
     if not rates:
         return None
 
+    destination = state.get("destination", "")
     category = _category(state)
-    nightly_rate = rates.get(category, rates[DEFAULT_CATEGORY])
-
     travelers = state.get("travelers", 1)
+    currency = state.get("currency", "COP")
+
+    try:
+        from application.hotel_agent import find_real_hotel
+        real_hotel = find_real_hotel(
+            destination=destination,
+            category=category,
+            travelers=travelers,
+            nights=nights,
+            currency=currency,
+        )
+        if real_hotel:
+            return real_hotel
+    except Exception:
+        pass
+
+    nightly_rate = rates.get(category, rates[DEFAULT_CATEGORY])
     rooms = ceil(travelers / PERSONS_PER_ROOM)
 
     return {
-        "name": f"Alojamiento {category.lower()} en {state.get('destination', '')}",
+        "id": f"hotel-{destination.lower()[:3]}-{category[:3].lower()}",
+        "name": f"Alojamiento {category.lower()} en {destination}",
         "nights": nights,
         "rooms": rooms,
         "nightlyRate": nightly_rate,
@@ -193,19 +213,40 @@ def budget_agent(state: dict[str, Any]) -> dict[str, Any]:
 
     accommodation_cost = _valid_cost(accommodation)
 
+    user_budget = state.get("approximateBudgetAmount")
+    # Si el usuario no indicó un monto fijo, el presupuesto sugerido se ajusta
+    # dinámicamente para cubrir el costo real de vuelos/hoteles de ese destino,
+    # siempre que no sea un costo absurdo o astronómico (ej: > 20M COP para viaje corto).
+    max_reasonable_budget = 20_000_000 if currency == "COP" else 5_000
+    if user_budget is None and budget is not None:
+        needed = transport_cost + accommodation_cost + (float(budget) * 0.3)
+        if needed > float(budget) and (transport_cost + accommodation_cost) <= max_reasonable_budget:
+            budget = round(transport_cost + accommodation_cost + float(budget), 2)
+
     available = round(
         float(budget) - transport_cost - accommodation_cost,
         2,
     )
 
+    is_budget_exceeded = False
     if available < 0:
-        return {
-            "errors": errors + [
-                "El transporte y el alojamiento superan el "
-                "presupuesto disponible. Se necesitan opciones "
-                "más económicas."
-            ]
-        }
+        if user_budget is not None:
+            # Presupuesto personalizado insuficiente: no arrojar error.
+            # En su lugar, cubrir transporte y alojamiento con las opciones mínimas
+            # e informar amablemente en la interfaz.
+            is_budget_exceeded = True
+            budget = round(transport_cost + accommodation_cost, 2)
+            available = 0.0
+        else:
+            return {
+                "errors": errors + [
+                    "El transporte y el alojamiento superan el "
+                    "presupuesto disponible. Se necesitan opciones "
+                    "más económicas."
+                ]
+            }
+
+
 
     activities = [
         item
@@ -292,6 +333,13 @@ def budget_agent(state: dict[str, Any]) -> dict[str, Any]:
         "estimatedTotalCost": total,
         "dailyBudget": round(total / days, 2),
         "breakdown": breakdown,
+        "isBudgetExceeded": is_budget_exceeded,
+        "userBudget": float(user_budget) if user_budget is not None else None,
+        "budgetNotice": (
+            f"Tu presupuesto personalizado ({currency} {float(user_budget):,.0f}) es inferior al costo base del viaje "
+            f"({currency} {total:,.0f} entre transporte y hospedaje). Diseñamos el plan con las tarifas más económicas y convenientes disponibles."
+            if is_budget_exceeded else None
+        ),
         "savingsTips": [
             "Las actividades y comidas no seleccionadas quedaron "
             "fuera del plan para respetar el presupuesto.",

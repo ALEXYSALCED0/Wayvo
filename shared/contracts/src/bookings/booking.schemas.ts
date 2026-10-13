@@ -37,7 +37,10 @@ export const confirmTripSagaSchema = z.object({
     origin: z.string().optional(),
     title: z.string().optional(),
     travelers: z.number().int().positive().optional(),
-  }),
+    description: z.string().optional(),
+    imageUrl: z.string().optional(),
+    events: z.array(z.any()).optional(),
+  }).passthrough(),
   items: z.array(createBookingItemSchema).min(1),
 });
 

@@ -30,6 +30,7 @@ const TYPE_LABELS: Record<EventType, string> = {
 
 const STATUS_LABELS: Record<EventStatus, string> = {
   [EventStatus.PENDING]: 'Pendiente',
+  [EventStatus.IN_PROGRESS]: 'En curso',
   [EventStatus.COMPLETED]: 'Completado',
   [EventStatus.ISSUE]: 'Con incidencia',
   [EventStatus.CANCELLED]: 'Cancelado',
@@ -74,10 +75,11 @@ export function toEventDraft(dto: CreateTripEventDTO) {
 }
 
 function toDomainEventType(value: string): EventType {
-  if (!Object.values(EventType).includes(value as EventType)) {
+  const normalized = (value as string) === 'ACCOMMODATION' ? EventType.HOTEL : value;
+  if (!Object.values(EventType).includes(normalized as EventType)) {
     throw new InvalidDataError(`Tipo de evento no válido: ${value}`);
   }
-  return value as EventType;
+  return normalized as EventType;
 }
 
 export function toAlternativeDTO(a: AlternativeOption): AlternativeOptionDTO {
@@ -126,9 +128,11 @@ export function toEventDTO(e: Event): EventDTO {
     order: e.order,
     details: e.details,
     isAlternative: e.isAlternative,
-    alternativeBadge: e.isAlternative ? 'Alternativa' : undefined,
+    alternativeBadge: e.isAlternative ? 'Sustituto IA' : undefined,
     alternatives: alternatives.length > 0 ? alternatives.map(toAlternativeDTO) : undefined,
     issueReason: e.issueReason,
+    replacedByTitle: (e as any).replacedByTitle,
+    replacesEventTitle: (e as any).replacesEventTitle,
   };
 }
 

@@ -31,6 +31,12 @@ export const confirmTripSchema = z.object({
     destination: z.string().min(1),
     startDate: z.string().min(1),
     endDate: z.string().min(1),
-  }),
+    origin: z.string().optional(),
+    title: z.string().optional(),
+    travelers: z.number().int().positive().optional(),
+    description: z.string().optional(),
+    imageUrl: z.string().optional(),
+    events: z.array(z.any()).optional(),
+  }).passthrough(),
   items: z.array(itemSchema),
 });

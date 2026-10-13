@@ -17,6 +17,9 @@ export interface TripDraft {
   origin?: string;
   title?: string;
   travelers?: number;
+  description?: string;
+  imageUrl?: string;
+  events?: any[];
 }
 
 export interface CreateTripInput {

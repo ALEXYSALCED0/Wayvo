@@ -33,6 +33,9 @@ export interface BudgetAgentOutput {
   dailyBudget: number;
   breakdown: BudgetBreakdown;
   savingsTips?: string[];
+  isBudgetExceeded?: boolean;
+  userBudget?: number;
+  budgetNotice?: string;
 }
 
 /**
@@ -47,6 +50,10 @@ export interface TransportRouteSegment {
   estimatedDuration: string;
   estimatedCost: number;
   providerHint?: string;
+  airline?: string;
+  flightNumber?: string;
+  airlineBookingUrl?: string;
+  isEstimate?: boolean;
 }
 
 export interface TransportAgentOutput {
@@ -112,6 +119,7 @@ export interface AIPlanRecommendationResult {
   tripDraft: TripDraft;
   personality: PersonalityAgentOutput;
   budget: BudgetAgentOutput;
+  accommodation?: any;
   transport: TransportAgentOutput;
   experiences: ActivitiesFoodAgentOutput;
   itinerary: {

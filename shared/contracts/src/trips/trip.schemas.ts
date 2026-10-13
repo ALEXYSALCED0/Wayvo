@@ -4,23 +4,38 @@ import { IssueType } from './incident.dto';
 import { TripStatus } from './trip.dto';
 
 export const tripStatusSchema = z.nativeEnum(TripStatus);
-export const eventTypeSchema = z.nativeEnum(EventType);
+export const eventTypeSchema = z.preprocess(
+  (val) => (val === 'ACCOMMODATION' ? EventType.HOTEL : val),
+  z.nativeEnum(EventType),
+);
 export const eventStatusSchema = z.nativeEnum(EventStatus);
 export const reservationStatusSchema = z.nativeEnum(ReservationStatus);
 export const issueTypeSchema = z.nativeEnum(IssueType);
 
-export const eventDetailsSchema = z.object({
-  platform: z.string().optional(),
-  seat: z.string().optional(),
-  car: z.string().optional(),
-  bookingRef: z.string().optional(),
-  qrAvailable: z.boolean().optional(),
-  price: z.number().nonnegative().optional(),
-  classType: z.string().optional(),
-  provider: z.string().optional(),
-  confirmationCode: z.string().optional(),
-  notes: z.string().optional(),
-});
+export const eventDetailsSchema = z
+  .object({
+    platform: z.string().optional(),
+    seat: z.string().optional(),
+    car: z.string().optional(),
+    bookingRef: z.string().optional(),
+    qrAvailable: z.boolean().optional(),
+    price: z.number().nonnegative().optional(),
+    classType: z.string().optional(),
+    provider: z.string().optional(),
+    confirmationCode: z.string().optional(),
+    notes: z.string().optional(),
+    venueName: z.string().optional(),
+    dish: z.string().optional(),
+    operatorName: z.string().optional(),
+    websiteUrl: z.string().optional(),
+    instagramUrl: z.string().optional(),
+    instagramHandle: z.string().optional(),
+    directBookingUrl: z.string().optional(),
+    airline: z.string().optional(),
+    airlineBookingUrl: z.string().optional(),
+    flightNumber: z.string().optional(),
+  })
+  .passthrough();
 
 export const injectedEventPreviewSchema = z.object({
   title: z.string().min(1),

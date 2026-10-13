@@ -42,15 +42,31 @@ app.post('/api/v1/trips/:id/incidents', eventController.reportIncident);
 // Paso 2: elegir una alternativa y actualizar el itinerario
 app.post('/api/v1/trips/:id/alternatives', eventController.selectAlternative);
 
-// Crear viaje
+// Crear viaje y listar viajes por usuario
 app.post('/api/v1/trips', tripController.createTrip);
+app.get('/api/v1/trips', tripController.listTrips);
 
 // Consultar viaje
 app.get('/api/v1/trips/:id', tripController.getTrip);
+app.post('/api/v1/trips/:id/events', tripController.addEvents);
 
-// Confirmar y cancelar (los usa la Saga de booking-service)
+// Iniciar viaje (cuando llega su fecha o por demo bypass)
+app.post('/api/v1/trips/:id/start', tripController.startTrip);
+
+// Confirmar, cancelar y eliminar viaje
 app.post('/api/v1/trips/:id/confirm', tripController.confirmTrip);
 app.post('/api/v1/trips/:id/cancel', tripController.cancelTrip);
+app.patch('/api/v1/trips/:id/cancel', tripController.cancelTrip);
+app.delete('/api/v1/trips/:id', tripController.deleteTrip);
+
+// Resolución reactiva de eventualidad (cancelación de evento original + inserción de sustitutos)
+app.post('/api/v1/trips/:id/resolve-incident', tripController.resolveIncident);
+
+// Gestión individual de eventos del itinerario
+app.patch('/api/v1/trips/:id/events/:eventId/reservation', tripController.updateEventReservation);
+app.post('/api/v1/trips/:id/events/:eventId/start', tripController.startEvent);
+app.post('/api/v1/trips/:id/events/:eventId/complete', tripController.completeEvent);
+app.post('/api/v1/trips/:id/events/:eventId/cancel', tripController.cancelEvent);
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {

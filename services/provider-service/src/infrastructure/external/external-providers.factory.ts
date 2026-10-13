@@ -8,6 +8,8 @@ import { SerpApiFlightsClient } from './serpapi-flights.client';
 import { MockAlojamientoClient } from '../mock/mock-alojamiento.client';
 import { MockTransporteClient } from '../mock/mock-transporte.client';
 
+import { ActividadAdapter } from '../../adapters/external/actividad.adapter';
+
 // Arma el registro de adapters por la conf del entorno
 //   EXTERNAL_PROVIDERS_MODE=real        SerpApi + hotels-api.com
 //   EXTERNAL_PROVIDERS_MODE=mock        simulador local en MOCK_API_BASE_URL
@@ -23,6 +25,7 @@ export function createExternalProviderRegistry(
     return new ProveedorExternoRegistry({
       [ServiceOfferType.TRANSPORT]: new TransporteAdapter(new MockTransporteClient({ baseUrl, ...http })),
       [ServiceOfferType.ACCOMMODATION]: new AlojamientoAdapter(new MockAlojamientoClient({ baseUrl, ...http })),
+      [ServiceOfferType.ACTIVITY]: new ActividadAdapter(),
     });
   }
 
@@ -40,6 +43,7 @@ export function createExternalProviderRegistry(
     [ServiceOfferType.ACCOMMODATION]: new AlojamientoAdapter(
       new HotelsApiClient({ apiKey: hotelsApiKey!, limit: positiveInt(env.HOTELS_API_LIMIT), ...http }),
     ),
+    [ServiceOfferType.ACTIVITY]: new ActividadAdapter(),
   });
 }
 
