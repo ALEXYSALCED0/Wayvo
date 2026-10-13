@@ -128,6 +128,11 @@ export class ServiceOffer {
     this.props.updatedAt = now;
   }
 
+  updateMetadata(newMetadata: Record<string, unknown>, now: Date = new Date()): void {
+    this.props.metadata = { ...this.props.metadata, ...newMetadata };
+    this.props.updatedAt = now;
+  }
+
   get metadata(): Readonly<Record<string, unknown>> { return this.props.metadata; }
 
   toPrimitives(): ServiceOfferPrimitives {

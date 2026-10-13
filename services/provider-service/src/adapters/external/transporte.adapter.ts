@@ -45,7 +45,8 @@ export class TransporteAdapter implements IProveedorExterno {
 
     // La API devuelve todos los vuelos, se queda el de la oferta
     const wanted = normalizeFlightNumber(ref.flightNumber);
-    const flight = flights.find((f) => normalizeFlightNumber(f.flightNumber) === wanted);
+    const flight = flights.find((f) => normalizeFlightNumber(f.flightNumber) === wanted)
+      || flights.find((f) => normalizeFlightNumber(f.flightNumber).includes(wanted) || wanted.includes(normalizeFlightNumber(f.flightNumber)));
     if (!flight) {
       return {
         available: false,
@@ -80,7 +81,7 @@ export class TransporteAdapter implements IProveedorExterno {
     );
 
     if (result.status !== 'CONFIRMED') {
-      return { success: false, reason: result.reason ?? `Flight booking rejected by the provider` };
+      return { success: false, reason: result.reason ?? 'Flight booking rejected by the provider' };
     }
     return { success: true, reservationCode: result.pnr, confirmationCode: result.ticketNumber };
   }

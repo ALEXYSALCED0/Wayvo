@@ -1,10 +1,15 @@
 import json
+import logging
 import os
+import unicodedata
+import urllib.parse
+import urllib.request
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from domain.state import TravelState
 
+logger = logging.getLogger("ai_recommendation.transport_agent")
 
 VALID_MODES = {
     "flight",
@@ -15,8 +20,236 @@ VALID_MODES = {
     "walking",
 }
 
+def _resolve_airport(city_name: str, is_destination: bool = False) -> str:
+    raw = (city_name or "").strip()
+    import re
+    paren = re.search(r"\(([A-Z]{3})\)", raw)
+    if paren:
+        return paren.group(1)
+
+    if re.match(r"^[A-Z]{3}$", raw):
+        return raw
+
+    norm = unicodedata.normalize("NFKD", raw).encode("ascii", "ignore").decode().lower()
+    mapping = {
+        "cartagena": "CTG",
+        "medellin": "MDE",
+        "rionegro": "MDE",
+        "santa marta": "SMR",
+        "santamarta": "SMR",
+        "tayrona": "SMR",
+        "san andres": "ADZ",
+        "sanandres": "ADZ",
+        "providencia": "PVA",
+        "barranquilla": "BAQ",
+        "cali": "CLO",
+        "pereira": "PEI",
+        "bucaramanga": "BGA",
+        "cucuta": "CUC",
+        "monteria": "MTR",
+        "leticia": "LET",
+        "amazonas": "LET",
+        "riohacha": "RCH",
+        "guajira": "RCH",
+        "pasto": "PSO",
+        "popayan": "PPN",
+        "armenia": "AXM",
+        "eje cafetero": "AXM",
+        "quindio": "AXM",
+        "salento": "AXM",
+        "manizales": "MZL",
+        "caldas": "MZL",
+        "neiva": "NVA",
+        "valledupar": "VUP",
+        "ibague": "IBE",
+        "villavicencio": "VVC",
+        "yopal": "EYP",
+        "florencia": "FLA",
+        "arauca": "AUC",
+        "apartado": "APO",
+        "barrancabermeja": "EJA",
+        "corozal": "CZU",
+        "sincelejo": "CZU",
+        "tolu": "TLQ",
+        "covenas": "TLQ",
+        "ipiales": "IPI",
+        "quibdo": "UIB",
+        "choco": "UIB",
+        "tumaco": "TCO",
+        "bogota": "BOG",
+        "miami": "MIA",
+        "orlando": "MCO",
+        "madrid": "MAD",
+        "cancun": "CUN",
+        "mexico": "MEX",
+        "buenos aires": "EZE",
+        "lima": "LIM",
+        "panama": "PTY",
+        "nueva york": "JFK",
+        "new york": "JFK",
+        "rio de janeiro": "GIG",
+        "sao paulo": "GRU",
+        "santiago": "SCL",
+        "cusco": "CUZ",
+        "cuzco": "CUZ",
+        "paris": "CDG",
+        "barcelona": "BCN",
+        "londres": "LHR",
+        "london": "LHR",
+        "roma": "FCO",
+        "rome": "FCO",
+        "tokio": "NRT",
+        "tokyo": "NRT",
+        "quito": "UIO",
+        "guayaquil": "GYE",
+        "punta cana": "PUJ",
+        "santo domingo": "SDQ",
+        "los angeles": "LAX",
+        "amsterdam": "AMS",
+    }
+    for k, v in mapping.items():
+        if k in norm:
+            return v
+    if is_destination:
+        return "CTG"
+    return "BOG"
+
+def _query_serpapi_flights(origin_city: str, dest_city: str, date_str: str, travelers: int, currency: str, api_key: str, return_date_str: str = None):
+    try:
+        origin_code = _resolve_airport(origin_city, is_destination=False)
+        dest_code = _resolve_airport(dest_city, is_destination=True)
+        if origin_code == dest_code:
+            return None
+
+        date_val = (date_str or "").split("T")[0]
+        if not date_val:
+            return None
+
+        ret_date_val = (return_date_str or "").split("T")[0] if return_date_str and return_date_str != "No especificada" else None
+
+        params = {
+            "engine": "google_flights",
+            "departure_id": origin_code,
+            "arrival_id": dest_code,
+            "outbound_date": date_val,
+            "adults": str(max(1, travelers)),
+            "currency": currency or "COP",
+            "hl": "es",
+            "api_key": api_key,
+        }
+        if ret_date_val:
+            params["type"] = "1"
+            params["return_date"] = ret_date_val
+        else:
+            params["type"] = "2"
+
+        url = "https://serpapi.com/search.json?" + urllib.parse.urlencode(params)
+        req = urllib.request.Request(url, headers={"User-Agent": "Wayvo/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+
+        gf_url = data.get("search_metadata", {}).get("google_flights_url")
+        flights_list = data.get("best_flights") or data.get("other_flights") or []
+        if not flights_list:
+            return None
+
+        results = []
+        for it in flights_list[:3]:
+            legs = it.get("flights") or []
+            if not legs:
+                continue
+            first_leg = legs[0]
+            last_leg = legs[-1]
+            price_per_pax = it.get("price")
+            if not price_per_pax or not isinstance(price_per_pax, (int, float)):
+                continue
+
+            airline = first_leg.get("airline") or "Aerolínea Comercial"
+            flight_num = first_leg.get("flight_number") or "Vuelo Directo"
+            dep_time = first_leg.get("departure_airport", {}).get("time", "")
+            arr_time = last_leg.get("arrival_airport", {}).get("time", "")
+
+            dep_clock = dep_time.split(" ")[-1] if " " in dep_time else "08:00"
+            arr_clock = arr_time.split(" ")[-1] if " " in arr_time else "10:00"
+            duration_min = it.get("total_duration") or 90
+            hours = duration_min // 60
+            mins = duration_min % 60
+            dur_str = f"{hours}h {mins}m" if hours > 0 else f"{mins} min"
+
+            airline_url = "https://www.avianca.com/co/es/"
+            if "latam" in airline.lower():
+                airline_url = "https://www.latamairlines.com/co/es/"
+            elif "wingo" in airline.lower():
+                airline_url = "https://www.wingo.com/"
+            elif "jetsmart" in airline.lower():
+                airline_url = "https://jetsmart.com/co/es/"
+
+            results.append({
+                "origin": origin_city,
+                "destination": dest_city,
+                "mode": "flight",
+                "airline": airline,
+                "flightNumber": flight_num,
+                "departureTime": dep_clock,
+                "arrivalTime": arr_clock,
+                "estimatedDuration": dur_str,
+                "estimatedCost": price_per_pax * travelers,
+                "unitPrice": price_per_pax,
+                "quantity": travelers,
+                "airlineBookingUrl": airline_url,
+                "googleFlightsUrl": gf_url,
+                "providerHint": airline,
+                "providerId": f"prov-{airline.lower().replace(' ', '-')[:12]}",
+                "offerId": f"offer-{flight_num.lower().replace(' ', '-')[:15]}",
+                "isRealApi": True,
+            })
+        return results if results else None
+    except Exception as exc:
+        logger.warning(f"SerpApi query failed: {exc}")
+        return None
+
 
 def transport_agent(state: TravelState) -> dict:
+    from langchain_google_genai import ChatGoogleGenerativeAI as _RealChat
+    is_test_mock = globals().get("ChatGoogleGenerativeAI") is not _RealChat
+
+    origin = state.get("origin", "")
+    destination = state.get("destination", "")
+    travelers = state.get("travelers", 1)
+    currency = state.get("currency", "COP")
+
+    # Si hay SERPAPI_API_KEY activa y no estamos en mock de test unitario, consultar SerpApi en vivo
+    serpapi_key = os.getenv("SERPAPI_API_KEY")
+    if serpapi_key and not is_test_mock:
+        start_date_str = str(state.get("startDate") or state.get("start_date") or "")
+        end_date_str = str(state.get("endDate") or state.get("end_date") or "")
+        # Búsqueda oficial ida y vuelta hacia el destino planeado
+        real_outbound = _query_serpapi_flights(origin, destination, start_date_str, travelers, currency, serpapi_key, return_date_str=end_date_str)
+        if real_outbound:
+            round_trip_gf_url = real_outbound[0].get("googleFlightsUrl")
+            real_inbound = []
+            if end_date_str and end_date_str != "No especificada":
+                inbound_raw = _query_serpapi_flights(destination, origin, end_date_str, travelers, currency, serpapi_key) or []
+                for ret_flight in inbound_raw:
+                    # El enlace de Google Flights para el regreso vincula el vuelo completo hacia el destino planeado
+                    ret_flight["googleFlightsUrl"] = round_trip_gf_url or ret_flight.get("googleFlightsUrl")
+                    ret_flight["tripDestination"] = destination
+                    real_inbound.append(ret_flight)
+
+            total_c = sum(r["estimatedCost"] for r in real_outbound[:1]) + sum(r["estimatedCost"] for r in real_inbound[:1])
+            transport_result = {
+                "routeSummary": f"Vuelos comerciales verificados con Google Flights / SerpAPI hacia {destination}",
+                "outbound": real_outbound,
+                "inbound": real_inbound,
+                "totalTransportCost": total_c,
+                "localTransitTips": [f"Usa transporte oficial o taxis autorizados en el aeropuerto de {destination}"],
+            }
+            return {
+                "transport_result": transport_result,
+                "transport_options": real_outbound + real_inbound,
+                "messages": ["Vuelos en tiempo real obtenidos de SerpAPI (Google Flights)."],
+            }
+
     api_key = os.getenv("GOOGLE_API_KEY")
     from application.llm_client import has_ai_key
 
@@ -24,11 +257,6 @@ def transport_agent(state: TravelState) -> dict:
         return {
             "errors": ["Falta configurar GOOGLE_API_KEY para transport_agent."]
         }
-
-    origin = state.get("origin", "")
-    destination = state.get("destination", "")
-    travelers = state.get("travelers", 1)
-    currency = state.get("currency", "COP")
 
     prompt = f"""
 Genera opciones de transporte para un viaje de {origin} a {destination}.

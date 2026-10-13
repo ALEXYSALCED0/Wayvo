@@ -39,6 +39,7 @@ export const checkAvailabilityItemSchema = z.object({
   providerId: z.string().min(1),
   offerId: z.string().min(1),
   quantity: z.number().int().positive(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const checkAvailabilityRequestSchema = z.object({

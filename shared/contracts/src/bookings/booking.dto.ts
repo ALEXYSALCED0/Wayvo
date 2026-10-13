@@ -27,6 +27,7 @@ export interface CreateBookingItemInput {
   description: string;
   quantity: number;
   unitPrice: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreateBookingInput {

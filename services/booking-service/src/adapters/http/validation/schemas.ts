@@ -11,7 +11,8 @@ const itemSchema = z.object({
   description: z.string().default(''),
   quantity: z.number().int(),
   unitPrice: z.number(),
-});
+  metadata: z.record(z.string(), z.unknown()).optional(),
+}).passthrough();
 
 export const createBookingSchema = z.object({
   tripId: z.string().min(1),

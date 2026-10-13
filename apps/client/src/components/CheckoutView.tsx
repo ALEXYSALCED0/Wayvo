@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { WayvoApi } from '../services/api';
 import { TripCheckoutRequest, ConfirmTripSagaResult } from '@wayvo/contracts';
+import { resolveAirportCode } from '../utils/travelLinks';
 
 export const CheckoutView: React.FC = () => {
   const {
@@ -64,51 +65,100 @@ export const CheckoutView: React.FC = () => {
   const inboundFlightCost = inboundFlight ? (transportBudget - outboundFlightCost) : 0;
   const inboundPerPerson = inboundFlight ? Math.round(inboundFlightCost / travelers) : 0;
 
+  const outboundOrigin = resolveAirportCode(tripDraft.origin);
+  const outboundDest = resolveAirportCode(tripDraft.destination);
+  const outboundFlightNum = outboundFlight?.flightNumber || 'Vuelo Directo';
+  const outboundOfferId = (outboundFlight as any)?.offerId || `offer-${outboundFlightNum.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+
+  const inboundOrigin = resolveAirportCode(tripDraft.destination);
+  const inboundDest = resolveAirportCode(tripDraft.origin);
+  const inboundFlightNum = inboundFlight?.flightNumber || 'Vuelo Retorno';
+  const inboundOfferId = (inboundFlight as any)?.offerId || `offer-${inboundFlightNum.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+
+  const hotelName = accommodation?.name || `Hotel en ${tripDraft.destination}`;
+  const hotelOfferId = (accommodation as any)?.offerId || `offer-${hotelName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30)}`;
+  const hotelProviderId = (accommodation as any)?.providerId || `prov-${hotelName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 20)}`;
+
   // Items exactos para la orquestación y el desglose
   const items = [
     {
       type: 'TRANSPORT' as any,
       providerId: (outboundFlight as any)?.providerId || 'prov-aerocaribe',
-      offerId: (outboundFlight as any)?.offerId || 'offer-aerocaribe-bog-ctg-am',
+      offerId: outboundOfferId,
       description: outboundFlight?.airline
-        ? `Vuelo ${outboundFlight.airline} (${outboundFlight.flightNumber || 'Ida'}): ${tripDraft.origin} ➔ ${tripDraft.destination}`
+        ? `Vuelo ${outboundFlight.airline} (${outboundFlightNum}): ${tripDraft.origin} ➔ ${tripDraft.destination}`
         : `Vuelo de Ida ${tripDraft.origin} ➔ ${tripDraft.destination}`,
       quantity: travelers,
       unitPrice: outboundPerPerson,
+      metadata: {
+        originAirport: outboundOrigin,
+        destinationAirport: outboundDest,
+        departureDate: tripDraft.startDate,
+        flightNumber: outboundFlightNum,
+        airline: outboundFlight?.airline || 'Aerolínea',
+        cabinClass: 'economy',
+        isRealApi: (outboundFlight as any)?.isRealApi ?? true,
+      },
     },
     ...(inboundFlight ? [{
       type: 'TRANSPORT' as any,
       providerId: (inboundFlight as any)?.providerId || 'prov-aerocaribe',
-      offerId: (inboundFlight as any)?.offerId || 'offer-aerocaribe-bog-ctg-pm',
-      description: `Vuelo ${inboundFlight.airline || 'Retorno'}: ${tripDraft.destination} ➔ ${tripDraft.origin}`,
+      offerId: inboundOfferId,
+      description: `Vuelo ${inboundFlight?.airline || 'Retorno'}: ${tripDraft.destination} ➔ ${tripDraft.origin}`,
       quantity: travelers,
       unitPrice: inboundPerPerson,
+      metadata: {
+        originAirport: inboundOrigin,
+        destinationAirport: inboundDest,
+        departureDate: tripDraft.endDate || tripDraft.startDate,
+        flightNumber: inboundFlightNum,
+        airline: inboundFlight?.airline || 'Aerolínea',
+        cabinClass: 'economy',
+        isRealApi: (inboundFlight as any)?.isRealApi ?? true,
+      },
     }] : []),
     {
       type: 'ACCOMMODATION' as any,
-      providerId: (accommodation as any)?.providerId || 'prov-hotel-colonial',
-      offerId: (accommodation as any)?.offerId || 'offer-colonial-standard',
+      providerId: hotelProviderId,
+      offerId: hotelOfferId,
       description: accommodation?.name
         ? `${accommodation.name} (${accommodation.nights || 1} noches)`
         : `Alojamiento en ${tripDraft.destination}`,
       quantity: 1,
       unitPrice: accommodationBudget,
+      metadata: {
+        city: tripDraft.destination,
+        cityCode: tripDraft.destination,
+        hotelName: hotelName,
+        hotelCode: (accommodation as any)?.hotelCode || hotelOfferId,
+        checkInDate: tripDraft.startDate,
+        checkOutDate: tripDraft.endDate || tripDraft.startDate,
+        roomType: accommodation?.hotelType || 'Standard',
+        guests: travelers,
+        isRealApi: (accommodation as any)?.isRealApi ?? true,
+      },
     },
     ...(activitiesBudget > 0 ? [{
       type: 'ACTIVITY' as any,
-      providerId: 'prov-guias-cartagena',
-      offerId: 'offer-guia-ciudad-amurallada',
-      description: `Experiencias, gastronomía y actividades en destino`,
+      providerId: `prov-${tripDraft.destination.toLowerCase().replace(/[^a-z0-9]/g, '-')}-tours`,
+      offerId: `offer-${tripDraft.destination.toLowerCase().replace(/[^a-z0-9]/g, '-')}-exp`,
+      description: `Experiencias, gastronomía y actividades en ${tripDraft.destination}`,
       quantity: 1,
       unitPrice: activitiesBudget,
+      metadata: {
+        city: tripDraft.destination,
+      },
     }] : []),
     ...(emergencyBudget > 0 ? [{
       type: 'ACTIVITY' as any,
-      providerId: 'prov-ruta-cafetera',
-      offerId: 'offer-cafetera-finca',
+      providerId: 'prov-wayvo-care',
+      offerId: 'offer-emergency-fund',
       description: `Fondo de imprevistos y contingencias estimadas`,
       quantity: 1,
       unitPrice: emergencyBudget,
+      metadata: {
+        city: tripDraft.destination,
+      },
     }] : []),
   ];
 
@@ -186,6 +236,7 @@ export const CheckoutView: React.FC = () => {
                 userId: tripDraft.userId || 'usr-client',
                 title: tripDraft.title || `Viaje a ${tripDraft.destination}`,
                 destination: tripDraft.destination,
+                origin: tripDraft.origin,
                 startDate: tripDraft.startDate,
                 endDate: tripDraft.endDate,
                 status: 'CONFIRMED',
@@ -198,6 +249,7 @@ export const CheckoutView: React.FC = () => {
               userId: tripDraft.userId || 'usr-client',
               title: tripDraft.title || `Viaje a ${tripDraft.destination}`,
               destination: tripDraft.destination,
+              origin: tripDraft.origin,
               startDate: tripDraft.startDate,
               endDate: tripDraft.endDate,
               status: 'CONFIRMED',

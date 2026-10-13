@@ -63,22 +63,28 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
       badge?: string;
     }[] = [];
 
-    // 1. HOTEL / ALOJAMIENTO
+    // 1. HOTEL / ALOJAMIENTO (Conexión directa con Google Travel / API y Booking)
     if (type === 'HOTEL' || type === 'ACCOMMODATION') {
-      const hotelName = details.venueName || event.title;
+      const hotelName = details.venueName || details.hotelName || event.title;
+      const eventDate = (event as any).startDateTime?.split('T')[0] || '';
+      const apiBookingUrl = details.bookingUrl || (event as any).bookingUrl;
+
+      if (apiBookingUrl) {
+        links.push({
+          label: `Ver Hotel en Google Travel (${hotelName})`,
+          url: apiBookingUrl,
+          icon: 'hotel',
+          color: 'bg-primary text-on-primary hover:bg-secondary',
+          badge: 'Google Travel',
+        });
+      }
+
       links.push({
-        label: `Ver Disponibilidad en Booking.com (${hotelName})`,
-        url: getBookingHotelUrl(hotelName, destination),
-        icon: 'hotel',
-        color: 'bg-primary text-on-primary',
-        badge: 'Booking.com',
-      });
-      links.push({
-        label: `Ver Tarifas en Hoteles.com`,
-        url: getHotelesUrl(hotelName, destination),
+        label: `Ver Tarifas en Booking.com`,
+        url: getBookingHotelUrl(hotelName, destination, eventDate),
         icon: 'travel_explore',
-        color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
-        badge: 'Hoteles.com',
+        color: apiBookingUrl ? 'bg-surface-container hover:bg-secondary-fixed text-primary' : 'bg-primary text-on-primary',
+        badge: 'Booking.com',
       });
       links.push({
         label: `Ficha y Ubicación en Google Maps`,
@@ -91,53 +97,66 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
     // 2. VUELOS Y TRANSPORTE AÉREO (Pre-cargados con fechas y ruta en Kayak + Portales limpios)
     if (type === 'FLIGHT' || type === 'TRANSPORT') {
-      const airlineName = details.airline || (event.title.includes('LATAM') ? 'LATAM' : 'Avianca');
+      const airlineName = details.airline || (event.title.includes('LATAM') ? 'LATAM' : (event.title.includes('Wingo') ? 'Wingo' : 'Avianca'));
       const isLatam = airlineName.toLowerCase().includes('latam');
-      const airlineKey = isLatam ? 'LATAM' : 'AVIANCA';
+      const isWingo = airlineName.toLowerCase().includes('wingo');
+      const airlineKey = isLatam ? 'LATAM' : (isWingo ? 'WINGO' : 'AVIANCA');
 
-      // Determinar origen y destino de vuelo con precisión
-      let flightOrigin = origin || 'Bogotá';
-      let flightDest = destination;
-
-      if (event.title.includes('➔')) {
-        const parts = event.title.split('➔');
-        const p1 = parts[0]
-          .replace(/vuelo/i, '')
-          .replace(/de ida/i, '')
-          .replace(/de regreso/i, '')
-          .replace(/de retorno/i, '')
-          .trim();
-        const p2 = parts[1].trim();
-        if (p1) flightOrigin = p1;
-        if (p2) flightDest = p2;
-      } else if (
+      const isReturnFlight =
         event.title.toLowerCase().includes('regreso') ||
         event.title.toLowerCase().includes('retorno') ||
         event.title.toLowerCase().includes('vuelta') ||
-        event.title.toLowerCase().includes('salida')
-      ) {
-        // En vuelo de regreso se sale del destino hacia la ciudad de origen
+        Boolean(details.isReturn);
+
+      let flightOrigin = origin || 'Bogotá';
+      let flightDest = destination;
+
+      if (details.origin && details.destination) {
+        flightOrigin = details.origin;
+        flightDest = details.destination;
+      } else if (event.title.includes('➔')) {
+        const parts = event.title.split('➔');
+        const p1 = parts[0].split(':').pop()?.replace(/vuelo/i, '').trim();
+        const p2 = parts[1].trim();
+        if (p1) flightOrigin = p1;
+        if (p2) flightDest = p2;
+      } else if (isReturnFlight) {
         flightOrigin = destination;
         flightDest = origin || 'Bogotá';
       }
 
+      const eventDate = (event as any).startDateTime?.split('T')[0] || '';
+
+      if (details.googleFlightsUrl) {
+        links.push({
+          label: `Ver Vuelo Confirmado en Google Flights`,
+          url: details.googleFlightsUrl,
+          icon: 'flight',
+          color: 'bg-secondary text-on-secondary hover:bg-secondary/90',
+          badge: 'Tarifas Oficiales',
+        });
+      }
+
+      const targetDestination = details.tripDestination || destination;
+
       links.push({
-        label: `Ver Vuelos ${airlineName} (${flightOrigin} ➔ ${flightDest})`,
+        label: `Buscar Vuelos a ${targetDestination} en Kayak`,
         url: getKayakFlightUrl({
-          origin: flightOrigin,
-          destination: flightDest,
-          startDate: (event as any).startDateTime?.split('T')[0] || '',
+          origin: origin || 'Bogotá',
+          destination: targetDestination,
+          startDate: eventDate,
           travelers: 2,
           airline: airlineKey,
         }),
-        icon: 'flight_takeoff',
+        icon: isReturnFlight ? 'travel_explore' : 'flight_takeoff',
         color: 'bg-primary text-on-primary',
-        badge: 'Vuelos en Vivo',
+        badge: 'Destino Planeado',
       });
 
+      const portal = OFFICIAL_AIRLINE_PORTALS[airlineKey] || OFFICIAL_AIRLINE_PORTALS.AVIANCA;
       links.push({
-        label: `${OFFICIAL_AIRLINE_PORTALS[airlineKey].label}`,
-        url: OFFICIAL_AIRLINE_PORTALS[airlineKey].url,
+        label: `${portal.label}`,
+        url: details.airlineBookingUrl || portal.url,
         icon: 'flight',
         color: 'bg-surface-container hover:bg-secondary-fixed text-primary',
         badge: 'Web Oficial',

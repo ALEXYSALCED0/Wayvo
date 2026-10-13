@@ -10,6 +10,7 @@ export interface ProviderReservationRequest {
     providerId: string;
     offerId: string;
     quantity: number;
+    metadata?: Record<string, unknown>;
   }>;
 }
 

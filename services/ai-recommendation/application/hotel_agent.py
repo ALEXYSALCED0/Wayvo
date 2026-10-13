@@ -21,6 +21,76 @@ from application.json_utils import extract_and_parse_json
 
 logger = logging.getLogger("ai_recommendation.hotel_agent")
 
+
+def _query_hotels_api(destination: str, category: str, travelers: int, nights: int, currency: str, api_key: str) -> Dict[str, Any] | None:
+    import json
+    import unicodedata
+    import urllib.parse
+    import urllib.request
+    try:
+        city_raw = destination.split(",")[0].strip()
+        city_norm = unicodedata.normalize("NFKD", city_raw).encode("ascii", "ignore").decode().strip()
+        if not city_norm:
+            return None
+
+        url = f"https://api.hotels-api.com/v2/hotels/search?city={urllib.parse.quote(city_norm)}&limit=15"
+        req = urllib.request.Request(url, headers={"X-API-KEY": api_key, "User-Agent": "Wayvo/1.0"})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode())
+
+        hotels = data.get("data") or []
+        if not hotels:
+            return None
+
+        selected = None
+        if category == "Lujo":
+            lux_candidates = [h for h in hotels if (h.get("rating") or 0) >= 4]
+            selected = lux_candidates[0] if lux_candidates else hotels[0]
+        elif category == "Económico":
+            econ_candidates = [h for h in hotels if (h.get("rating") or 0) <= 3]
+            selected = econ_candidates[0] if econ_candidates else hotels[-1]
+        else:
+            std_candidates = [h for h in hotels if (h.get("rating") or 0) in (3, 4)]
+            selected = std_candidates[0] if std_candidates else hotels[0]
+
+        h_name = selected.get("name")
+        if not h_name:
+            return None
+
+        rooms = max(1, ceil(travelers / PERSONS_PER_ROOM))
+        rates = NIGHTLY_RATE_PER_ROOM.get(currency, NIGHTLY_RATE_PER_ROOM["COP"])
+        rate = rates.get(category, rates[DEFAULT_CATEGORY])
+        total_cost = round(rate * rooms * nights, 2)
+
+        amenities = selected.get("amenities") or []
+        amenities_str = ", ".join(amenities[:4]).replace("_", " ").title() if amenities else "WiFi de alta velocidad, Recepción 24h"
+        address = selected.get("address") or f"Zona Turística, {destination}"
+
+        booking_query = f"{h_name} {destination}".replace(" ", "+")
+        booking_url = f"https://www.google.com/travel/hotels?q={booking_query}"
+
+        return {
+            "id": f"hotel-{selected.get('id', 'api1')}",
+            "name": h_name,
+            "hotelType": f"Hotel {selected.get('rating', 4)}★ ({category})",
+            "location": address,
+            "description": f"Ubicado en {address}. Servicios destacados: {amenities_str}.",
+            "nights": nights,
+            "rooms": rooms,
+            "nightlyRate": rate,
+            "unitPrice": rate,
+            "quantity": rooms * nights,
+            "estimatedCost": total_cost,
+            "currency": currency,
+            "bookingUrl": booking_url,
+            "providerId": "prov-hotels-api",
+            "offerId": f"offer-hotel-{selected.get('id')}",
+            "isRealApi": True,
+        }
+    except Exception as exc:
+        logger.warning(f"Hotels API query failed: {exc}")
+        return None
+
 VERIFIED_HOTELS = {
     "nueva york": {
         "Económico": {
@@ -172,6 +242,13 @@ def find_real_hotel(
     rates = NIGHTLY_RATE_PER_ROOM.get(currency, NIGHTLY_RATE_PER_ROOM["COP"])
     rate = rates.get(cat_key, rates[DEFAULT_CATEGORY])
     total_cost = round(rate * rooms * nights, 2)
+
+    # 0. Si hay HOTELS_API_KEY activa y no estamos en mock de test unitario, consultar Hotels API en vivo
+    hotels_api_key = os.getenv("HOTELS_API_KEY")
+    if hotels_api_key and not os.getenv("PYTEST_CURRENT_TEST"):
+        real_h = _query_hotels_api(destination, cat_key, travelers, nights, currency, hotels_api_key)
+        if real_h:
+            return real_h
 
     # 1. Verificar catálogo verificado de hoteles de alta reputación
     for city_key, city_hotels in VERIFIED_HOTELS.items():
