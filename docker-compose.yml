@@ -76,7 +76,7 @@ services:
       FAKE_PROVIDER_MODE: ok
       TRIP_SERVICE_URL: http://trip-service:3003
       PROVIDER_SERVICE_URL: http://provider-service:3002
-      HTTP_TIMEOUT_MS: 5000
+      HTTP_TIMEOUT_MS: 30000
     ports:
       - "3001:3001"
     depends_on:
@@ -101,7 +101,7 @@ services:
       SERPAPI_CURRENCY: ${SERPAPI_CURRENCY:-COP}
       HOTELS_API_KEY: ${HOTELS_API_KEY:-a77f3de04ec325726bc983587daae9066000032b55fa90c2c64ed75d597b7c3a}
       HOTELS_API_LIMIT: ${HOTELS_API_LIMIT:-20}
-      EXTERNAL_API_TIMEOUT_MS: ${EXTERNAL_API_TIMEOUT_MS:-10000}
+      EXTERNAL_API_TIMEOUT_MS: ${EXTERNAL_API_TIMEOUT_MS:-15000}
     ports:
       - "3002:3002"
     depends_on:
@@ -164,6 +164,7 @@ services:
       PROVIDER_SERVICE_URL: http://provider-service:3002
       TRIP_SERVICE_URL: http://trip-service:3003
       AI_SERVICE_URL: http://ai-recommendation:8000
+      HTTP_TIMEOUT_MS: 35000
       CORS_ORIGIN: "*"
     ports:
       - "3000:3000"

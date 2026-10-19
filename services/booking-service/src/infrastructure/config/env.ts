@@ -27,6 +27,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     fakeProviderMode: oneOf(env.FAKE_PROVIDER_MODE, ['ok', 'unavailable', 'error'] as const, 'ok'),
     tripServiceUrl: env.TRIP_SERVICE_URL ?? 'http://localhost:3003',
     providerServiceUrl: env.PROVIDER_SERVICE_URL ?? 'http://localhost:3002',
-    httpTimeoutMs: Number(env.HTTP_TIMEOUT_MS ?? 5000),
+    httpTimeoutMs: Number(env.HTTP_TIMEOUT_MS ?? 30000),
   };
 }

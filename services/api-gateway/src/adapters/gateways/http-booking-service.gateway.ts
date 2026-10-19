@@ -10,7 +10,7 @@ import { config } from '../../infrastructure/config/env';
 export class HttpBookingServiceGateway implements BookingServicePort {
   constructor(
     private readonly baseUrl: string,
-    private readonly timeoutMs: number = 8000,
+    private readonly timeoutMs: number = 35000,
   ) {}
 
   async executeConfirmTripSaga(
