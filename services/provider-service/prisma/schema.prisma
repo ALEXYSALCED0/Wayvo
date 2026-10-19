@@ -1,0 +1,72 @@
+// Esquema de la Provider DB (PostgreSQL). Solo provider-service la usa:
+// en microservicios cada servicio es dueño de su propia base de datos.
+
+// El cliente se genera dentro de este servicio: en el monorepo @prisma/client está compartido (hoisted)
+// y booking-service generaría el suyo en el mismo lugar, pisándose entre sí.
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/provider-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProviderType {
+  TRANSPORT
+  ACCOMMODATION
+  ACTIVITY
+  TOUR_GUIDE
+}
+
+enum VerificationStatus {
+  VERIFIED
+  PENDING
+  REJECTED
+}
+
+enum ServiceOfferType {
+  TRANSPORT
+  ACCOMMODATION
+  ACTIVITY
+}
+
+model Provider {
+  id                 String             @id
+  name               String
+  type               ProviderType
+  verificationStatus VerificationStatus @map("verification_status")
+  verificationNote   String?            @map("verification_note")
+  contactEmail       String             @map("contact_email")
+  contactPhone       String?            @map("contact_phone")
+  rating             Decimal?           @db.Decimal(2, 1)
+  websiteUrl         String?            @map("website_url")
+  createdAt          DateTime           @map("created_at")
+  updatedAt          DateTime           @map("updated_at")
+  offers             ServiceOffer[]
+
+  @@index([type, verificationStatus])
+  @@map("providers")
+}
+
+model ServiceOffer {
+  id                String           @id
+  providerId        String           @map("provider_id")
+  type              ServiceOfferType
+  title             String
+  description       String
+  unitPrice         Decimal          @map("unit_price") @db.Decimal(14, 2)
+  currency          String           @db.VarChar(3)
+  availableCapacity Int              @map("available_capacity")
+  active            Boolean          @default(true)
+  // Datos para ubicar la oferta en la API externa (los adapters los leen)
+  metadata          Json             @default("{}")
+  createdAt         DateTime         @map("created_at")
+  updatedAt         DateTime         @map("updated_at")
+  provider          Provider         @relation(fields: [providerId], references: [id], onDelete: Restrict)
+
+  @@index([providerId])
+  @@index([type, active])
+  @@map("service_offers")
+}

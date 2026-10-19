@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wayvo.app/schemas/gateway.schema.json",
+  "title": "Wayvo API Gateway Facade Contracts Schema",
+  "description": "Schemas for Facade endpoints: Trip Planning (/api/v1/trips/plan) and Checkout (/api/v1/trips/checkout)",
+  "definitions": {
+    "TripPlanRequest": {
+      "$ref": "./profiles.schema.json#/definitions/OnboardingProfileInput"
+    },
+    "TripPlanResponse": {
+      "type": "object",
+      "required": ["plan"],
+      "properties": {
+        "plan": {
+          "$ref": "./profiles.schema.json#/definitions/AIPlanRecommendationResult"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TripCheckoutRequest": {
+      "$ref": "./bookings.schema.json#/definitions/ConfirmTripSagaInput"
+    },
+    "TripCheckoutResponse": {
+      "type": "object",
+      "required": ["saga"],
+      "properties": {
+        "saga": {
+          "$ref": "./bookings.schema.json#/definitions/ConfirmTripSagaResult"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,5 @@
+export enum BookingItemType {
+  TRANSPORT = 'TRANSPORT',
+  ACCOMMODATION = 'ACCOMMODATION',
+  ACTIVITY = 'ACTIVITY',
+}

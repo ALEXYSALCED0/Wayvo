@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wayvo.app/schemas/bookings.schema.json",
+  "title": "Wayvo Bookings Contracts Schema",
+  "description": "Schemas for Bookings, Items, Saga Orchestrator, and Compensation Logs",
+  "definitions": {
+    "BookingStatus": {
+      "type": "string",
+      "enum": ["PENDING", "CONFIRMED", "CANCELLED"]
+    },
+    "BookingItemType": {
+      "type": "string",
+      "enum": ["TRANSPORT", "ACCOMMODATION", "ACTIVITY"]
+    },
+    "SagaStep": {
+      "type": "string",
+      "enum": [
+        "CREATE_TRIP",
+        "CREATE_BOOKING",
+        "RESERVE_PROVIDER",
+        "CONFIRM",
+        "COMPENSATE_BOOKING",
+        "COMPENSATE_TRIP"
+      ]
+    },
+    "StepOutcome": {
+      "type": "string",
+      "enum": ["SUCCEEDED", "FAILED"]
+    },
+    "CreateBookingItemInput": {
+      "type": "object",
+      "required": ["type", "providerId", "offerId", "quantity", "unitPrice"],
+      "properties": {
+        "type": { "$ref": "#/definitions/BookingItemType" },
+        "providerId": { "type": "string" },
+        "offerId": { "type": "string" },
+        "description": { "type": "string" },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "unitPrice": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "CreateBookingInput": {
+      "type": "object",
+      "required": ["tripId", "userId", "currency", "items"],
+      "properties": {
+        "tripId": { "type": "string" },
+        "userId": { "type": "string" },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/CreateBookingItemInput" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "CancelBookingInput": {
+      "type": "object",
+      "required": ["bookingId", "reason"],
+      "properties": {
+        "bookingId": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "BookingItemOutput": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "providerId",
+        "offerId",
+        "description",
+        "quantity",
+        "unitPrice",
+        "subtotal"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "$ref": "#/definitions/BookingItemType" },
+        "providerId": { "type": "string" },
+        "offerId": { "type": "string" },
+        "description": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "unitPrice": { "type": "number" },
+        "subtotal": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "BookingOutput": {
+      "type": "object",
+      "required": [
+        "id",
+        "tripId",
+        "userId",
+        "currency",
+        "status",
+        "totalAmount",
+        "items",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "tripId": { "type": "string" },
+        "userId": { "type": "string" },
+        "currency": { "type": "string" },
+        "status": { "$ref": "#/definitions/BookingStatus" },
+        "totalAmount": { "type": "number" },
+        "cancellationReason": { "type": ["string", "null"] },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/BookingItemOutput" }
+        },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ConfirmTripSagaInput": {
+      "type": "object",
+      "required": ["userId", "currency", "trip", "items"],
+      "properties": {
+        "correlationId": { "type": "string" },
+        "userId": { "type": "string" },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+        "trip": {
+          "type": "object",
+          "required": ["destination", "startDate", "endDate"],
+          "properties": {
+            "destination": { "type": "string" },
+            "startDate": { "type": "string" },
+            "endDate": { "type": "string" },
+            "origin": { "type": "string" },
+            "title": { "type": "string" },
+            "travelers": { "type": "integer" }
+          }
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/CreateBookingItemInput" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ConfirmTripSagaResult": {
+      "type": "object",
+      "required": ["correlationId", "status"],
+      "properties": {
+        "correlationId": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["CONFIRMED", "COMPENSATED", "COMPENSATION_FAILED"]
+        },
+        "tripId": { "type": ["string", "null"] },
+        "bookingId": { "type": ["string", "null"] },
+        "reservationCode": { "type": ["string", "null"] },
+        "failedStep": {
+          "oneOf": [
+            { "$ref": "#/definitions/SagaStep" },
+            { "type": "null" }
+          ]
+        },
+        "reason": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "CompensationLogEntry": {
+      "type": "object",
+      "required": ["step", "outcome", "at"],
+      "properties": {
+        "step": { "$ref": "#/definitions/SagaStep" },
+        "outcome": { "$ref": "#/definitions/StepOutcome" },
+        "detail": { "type": ["string", "null"] },
+        "at": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "CompensationLog": {
+      "type": "object",
+      "required": ["id", "correlationId", "failedStep", "reason", "entries", "createdAt"],
+      "properties": {
+        "id": { "type": "string" },
+        "correlationId": { "type": "string" },
+        "tripId": { "type": ["string", "null"] },
+        "bookingId": { "type": ["string", "null"] },
+        "failedStep": { "$ref": "#/definitions/SagaStep" },
+        "reason": { "type": "string" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CompensationLogEntry" }
+        },
+        "createdAt": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

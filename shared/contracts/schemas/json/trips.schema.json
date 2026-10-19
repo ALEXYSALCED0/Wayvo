@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wayvo.app/schemas/trips.schema.json",
+  "title": "Wayvo Trips Contracts Schema",
+  "description": "Schemas for Trips, Events, Itinerary, Incidents, and Mediator",
+  "definitions": {
+    "EventType": {
+      "type": "string",
+      "enum": [
+        "TRANSPORT",
+        "FLIGHT",
+        "MEAL",
+        "MUSEUM",
+        "TOUR",
+        "HOTEL",
+        "ACTIVITY"
+      ]
+    },
+    "EventStatus": {
+      "type": "string",
+      "enum": ["PENDING", "COMPLETED", "ISSUE", "CANCELLED"]
+    },
+    "ReservationStatus": {
+      "type": "string",
+      "enum": ["NOT_RESERVED", "CONFIRMED"]
+    },
+    "TripStatus": {
+      "type": "string",
+      "enum": ["PENDING", "CONFIRMED", "CANCELLED", "active", "upcoming", "past"]
+    },
+    "IssueType": {
+      "type": "string",
+      "enum": ["MISSED", "CANCELLED", "USER_CHANGED_PLAN", "UNAVAILABLE"]
+    },
+    "EventDetails": {
+      "type": "object",
+      "properties": {
+        "platform": { "type": "string" },
+        "seat": { "type": "string" },
+        "car": { "type": "string" },
+        "bookingRef": { "type": "string" },
+        "qrAvailable": { "type": "boolean" },
+        "price": { "type": "number", "minimum": 0 },
+        "classType": { "type": "string" },
+        "provider": { "type": "string" },
+        "confirmationCode": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "InjectedEventPreview": {
+      "type": "object",
+      "required": ["title", "description", "time", "type"],
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "time": { "type": "string" },
+        "type": { "$ref": "#/definitions/EventType" },
+        "typeLabel": { "type": "string" },
+        "location": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "AlternativeOption": {
+      "type": "object",
+      "required": ["id", "title", "description", "newEventsToInject"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string" },
+        "typeLabel": { "type": "string" },
+        "provider": { "type": "string" },
+        "departureTime": { "type": "string" },
+        "arrivalTime": { "type": "string" },
+        "duration": { "type": "string" },
+        "price": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string" },
+        "isFastest": { "type": "boolean" },
+        "isBestValue": { "type": "boolean" },
+        "isRecommended": { "type": "boolean" },
+        "scoreMatch": { "type": "number", "minimum": 0, "maximum": 100 },
+        "newEventsToInject": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/InjectedEventPreview" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Event": {
+      "type": "object",
+      "required": [
+        "id",
+        "tripId",
+        "type",
+        "title",
+        "startDateTime",
+        "time",
+        "status",
+        "reservationStatus",
+        "order"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "tripId": { "type": "string" },
+        "type": { "$ref": "#/definitions/EventType" },
+        "typeLabel": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "location": { "type": "string" },
+        "startDateTime": { "type": "string" },
+        "endDateTime": { "type": "string" },
+        "time": { "type": "string" },
+        "status": { "$ref": "#/definitions/EventStatus" },
+        "statusLabel": { "type": "string" },
+        "reservationStatus": { "$ref": "#/definitions/ReservationStatus" },
+        "order": { "type": "integer" },
+        "details": { "$ref": "#/definitions/EventDetails" },
+        "isAlternative": { "type": "boolean" },
+        "alternativeBadge": { "type": "string" },
+        "alternatives": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AlternativeOption" }
+        },
+        "issueReason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "TripDraft": {
+      "type": "object",
+      "required": ["userId", "destination", "startDate", "endDate"],
+      "properties": {
+        "userId": { "type": "string" },
+        "destination": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "origin": { "type": "string" },
+        "title": { "type": "string" },
+        "travelers": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "CreateTripInput": {
+      "type": "object",
+      "required": ["userId", "destination", "startDate", "endDate"],
+      "properties": {
+        "userId": { "type": "string" },
+        "destination": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "origin": { "type": "string" },
+        "title": { "type": "string" },
+        "travelers": { "type": "integer", "minimum": 1 },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "status": { "$ref": "#/definitions/TripStatus" }
+      },
+      "additionalProperties": false
+    },
+    "Trip": {
+      "type": "object",
+      "required": ["id", "userId", "destination", "startDate", "endDate", "status"],
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "origin": { "type": "string" },
+        "destination": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "dates": { "type": "string" },
+        "status": { "$ref": "#/definitions/TripStatus" },
+        "statusLabel": { "type": "string" },
+        "travelers": { "type": "integer" },
+        "progressDays": { "type": "string" },
+        "progressPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "imageUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Event" }
+        },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ReportIncidentInput": {
+      "type": "object",
+      "required": ["tripId", "eventId", "type", "reason"],
+      "properties": {
+        "tripId": { "type": "string" },
+        "eventId": { "type": "string" },
+        "type": { "$ref": "#/definitions/IssueType" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "SelectAlternativeInput": {
+      "type": "object",
+      "required": ["tripId", "eventId", "alternativeId"],
+      "properties": {
+        "tripId": { "type": "string" },
+        "eventId": { "type": "string" },
+        "alternativeId": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "TripMediatorIncidentResult": {
+      "type": "object",
+      "required": ["affectedEvent", "alternatives", "updatedTrip"],
+      "properties": {
+        "affectedEvent": { "$ref": "#/definitions/Event" },
+        "alternatives": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AlternativeOption" }
+        },
+        "updatedTrip": { "$ref": "#/definitions/Trip" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

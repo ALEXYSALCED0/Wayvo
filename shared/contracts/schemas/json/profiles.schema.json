@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wayvo.app/schemas/profiles.schema.json",
+  "title": "Wayvo Profiles & AI Contracts Schema",
+  "description": "Schemas for User Profiling, Onboarding, and Python LangGraph Multiagent Outputs",
+  "definitions": {
+    "TravelStyle": {
+      "type": "string",
+      "enum": [
+        "Aventura",
+        "Relax",
+        "Cultural",
+        "Inversión",
+        "Gastronómico",
+        "Eco-Turismo"
+      ]
+    },
+    "BudgetCategory": {
+      "type": "string",
+      "enum": [
+        "Económico",
+        "Estándar",
+        "Lujo",
+        "Personalizado"
+      ]
+    },
+    "PacePreference": {
+      "type": "string",
+      "enum": ["Relajado", "Moderado", "Intenso"]
+    },
+    "PsychologicalAssessment": {
+      "type": "object",
+      "required": [
+        "spontaneityScore",
+        "comfortPriority",
+        "culturalCuriosity",
+        "socialPreference",
+        "physicalActivityLevel"
+      ],
+      "properties": {
+        "spontaneityScore": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "comfortPriority": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "culturalCuriosity": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "socialPreference": {
+          "type": "string",
+          "enum": ["solo", "couple", "family", "friends", "group"]
+        },
+        "physicalActivityLevel": {
+          "type": "string",
+          "enum": ["low", "moderate", "high"]
+        },
+        "interests": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "OnboardingProfileInput": {
+      "type": "object",
+      "required": [
+        "origin",
+        "destination",
+        "startDate",
+        "endDate",
+        "travelers",
+        "budgetCategory",
+        "psychologicalAssessment"
+      ],
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "origin": { "type": "string" },
+        "destination": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "travelers": { "type": "integer", "minimum": 1 },
+        "budgetCategory": { "$ref": "#/definitions/BudgetCategory" },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+        "approximateBudgetAmount": { "type": "number", "minimum": 0 },
+        "psychologicalAssessment": { "$ref": "#/definitions/PsychologicalAssessment" },
+        "dietaryRestrictions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "travelStylePreference": { "$ref": "#/definitions/TravelStyle" }
+      },
+      "additionalProperties": false
+    },
+    "PersonalityAgentOutput": {
+      "type": "object",
+      "required": ["analyzedStyle", "traitSummary", "dominantPace", "recommendedVibe"],
+      "properties": {
+        "analyzedStyle": { "$ref": "#/definitions/TravelStyle" },
+        "traitSummary": { "type": "string" },
+        "dominantPace": { "$ref": "#/definitions/PacePreference" },
+        "psychologicalNotes": { "type": "string" },
+        "recommendedVibe": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "BudgetAgentOutput": {
+      "type": "object",
+      "required": ["category", "currency", "estimatedTotalCost", "dailyBudget", "breakdown"],
+      "properties": {
+        "category": { "$ref": "#/definitions/BudgetCategory" },
+        "currency": { "type": "string" },
+        "estimatedTotalCost": { "type": "number" },
+        "dailyBudget": { "type": "number" },
+        "breakdown": {
+          "type": "object",
+          "required": ["transport", "accommodation", "activities", "food"],
+          "properties": {
+            "transport": { "type": "number" },
+            "accommodation": { "type": "number" },
+            "activities": { "type": "number" },
+            "food": { "type": "number" },
+            "emergencyFund": { "type": "number" }
+          }
+        },
+        "savingsTips": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "TransportAgentOutput": {
+      "type": "object",
+      "required": ["routeSummary", "outbound", "totalTransportCost"],
+      "properties": {
+        "routeSummary": { "type": "string" },
+        "outbound": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["origin", "destination", "mode", "estimatedDuration", "estimatedCost"],
+            "properties": {
+              "origin": { "type": "string" },
+              "destination": { "type": "string" },
+              "mode": { "type": "string" },
+              "departureTime": { "type": "string" },
+              "arrivalTime": { "type": "string" },
+              "estimatedDuration": { "type": "string" },
+              "estimatedCost": { "type": "number" },
+              "providerHint": { "type": "string" }
+            }
+          }
+        },
+        "inbound": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "localTransitTips": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "totalTransportCost": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "ActivitiesFoodAgentOutput": {
+      "type": "object",
+      "required": ["gastronomy", "activities", "culturalHighlights"],
+      "properties": {
+        "gastronomy": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["dish", "typicalPlace", "description", "mealType", "estimatedCost"],
+            "properties": {
+              "dish": { "type": "string" },
+              "typicalPlace": { "type": "string" },
+              "description": { "type": "string" },
+              "mealType": { "type": "string" },
+              "estimatedCost": { "type": "number" },
+              "dietaryMatch": { "type": "boolean" }
+            }
+          }
+        },
+        "activities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "category", "description", "duration", "estimatedCost", "bestTimeOfDay", "bookingRequired"],
+            "properties": {
+              "title": { "type": "string" },
+              "category": { "type": "string" },
+              "description": { "type": "string" },
+              "duration": { "type": "string" },
+              "estimatedCost": { "type": "number" },
+              "bestTimeOfDay": { "type": "string" },
+              "bookingRequired": { "type": "boolean" }
+            }
+          }
+        },
+        "culturalHighlights": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "AIPlanRecommendationResult": {
+      "type": "object",
+      "required": [
+        "planId",
+        "tripDraft",
+        "personality",
+        "budget",
+        "transport",
+        "experiences",
+        "itinerary",
+        "suggestedBookingItems"
+      ],
+      "properties": {
+        "planId": { "type": "string" },
+        "tripDraft": { "type": "object" },
+        "personality": { "$ref": "#/definitions/PersonalityAgentOutput" },
+        "budget": { "$ref": "#/definitions/BudgetAgentOutput" },
+        "transport": { "$ref": "#/definitions/TransportAgentOutput" },
+        "experiences": { "$ref": "#/definitions/ActivitiesFoodAgentOutput" },
+        "itinerary": { "type": "object" },
+        "suggestedBookingItems": { "type": "array" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
