@@ -36,6 +36,14 @@ export class TripService {
     return trip;
   }
 
+  // Multiusuario: el viaje solo existe para su dueño. Si pertenece a otro usuario
+  // se responde igual que si no existiera (404), para no revelar viajes ajenos.
+  async getTripForUser(tripId: string, userId: string): Promise<Trip> {
+    const trip = await this.getTrip(tripId);
+    if (!trip.isOwnedBy(userId)) throw new TripNotFoundError(tripId);
+    return trip;
+  }
+
   async addEventsToTrip(
     tripId: string,
     events: Parameters<Trip['addEvent']>[0][],

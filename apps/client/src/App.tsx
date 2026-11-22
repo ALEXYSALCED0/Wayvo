@@ -1,5 +1,7 @@
 import React from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthView } from './components/AuthView';
 import { Navbar } from './components/Navbar';
 import { LandingView } from './components/LandingView';
 import { MyTripsView } from './components/MyTripsView';
@@ -70,10 +72,34 @@ function AppContent() {
   );
 }
 
-export default function App() {
+// Multiusuario: sin sesión solo se ve la pantalla de login/registro.
+// AppProvider se monta con key = id del usuario: al cambiar de cuenta todo el
+// estado de la app (viajes, plan, itinerario) se reinicia y no se mezcla entre usuarios.
+function AuthGate() {
+  const { status, user } = useAuth();
+
+  if (status === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface text-on-surface-variant gap-2 text-sm">
+        <span className="material-symbols-outlined animate-spin text-secondary">progress_activity</span>
+        <span>Verificando tu sesión...</span>
+      </div>
+    );
+  }
+
+  if (status === 'anonymous' || !user) return <AuthView />;
+
   return (
-    <AppProvider>
+    <AppProvider key={user.id} userId={user.id}>
       <AppContent />
     </AppProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AuthGate />
+    </AuthProvider>
   );
 }

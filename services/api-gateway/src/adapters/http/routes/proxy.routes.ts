@@ -6,6 +6,17 @@ import { config } from '../../../infrastructure/config/env';
 export const proxyRouter = Router();
 
 // ==========================================
+// 0. AUTH SERVICE (:3004) - Multiusuario (registro, login, /me)
+// ==========================================
+proxyRouter.use(
+  '/api/v1/auth',
+  createServiceProxy({
+    serviceName: 'auth-service',
+    target: config.AUTH_SERVICE_URL,
+  }),
+);
+
+// ==========================================
 // 1. BOOKING SERVICE (:3001) - Dev 1 (Saga Orchestrator)
 // ==========================================
 proxyRouter.use(

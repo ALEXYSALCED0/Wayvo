@@ -11,6 +11,7 @@ import {
   CORRELATION_ID_HEADER,
   SagaStep,
 } from '@wayvo/contracts';
+import { authHeader } from './auth-helpers';
 
 describe('TripFacade - GoF Structural Pattern Tests', () => {
   // Mock implementations of ports
@@ -96,6 +97,7 @@ describe('TripFacade - GoF Structural Pattern Tests', () => {
 
       const res = await request(app)
         .post('/api/v1/trips/plan')
+        .set('Authorization', authHeader('usr-alexy'))
         .set(CORRELATION_ID_HEADER, 'corr-plan-test')
         .send(samplePlanInput);
 
@@ -120,6 +122,7 @@ describe('TripFacade - GoF Structural Pattern Tests', () => {
       const testApp = createApp({ tripFacade: facadeWithFailingAi });
       const res = await request(testApp)
         .post('/api/v1/trips/plan')
+        .set('Authorization', authHeader('usr-alexy'))
         .send(samplePlanInput);
 
       expect(res.status).toBe(500);
@@ -132,6 +135,7 @@ describe('TripFacade - GoF Structural Pattern Tests', () => {
 
       const res = await request(app)
         .post('/api/v1/trips/plan')
+        .set('Authorization', authHeader('usr-alexy'))
         .send(invalidInput);
 
       expect(res.status).toBe(500); // Caught by global error handler
@@ -156,6 +160,7 @@ describe('TripFacade - GoF Structural Pattern Tests', () => {
 
       const res = await request(app)
         .post('/api/v1/trips/checkout')
+        .set('Authorization', authHeader('usr-alexy'))
         .set(CORRELATION_ID_HEADER, 'corr-checkout-ok')
         .send(sampleCheckoutInput);
 
@@ -181,6 +186,7 @@ describe('TripFacade - GoF Structural Pattern Tests', () => {
 
       const res = await request(app)
         .post('/api/v1/trips/checkout')
+        .set('Authorization', authHeader('usr-alexy'))
         .set(CORRELATION_ID_HEADER, 'corr-checkout-rollback')
         .send(sampleCheckoutInput);
 
@@ -206,6 +212,7 @@ describe('TripFacade - GoF Structural Pattern Tests', () => {
 
       const res = await request(app)
         .post('/api/v1/trips/checkout')
+        .set('Authorization', authHeader('usr-alexy'))
         .send(sampleCheckoutInput);
 
       expect(res.status).toBe(500);

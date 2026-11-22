@@ -16,9 +16,8 @@ interface AppContextType {
   currentView: AppView;
   setCurrentView: (view: AppView) => void;
   
-  // User & Multi-Trip Hub State
+  // User & Multi-Trip Hub State (el usuario viene de la sesión autenticada)
   userId: string;
-  setUserId: (id: string) => void;
   userTrips: Trip[];
   loadUserTrips: () => Promise<void>;
 
@@ -53,13 +52,10 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export function AppProvider({ children }: { children: ReactNode }) {
+export function AppProvider({ children, userId }: { children: ReactNode; userId: string }) {
   const [appMode, setAppMode] = useState<AppMode>('USER');
   const [currentView, setCurrentView] = useState<AppView>('LANDING');
 
-  const [userId, setUserId] = useState<string>(() => {
-    return localStorage.getItem('wayvo_user_id') || 'usr-client';
-  });
   const [userTrips, setUserTrips] = useState<Trip[]>([]);
 
   const [planResult, setPlanResult] = useState<AIPlanRecommendationResult | null>(null);
@@ -98,7 +94,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadUserTrips = async () => {
     try {
-      const trips = await WayvoApi.listTrips(userId);
+      const trips = await WayvoApi.listTrips();
       setUserTrips(trips);
     } catch {
       // Si el servicio no responde inicialmente, mantener array actual
@@ -156,7 +152,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentView,
         setCurrentView,
         userId,
-        setUserId,
         userTrips,
         loadUserTrips,
         planResult,

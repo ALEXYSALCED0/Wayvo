@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { ApiResponse, CORRELATION_ID_HEADER } from '@wayvo/contracts';
 import { buildContainer } from './infrastructure/container';
 import { EventController } from './adapters/controllers/EventController';
+import { requireTripOwnership } from './adapters/middlewares/identity';
 
 dotenv.config();
 
@@ -25,7 +26,7 @@ app.use((req: Request, res: Response, next) => {
 // Dependencias. En tests (vitest pone NODE_ENV=test) siempre se usa memoria,
 // aunque exista un .env con DATABASE_URL.
 const databaseUrl = process.env.NODE_ENV === 'test' ? null : process.env.DATABASE_URL;
-const { mediator, tripController, persistence } = buildContainer(databaseUrl);
+const { mediator, tripController, tripService, persistence } = buildContainer(databaseUrl);
 const eventController = new EventController(mediator);
 
 // Health check
@@ -37,6 +38,9 @@ app.get('/health', (req: Request, res: Response) => {
 
   res.status(200).json(response);
 });
+
+// Multiusuario: toda ruta sobre un viaje concreto verifica primero que sea del usuario.
+app.use('/api/v1/trips/:id', requireTripOwnership(tripService));
 
 // Incidencias (patrón Mediator)
 // Paso 1: reportar el problema y recibir alternativas

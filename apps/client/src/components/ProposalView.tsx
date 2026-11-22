@@ -12,7 +12,7 @@ import {
 } from '../utils/travelLinks';
 
 export const ProposalView: React.FC = () => {
-  const { planResult, setCurrentView, appMode, loadUserTrips } = useApp();
+  const { planResult, setCurrentView, appMode, loadUserTrips, userId } = useApp();
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [selectedEventModal, setSelectedEventModal] = useState<any | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -669,7 +669,7 @@ export const ProposalView: React.FC = () => {
                       }))
                     );
                     await WayvoApi.createTrip({
-                      userId: planResult.tripDraft.userId || 'usr-client',
+                      userId,
                       destination: planResult.tripDraft.destination,
                       startDate: planResult.tripDraft.startDate,
                       endDate: planResult.tripDraft.endDate,

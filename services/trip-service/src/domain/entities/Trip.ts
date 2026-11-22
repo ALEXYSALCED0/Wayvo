@@ -85,6 +85,11 @@ export class Trip {
     return this._status;
   }
 
+  // Regla de dominio del multiusuario: cada viaje pertenece a un único usuario.
+  isOwnedBy(userId: string): boolean {
+    return this.userId === userId;
+  }
+
   get updatedAt(): Date {
     return this._updatedAt;
   }

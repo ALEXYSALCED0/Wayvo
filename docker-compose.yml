@@ -206,11 +206,15 @@ services:
       PROVIDER_SERVICE_URL: http://provider-service:3002
       TRIP_SERVICE_URL: http://trip-service:3003
       AI_SERVICE_URL: http://ai-recommendation:8000
+      AUTH_SERVICE_URL: http://auth-service:3004
+      # Mismo secreto que auth-service: el gateway verifica la firma de los JWT.
+      JWT_SECRET: ${JWT_SECRET:-}
       HTTP_TIMEOUT_MS: 35000
       CORS_ORIGIN: "*"
     ports:
       - "3000:3000"
     depends_on:
+      - auth-service
       - booking-service
       - provider-service
       - trip-service

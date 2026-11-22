@@ -5,6 +5,7 @@ import {
 import { TripService } from '../../application/services/TripService';
 import { parseUtcDate, toEventDraft, toTripDTO } from '../../application/mappers/TripMapper';
 import { sendError } from './httpError';
+import { requestUserId } from '../middlewares/identity';
 
 export class TripController {
   constructor(private readonly tripService: TripService) {}
@@ -13,7 +14,9 @@ export class TripController {
     try {
       // Se valida con el esquema del contrato. El viaje siempre nace en PENDING,
       // así que el campo status del cuerpo no se usa.
-      const input = createTripSchema.parse(req.body ?? {});
+      // Si la petición viene del gateway, el dueño es el usuario autenticado.
+      const userId = requestUserId(req);
+      const input = createTripSchema.parse({ ...(req.body ?? {}), ...(userId ? { userId } : {}) });
 
       const trip = await this.tripService.createTrip({
         userId: input.userId,
@@ -36,7 +39,16 @@ export class TripController {
 
   listTrips = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = (req.query.userId as string) || 'usr-client';
+      // "Mis viajes": solo los del usuario autenticado. El query ?userId= queda
+      // únicamente para llamadas internas que no pasan por el gateway.
+      const userId = requestUserId(req) ?? (req.query.userId as string | undefined);
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_DATA', message: 'Falta el usuario para listar los viajes' },
+        });
+        return;
+      }
       const trips = await this.tripService.listTripsByUser(userId);
       res.status(200).json({ success: true, data: trips.map(toTripDTO) });
     } catch (error) {

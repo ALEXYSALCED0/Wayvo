@@ -8,7 +8,7 @@ import {
 } from '@wayvo/contracts';
 
 export const OnboardingView: React.FC = () => {
-  const { setCurrentView, setPlanResult, appMode, setIsDevInspectorOpen } = useApp();
+  const { setCurrentView, setPlanResult, appMode, setIsDevInspectorOpen, userId } = useApp();
 
   // Wizard Step State (1: Conoce al Viajero, 2: Datos del Viaje, 3: Presupuesto Inteligente)
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
@@ -122,7 +122,7 @@ export const OnboardingView: React.FC = () => {
         : BudgetCategory.ESTANDAR;
 
     const payload: TripPlanRequest = {
-      userId: 'usr-client',
+      userId,
       origin: origin.includes('(') ? origin.split('(')[0].trim() : origin,
       destination: destination.includes('(') ? destination.split('(')[0].trim() : destination,
       startDate,

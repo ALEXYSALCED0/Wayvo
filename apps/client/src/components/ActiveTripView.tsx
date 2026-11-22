@@ -101,6 +101,7 @@ export const ActiveTripView: React.FC = () => {
     appMode,
     devBypassTimeValidation,
     loadUserTrips,
+    userId,
   } = useApp();
 
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
@@ -135,7 +136,7 @@ export const ActiveTripView: React.FC = () => {
     (planResult
       ? ({
           id: planResult.planId || 'trip-preview',
-          userId: planResult.tripDraft?.userId || 'usr-client',
+          userId,
           title: planResult.tripDraft?.title || `Viaje a ${planResult.tripDraft?.destination}`,
           destination: planResult.tripDraft?.destination,
           origin: planResult.tripDraft?.origin,
@@ -164,7 +165,7 @@ export const ActiveTripView: React.FC = () => {
   const handleLoadDemoTrip = () => {
     setActiveTrip({
       id: 'trip-demo-medellin',
-      userId: 'usr-client',
+      userId,
       title: 'Expedición Cultural en Medellín',
       destination: 'Medellín',
       startDate: '2026-11-01',

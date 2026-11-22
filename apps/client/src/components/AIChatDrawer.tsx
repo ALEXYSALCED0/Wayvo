@@ -42,7 +42,7 @@ interface ChatMessage {
 }
 
 export const AIChatDrawer: React.FC = () => {
-  const { isChatOpen, setIsChatOpen, activeTrip, planResult } = useApp();
+  const { isChatOpen, setIsChatOpen, activeTrip, planResult, userId } = useApp();
   const currentDest = activeTrip?.destination || planResult?.tripDraft?.destination || 'tu destino';
 
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -346,7 +346,7 @@ export const AIChatDrawer: React.FC = () => {
 
     try {
       const response = await WayvoApi.sendChatMessage({
-        userId: activeTrip?.userId || 'usr-client',
+        userId,
         message: text,
         tripId: activeTrip?.id,
         context: {
