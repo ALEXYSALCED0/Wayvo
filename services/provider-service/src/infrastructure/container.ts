@@ -33,11 +33,16 @@ export async function buildContainer(
   const persistence = overrides.persistence ?? (await buildPersistence(env.DATABASE_URL));
   const externals = overrides.externals ?? buildExternals(env);
 
+  // Recarga automática de cupo (modo demo). Por defecto activa para no cambiar
+  // el comportamiento existente; DEMO_AUTO_REFILL_CAPACITY=false la apaga.
+  const reservationOptions = { autoRefillCapacity: (env.DEMO_AUTO_REFILL_CAPACITY ?? 'true') !== 'false' };
+  logger.info('Reservation options', reservationOptions);
+
   return {
     logger,
     listProviders: new ListProvidersUseCase(persistence.providers, persistence.offers),
-    checkAvailability: new CheckAvailabilityUseCase(persistence.providers, persistence.offers, externals, logger),
-    confirmReservation: new ConfirmReservationUseCase(persistence.providers, persistence.offers, externals, logger),
+    checkAvailability: new CheckAvailabilityUseCase(persistence.providers, persistence.offers, externals, logger, reservationOptions),
+    confirmReservation: new ConfirmReservationUseCase(persistence.providers, persistence.offers, externals, logger, reservationOptions),
     verifyProvider: new VerifyProviderUseCase(persistence.providers, logger),
     persistence: { kind: persistence.kind },
     shutdown: () => persistence.shutdown(),

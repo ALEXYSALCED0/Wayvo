@@ -8,12 +8,14 @@ import { CheckAvailabilityItemInput } from '../dtos/availability.dto';
 import { ConfirmedItem, ConfirmReservationInput, ConfirmReservationOutput } from '../dtos/reservation.dto';
 import { InvalidReservationRequestError, ReservationRejectedError } from '../errors/application.error';
 import { LoggerPort } from '../ports/logger.port';
+import { ReservationOptions } from '../dtos/reservation-options';
 import { ProveedorExternoResolver } from '../ports/proveedor-externo-resolver.port';
 import { flightNumbersFor, hotelCodesFor } from '../../infrastructure/mock/mock-inventory';
 
 // Paso de reserva de la Saga, después de check-availability.
-// Por cada item se valida la oferta, confirma con el proveedor externo (vía Adapter) y descuenta el cupo
-// Si falla, devuelve el cupo de los anteriores y propaga el error
+// Por cada item: se valida la oferta, se aparta el cupo de forma atómica (concurrencia
+// multiusuario) y se confirma con el proveedor externo (vía Adapter).
+// Si algo falla, devuelve el cupo de lo ya apartado y propaga el error.
 
 export class ConfirmReservationUseCase {
   constructor(
@@ -21,6 +23,7 @@ export class ConfirmReservationUseCase {
     private readonly offers: ServiceOfferRepository,
     private readonly externals: ProveedorExternoResolver,
     private readonly logger: LoggerPort,
+    private readonly options: ReservationOptions = {},
   ) {}
 
   async execute(input: ConfirmReservationInput): Promise<ConfirmReservationOutput> {
@@ -58,6 +61,21 @@ export class ConfirmReservationUseCase {
   ): Promise<ConfirmedItem> {
     const offer = await this.loadBookableOffer(item);
 
+    // 1. Apartar el cupo propio en UNA operación atómica (concurrencia multiusuario).
+    //    Si dos usuarios piden el último cupo a la vez, solo uno lo obtiene.
+    const reserved = await this.offers.tryReserve(offer.id, item.quantity);
+    if (!reserved) {
+      this.logger.warn('Capacity taken by a concurrent booking', {
+        correlationId, bookingId, offerId: offer.id, quantity: item.quantity,
+      });
+      throw new ReservationRejectedError(
+        offer.id,
+        `Not enough capacity: requested ${item.quantity}, another booking took the remaining units`,
+      );
+    }
+
+    // 2. Confirmar con el proveedor externo (vía Adapter). Si falla, se devuelve
+    //    el cupo apartado en el paso 1 (compensación local).
     let result;
     try {
       result = await this.externals.resolve(offer.type).confirmarReserva({
@@ -73,26 +91,12 @@ export class ConfirmReservationUseCase {
         offerId: offer.id,
         error: error instanceof Error ? error.message : String(error),
       });
+      await this.giveBack(offer.id, item.quantity, bookingId, correlationId);
       throw error;
     }
     if (!result.success) {
+      await this.giveBack(offer.id, item.quantity, bookingId, correlationId);
       throw new ReservationRejectedError(offer.id, result.reason ?? 'External provider rejected the reservation');
-    }
-
-    // si el cupo propio no se puede descontar, hay que dejar rastro
-    try {
-      offer.reserve(item.quantity);
-      await this.offers.save(offer);
-    } catch (error) {
-      this.logger.error('External reservation confirmed but local capacity could not be updated', {
-        correlationId,
-        bookingId,
-        offerId: offer.id,
-        reservationCode: result.reservationCode,
-        confirmationCode: result.confirmationCode,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
     }
 
     return {
@@ -173,9 +177,11 @@ export class ConfirmReservationUseCase {
           metadata,
         });
         await this.offers.save(offer);
-      } else if (offer.availableCapacity < item.quantity) {
+      } else if (this.options.autoRefillCapacity && offer.availableCapacity < item.quantity) {
+        // Modo demo (fuera de tests): recarga cupo para que las ofertas generadas
+        // por la IA no se agoten. Se hace con la operación atómica del repositorio.
+        await this.offers.releaseCapacity(offer.id, item.quantity + 50);
         offer.release(item.quantity + 50);
-        await this.offers.save(offer);
       }
     }
 
@@ -200,20 +206,7 @@ export class ConfirmReservationUseCase {
     correlationId?: string,
   ): Promise<void> {
     for (const item of [...confirmed].reverse()) {
-      try {
-        const offer = await this.offers.findById(item.offerId);
-        if (!offer) continue;
-        offer.release(item.quantity);
-        await this.offers.save(offer);
-      } catch (error) {
-        this.logger.error('Could not release local capacity after a failed confirmation', {
-          correlationId,
-          bookingId,
-          offerId: item.offerId,
-          quantity: item.quantity,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      await this.giveBack(item.offerId, item.quantity, bookingId, correlationId);
     }
     if (confirmed.length > 0) {
       this.logger.warn('Reservation rolled back locally; provider-side confirmations cannot be cancelled', {
@@ -224,6 +217,22 @@ export class ConfirmReservationUseCase {
           reservationCode: c.reservationCode,
           confirmationCode: c.confirmationCode,
         })),
+      });
+    }
+  }
+
+  // Devuelve cupo de forma atómica. Si falla, solo se registra: hay que seguir
+  // liberando el resto de lo apartado.
+  private async giveBack(offerId: string, quantity: number, bookingId: string, correlationId?: string): Promise<void> {
+    try {
+      await this.offers.releaseCapacity(offerId, quantity);
+    } catch (error) {
+      this.logger.error('Could not release local capacity after a failed confirmation', {
+        correlationId,
+        bookingId,
+        offerId,
+        quantity,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }

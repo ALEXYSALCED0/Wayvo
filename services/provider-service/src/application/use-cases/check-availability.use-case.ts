@@ -12,6 +12,7 @@ import {
 } from '../dtos/availability.dto';
 import { InvalidAvailabilityRequestError } from '../errors/application.error';
 import { LoggerPort } from '../ports/logger.port';
+import { ReservationOptions } from '../dtos/reservation-options';
 import { ProveedorExternoResolver } from '../ports/proveedor-externo-resolver.port';
 import { flightNumbersFor, hotelCodesFor } from '../../infrastructure/mock/mock-inventory';
 
@@ -24,6 +25,7 @@ export class CheckAvailabilityUseCase {
     private readonly offers: ServiceOfferRepository,
     private readonly externals: ProveedorExternoResolver,
     private readonly logger: LoggerPort,
+    private readonly options: ReservationOptions = {},
   ) {}
 
   async execute(input: CheckAvailabilityInput): Promise<CheckAvailabilityOutput> {
@@ -130,9 +132,10 @@ export class CheckAvailabilityUseCase {
           metadata,
         });
         await this.offers.save(offer);
-      } else if (offer.availableCapacity < item.quantity) {
+      } else if (this.options.autoRefillCapacity && offer.availableCapacity < item.quantity) {
+        // Modo demo (fuera de tests): recarga cupo con la operación atómica del repositorio.
+        await this.offers.releaseCapacity(offer.id, item.quantity + 50);
         offer.release(item.quantity + 50);
-        await this.offers.save(offer);
       }
     }
 

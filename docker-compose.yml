@@ -137,6 +137,7 @@ services:
       NODE_ENV: development
       DATABASE_URL: "postgresql://wayvo:wayvo@provider-db:5432/provider_db?schema=public"
       SIMULATE_FAILURE_MODE: normal
+      DEMO_AUTO_REFILL_CAPACITY: ${DEMO_AUTO_REFILL_CAPACITY:-true}
       EXTERNAL_PROVIDERS_MODE: ${EXTERNAL_PROVIDERS_MODE:-real}
       SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
       SERPAPI_CURRENCY: ${SERPAPI_CURRENCY:-COP}

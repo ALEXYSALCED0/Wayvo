@@ -65,8 +65,8 @@ describe.skipIf(!url)('repositorios Prisma (PostgreSQL)', () => {
 
     const loaded = (await offers.findById('offer-1'))!;
     expect(loaded.metadata).toEqual({ flightNumber: 'WY100', originAirport: 'BOG' });
-    loaded.reserve(3);
-    await offers.save(loaded);
+    // El cupo se descuenta con la operación atómica del repositorio, no con save().
+    expect(await offers.tryReserve('offer-1', 3)).toBe(true);
 
     expect((await offers.findById('offer-1'))!.availableCapacity).toBe(7);
   });
@@ -83,5 +83,36 @@ describe.skipIf(!url)('repositorios Prisma (PostgreSQL)', () => {
     expect(second.providersCreated + second.offersCreated).toBe(0);
     expect(await providers.findAll({ type: ProviderType.TRANSPORT })).toHaveLength(3);
     expect((await offers.findByProviderId('prov-aerocaribe')).length).toBe(2);
+  });
+
+  describe('concurrencia multiusuario (UPDATE atómico)', () => {
+    async function offerWithCapacity(capacity: number) {
+      const provider = makeProvider();
+      provider.verify();
+      await providers.save(provider);
+      await offers.save(makeOffer({ id: 'offer-race', availableCapacity: capacity }));
+    }
+
+    it('20 reservas simultáneas sobre 3 cupos: exactamente 3 ganan y el cupo queda en 0', async () => {
+      await offerWithCapacity(3);
+
+      const results = await Promise.all(Array.from({ length: 20 }, () => offers.tryReserve('offer-race', 1)));
+
+      expect(results.filter(Boolean)).toHaveLength(3);
+      expect((await offers.findById('offer-race'))!.availableCapacity).toBe(0);
+    });
+
+    it('releaseCapacity devuelve cupos y save() no pisa el cupo', async () => {
+      await offerWithCapacity(5);
+      const stale = (await offers.findById('offer-race'))!;
+
+      expect(await offers.tryReserve('offer-race', 4)).toBe(true);
+      await offers.save(stale); // copia vieja con cupo 5
+      expect((await offers.findById('offer-race'))!.availableCapacity).toBe(1);
+
+      await offers.releaseCapacity('offer-race', 4);
+      expect((await offers.findById('offer-race'))!.availableCapacity).toBe(5);
+      expect(await offers.tryReserve('offer-race', 6)).toBe(false);
+    });
   });
 });
