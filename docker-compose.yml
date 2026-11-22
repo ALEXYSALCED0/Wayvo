@@ -59,9 +59,50 @@ services:
     networks:
       - wayvo-network
 
+  auth-db:
+    image: postgres:16-alpine
+    container_name: wayvo-auth-db
+    environment:
+      POSTGRES_USER: wayvo
+      POSTGRES_PASSWORD: wayvo
+      POSTGRES_DB: auth_db
+    ports:
+      - "5436:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wayvo -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wayvo-network
+
   # ==========================================
   # SERVICIOS BACKEND & IA
   # ==========================================
+  auth-service:
+    image: wayvo-auth-service:latest
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: wayvo-auth-service
+    environment:
+      PORT: 3004
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://wayvo:wayvo@auth-db:5432/auth_db?schema=public"
+      # Debe ser el mismo secreto que usa el api-gateway para verificar los tokens.
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_EXPIRES_IN_SECONDS: ${JWT_EXPIRES_IN_SECONDS:-28800}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+    ports:
+      - "3004:3004"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - wayvo-network
+
   booking-service:
     image: wayvo-booking-service:latest
     build:
@@ -205,4 +246,6 @@ volumes:
   provider-db-data:
     driver: local
   trip-db-data:
+    driver: local
+  auth-db-data:
     driver: local

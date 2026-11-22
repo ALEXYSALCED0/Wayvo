@@ -1,0 +1,32 @@
+// Esquema de la Auth DB (PostgreSQL). Solo auth-service la usa:
+// en microservicios cada servicio es dueño de su propia base de datos.
+
+// Cliente generado dentro del servicio para no pisar el de los otros servicios
+// en el node_modules compartido del monorepo.
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/auth-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  TRAVELER
+  ADMIN
+}
+
+model User {
+  id           String   @id
+  // Único: no puede haber dos cuentas con el mismo correo (se guarda en minúsculas).
+  email        String   @unique
+  name         String
+  // Solo el hash bcrypt; la contraseña en texto plano nunca se guarda.
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(TRAVELER)
+  createdAt    DateTime @map("created_at")
+
+  @@map("users")
+}
