@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/infrastructure/http/app';
 import { CORRELATION_ID_HEADER } from '@wayvo/contracts';
+import { authHeader } from './auth-helpers';
 
 describe('API Gateway Integration Tests', () => {
   const app = createApp();
@@ -21,7 +22,7 @@ describe('API Gateway Integration Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.services).toBeInstanceOf(Array);
-      expect(res.body.data.services.length).toBe(4);
+      expect(res.body.data.services.length).toBe(5); // booking, trip, provider, ai, auth
     });
   });
 
@@ -43,7 +44,9 @@ describe('API Gateway Integration Tests', () => {
 
   describe('Requirement 8.18 - Centralized Error Middleware', () => {
     it('should return homogeneous 404 error when route is not found', async () => {
-      const res = await request(app).get('/api/v1/non-existent-endpoint');
+      const res = await request(app)
+        .get('/api/v1/non-existent-endpoint')
+        .set('Authorization', authHeader());
       expect(res.status).toBe(404);
       expect(res.body.success).toBe(false);
       expect(res.body.error).toBeDefined();

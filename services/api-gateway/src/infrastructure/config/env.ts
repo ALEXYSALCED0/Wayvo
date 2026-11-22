@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+// Secreto SOLO para desarrollo local; es el mismo valor por defecto que usa auth-service.
+// En producción el gateway se niega a arrancar con él.
+export const DEV_JWT_SECRET = 'wayvo-dev-secret-cambiar-en-produccion';
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -8,6 +12,9 @@ const envSchema = z.object({
   TRIP_SERVICE_URL: z.string().url().default('http://localhost:3003'),
   PROVIDER_SERVICE_URL: z.string().url().default('http://localhost:3002'),
   AI_SERVICE_URL: z.string().url().default('http://localhost:8000'),
+  AUTH_SERVICE_URL: z.string().url().default('http://localhost:3004'),
+  // Mismo secreto con el que auth-service firma los JWT. Vacío = secreto de desarrollo.
+  JWT_SECRET: z.string().optional().transform((val) => val || DEV_JWT_SECRET),
   CORS_ORIGIN: z.string().default('*'),
   HTTP_TIMEOUT_MS: z.coerce.number().default(35000),
   ENABLE_MOCK_FALLBACK: z
@@ -23,6 +30,9 @@ export function loadConfig(rawEnv: NodeJS.ProcessEnv = process.env): GatewayConf
   if (!result.success) {
     console.error('[API Gateway] Invalid environment configuration:', result.error.format());
     throw new Error('Invalid Gateway configuration');
+  }
+  if (result.data.NODE_ENV === 'production' && result.data.JWT_SECRET === DEV_JWT_SECRET) {
+    throw new Error('JWT_SECRET es obligatorio en producción');
   }
   return result.data;
 }

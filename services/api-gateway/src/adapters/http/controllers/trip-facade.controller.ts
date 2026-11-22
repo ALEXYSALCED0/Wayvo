@@ -6,6 +6,7 @@ import {
   tripPlanRequestSchema,
 } from '@wayvo/contracts';
 import { TripFacade } from '../../../application/facades/trip.facade';
+import { currentUser } from '../middlewares/auth.middleware';
 
 export class TripFacadeController {
   constructor(private readonly facade: TripFacade) {}
@@ -16,7 +17,8 @@ export class TripFacadeController {
    */
   planTrip = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const parsedInput = tripPlanRequestSchema.parse(req.body);
+      // El usuario sale del token (middleware de auth), nunca del cuerpo enviado por el cliente.
+      const parsedInput = tripPlanRequestSchema.parse({ ...req.body, userId: currentUser(res).id });
       const correlationId = (req.headers[CORRELATION_ID_HEADER] as string) || 'unknown';
 
       const result = await this.facade.planTrip(parsedInput, correlationId);
@@ -39,7 +41,8 @@ export class TripFacadeController {
    */
   checkoutTrip = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const parsedInput = tripCheckoutRequestSchema.parse(req.body);
+      // El viaje y la reserva quedan a nombre del usuario autenticado.
+      const parsedInput = tripCheckoutRequestSchema.parse({ ...req.body, userId: currentUser(res).id });
       const correlationId = (req.headers[CORRELATION_ID_HEADER] as string) || 'unknown';
 
       const result = await this.facade.checkoutTrip(parsedInput, correlationId);

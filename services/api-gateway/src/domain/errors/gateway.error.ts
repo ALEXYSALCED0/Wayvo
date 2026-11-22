@@ -58,3 +58,17 @@ export class RouteNotFoundError extends GatewayError {
     );
   }
 }
+
+// 401: la petición no trae un token válido (falta, está alterado o expiró).
+export class UnauthorizedError extends GatewayError {
+  constructor(message = 'Debes iniciar sesión para usar este recurso') {
+    super('UNAUTHENTICATED', message, 401);
+  }
+}
+
+// 403: el usuario está autenticado pero su rol no le permite este recurso.
+export class ForbiddenError extends GatewayError {
+  constructor(message = 'No tienes permisos para este recurso') {
+    super('FORBIDDEN', message, 403);
+  }
+}
