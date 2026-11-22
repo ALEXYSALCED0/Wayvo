@@ -85,7 +85,11 @@ def _query_hotels_api(destination: str, category: str, travelers: int, nights: i
             "bookingUrl": booking_url,
             "providerId": "prov-hotels-api",
             "offerId": f"offer-hotel-{selected.get('id')}",
+            "hotelCode": str(selected.get("id")),
+            "hotelName": h_name,
+            "cityCode": city_norm,
             "isRealApi": True,
+            "isEstimate": False,
         }
     except Exception as exc:
         logger.warning(f"Hotels API query failed: {exc}")
@@ -270,6 +274,7 @@ def find_real_hotel(
                 "currency": currency,
                 "bookingUrl": booking_url,
                 "isEstimate": True,
+                "isRealApi": False,
             }
 
     # 2. Descubrimiento dinámico mediante IA para cualquier otro destino en el mundo
@@ -318,6 +323,7 @@ Devuelve exclusivamente JSON válido:
                     "currency": currency,
                     "bookingUrl": booking_url,
                     "isEstimate": True,
+                    "isRealApi": False,
                 }
         except Exception as exc:
             logger.warning(f"No se pudo consultar hotel en vivo para {destination}: {exc}")
@@ -341,4 +347,5 @@ Devuelve exclusivamente JSON válido:
         "currency": currency,
         "bookingUrl": f"https://www.google.com/travel/hotels?q={booking_query}",
         "isEstimate": True,
+        "isRealApi": False,
     }

@@ -82,9 +82,9 @@ flowchart TD
     SagaOrchestrator --> IProvPort
     SagaOrchestrator --> StructuredLogger
 
-    HttpTripGateway .up.|> ITripPort
-    HttpProviderGateway .up.|> IProvPort
-    TypeORMRepo .up.|> IBookingRepo
+    HttpTripGateway -.->|Implements| ITripPort
+    HttpProviderGateway -.->|Implements| IProvPort
+    TypeORMRepo -.->|Implements| IBookingRepo
 
     CreateBookingUC --> BookingEntity
     CancelBookingUC --> BookingEntity
@@ -190,9 +190,9 @@ flowchart TD
     Registry --> AlojamientoAdapter
     Registry --> ActividadAdapter
 
-    TransporteAdapter .up.|> IProvPort
-    AlojamientoAdapter .up.|> IProvPort
-    ActividadAdapter .up.|> IProvPort
+    TransporteAdapter -.->|Implements| IProvPort
+    AlojamientoAdapter -.->|Implements| IProvPort
+    ActividadAdapter -.->|Implements| IProvPort
 
     TransporteAdapter -->|"Traduce a SerpAPI format"| FlightAPI
     AlojamientoAdapter -->|"Traduce a Hotels API format"| HotelsAPI
@@ -258,7 +258,7 @@ flowchart TD
     TripController --> TripService
     EventController --> TripMediator
 
-    TripMediator .up.|> IMediator
+    TripMediator -.->|Implements| IMediator
     TripMediator --> EventService
     TripMediator --> AlternativeService
     TripMediator --> TripService

@@ -187,6 +187,8 @@ def _query_serpapi_flights(origin_city: str, dest_city: str, date_str: str, trav
             results.append({
                 "origin": origin_city,
                 "destination": dest_city,
+                "originAirport": origin_code,
+                "destinationAirport": dest_code,
                 "mode": "flight",
                 "airline": airline,
                 "flightNumber": flight_num,
@@ -202,6 +204,7 @@ def _query_serpapi_flights(origin_city: str, dest_city: str, date_str: str, trav
                 "providerId": f"prov-{airline.lower().replace(' ', '-')[:12]}",
                 "offerId": f"offer-{flight_num.lower().replace(' ', '-')[:15]}",
                 "isRealApi": True,
+                "isEstimate": False,
             })
         return results if results else None
     except Exception as exc:
@@ -417,6 +420,15 @@ Reglas:
                 c = route.get("estimatedCost")
                 if not isinstance(c, (int, float)) or isinstance(c, bool) or c < 0:
                     route["estimatedCost"] = 450000 * max(1, travelers)
+
+                if "isRealApi" not in route:
+                    route["isRealApi"] = False
+                if "isEstimate" not in route:
+                    route["isEstimate"] = True
+                if not route.get("originAirport"):
+                    route["originAirport"] = _resolve_airport(route.get("origin", default_orig), is_destination=False)
+                if not route.get("destinationAirport"):
+                    route["destinationAirport"] = _resolve_airport(route.get("destination", default_dest), is_destination=True)
                 return route
 
             if not outbound:
@@ -475,20 +487,28 @@ Reglas:
         fb_out = [{
             "origin": origin,
             "destination": destination,
+            "originAirport": _resolve_airport(origin, is_destination=False),
+            "destinationAirport": _resolve_airport(destination, is_destination=True),
             "mode": "flight",
             "airline": "Aerolínea Comercial",
             "airlineBookingUrl": "https://www.kayak.com.co",
             "estimatedDuration": "3 horas",
             "estimatedCost": default_cost,
+            "isRealApi": False,
+            "isEstimate": True,
         }]
         fb_in = [{
             "origin": destination,
             "destination": origin,
+            "originAirport": _resolve_airport(destination, is_destination=False),
+            "destinationAirport": _resolve_airport(origin, is_destination=True),
             "mode": "flight",
             "airline": "Aerolínea Comercial",
             "airlineBookingUrl": "https://www.kayak.com.co",
             "estimatedDuration": "3 horas",
             "estimatedCost": default_cost,
+            "isRealApi": False,
+            "isEstimate": True,
         }]
         return {
             "transport_result": {

@@ -27,6 +27,12 @@ export class AlojamientoAdapter implements IProveedorExterno {
   constructor(private readonly api: AlojamientoAPIExterna) {}
 
   async consultarDisponibilidad(criterios: DisponibilidadQuery): Promise<DisponibilidadResultado> {
+    const meta = criterios.metadata;
+    // Si la oferta es un estimado de IA o pertenece a catálogo local sin API externa, está disponible en plataforma
+    if (meta?.isEstimate === true || meta?.isRealApi === false) {
+      return { available: true, remainingUnits: 10 };
+    }
+
     const ref = this.readRef(criterios.metadata, criterios.offerId, criterios.date);
 
     const hotels = await callExternal(PROVIDER, 'buscarHoteles', () =>
@@ -39,9 +45,24 @@ export class AlojamientoAdapter implements IProveedorExterno {
       }),
     );
 
-    // La API devuelve todos los hoteles de la ciudad, se queda el de la oferta
-    const hotel = hotels.find((h) => h.hotelCode === ref.hotelCode)
-      || hotels.find((h) => h.hotelName.toLowerCase().includes(ref.hotelCode.toLowerCase()));
+    const cleanCode = ref.hotelCode.replace(/^offer-(hotel-)?/, '').trim();
+    const targetName = ((meta?.hotelName as string) || '').toLowerCase().trim();
+
+    // 1. Coincidencia por código de hotel (exacto o limpio sin prefijos)
+    let hotel = hotels.find((h) => h.hotelCode === ref.hotelCode || (cleanCode && h.hotelCode === cleanCode));
+
+    // 2. Coincidencia por nombre de hotel
+    if (!hotel && (targetName || cleanCode)) {
+      hotel = hotels.find((h) => {
+        const name = h.hotelName.toLowerCase();
+        return (
+          (cleanCode && name.includes(cleanCode.toLowerCase())) ||
+          (targetName && (name.includes(targetName) || targetName.includes(name)))
+        );
+      });
+    }
+
+    // 3. Si no aparece en la API externa
     if (!hotel) {
       return {
         available: false,
@@ -62,11 +83,18 @@ export class AlojamientoAdapter implements IProveedorExterno {
   }
 
   async confirmarReserva(datos: ReservaDatos): Promise<ConfirmacionResultado> {
+    const meta = datos.metadata;
+    if (meta?.isEstimate === true || meta?.isRealApi === false) {
+      const code = `SIM-HT-${datos.bookingId.replace(/[^A-Za-z0-9]/g, '').slice(0, 10).toUpperCase()}`;
+      return { success: true, reservationCode: code };
+    }
+
     const ref = this.readRef(datos.metadata, datos.offerId);
+    const cleanCode = ref.hotelCode.replace(/^offer-(hotel-)?/, '').trim();
 
     const result = await callExternal(PROVIDER, 'reservarHabitacion', () =>
       this.api.reservarHabitacion({
-        hotelCode: ref.hotelCode,
+        hotelCode: cleanCode || ref.hotelCode,
         roomType: ref.roomType,
         checkInDate: ref.checkInDate,
         checkOutDate: ref.checkOutDate,

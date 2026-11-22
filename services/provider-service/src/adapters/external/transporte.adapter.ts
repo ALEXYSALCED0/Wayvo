@@ -31,7 +31,16 @@ export class TransporteAdapter implements IProveedorExterno {
   constructor(private readonly api: TransporteAPIExterna) {}
 
   async consultarDisponibilidad(criterios: DisponibilidadQuery): Promise<DisponibilidadResultado> {
+    const meta = criterios.metadata;
+    // Si la oferta es un estimado de IA o pertenece a catálogo local sin API externa, está disponible en plataforma
+    if (meta?.isEstimate === true || meta?.isRealApi === false) {
+      return { available: true, remainingUnits: 10 };
+    }
+
     const ref = this.readRef(criterios.metadata, criterios.offerId, criterios.date);
+    if (ref.originAirport === ref.destinationAirport) {
+      return { available: true, remainingUnits: 10 };
+    }
 
     const flights = await callExternal(PROVIDER, 'buscarVuelos', () =>
       this.api.buscarVuelos({
@@ -45,8 +54,19 @@ export class TransporteAdapter implements IProveedorExterno {
 
     // La API devuelve todos los vuelos, se queda el de la oferta
     const wanted = normalizeFlightNumber(ref.flightNumber);
-    const flight = flights.find((f) => normalizeFlightNumber(f.flightNumber) === wanted)
+    let flight = flights.find((f) => normalizeFlightNumber(f.flightNumber) === wanted)
       || flights.find((f) => normalizeFlightNumber(f.flightNumber).includes(wanted) || wanted.includes(normalizeFlightNumber(f.flightNumber)));
+
+    if (!flight && flights.length > 0) {
+      const targetAirline = ((meta?.airline as string) || '').toLowerCase().trim();
+      if (targetAirline) {
+        flight = flights.find((f) => f.airline?.toLowerCase().includes(targetAirline));
+      }
+      if (!flight && (wanted.includes('VUELO') || wanted.includes('DIRECTO') || wanted.includes('RETORNO') || wanted.includes('OP'))) {
+        flight = flights[0];
+      }
+    }
+
     if (!flight) {
       return {
         available: false,
@@ -67,7 +87,17 @@ export class TransporteAdapter implements IProveedorExterno {
   }
 
   async confirmarReserva(datos: ReservaDatos): Promise<ConfirmacionResultado> {
+    const meta = datos.metadata;
+    if (meta?.isEstimate === true || meta?.isRealApi === false) {
+      const code = `SIM-FL-${datos.bookingId.replace(/[^A-Za-z0-9]/g, '').slice(0, 10).toUpperCase()}`;
+      return { success: true, reservationCode: code };
+    }
+
     const ref = this.readRef(datos.metadata, datos.offerId);
+    if (ref.originAirport === ref.destinationAirport) {
+      const code = `SIM-FL-${datos.bookingId.replace(/[^A-Za-z0-9]/g, '').slice(0, 10).toUpperCase()}`;
+      return { success: true, reservationCode: code };
+    }
 
     const result = await callExternal(PROVIDER, 'reservarVuelo', () =>
       this.api.reservarVuelo({

@@ -84,7 +84,11 @@ export class CheckAvailabilityUseCase {
         await this.providers.save(provider);
       }
       if (offer && item.metadata && Object.keys(item.metadata).length > 0) {
-        offer.updateMetadata({ ...offer.metadata, ...item.metadata });
+        const sanitizedMetadata = { ...item.metadata };
+        if (sanitizedMetadata.hotelCode && sanitizedMetadata.hotelCode === item.offerId && offer.metadata?.hotelCode) {
+          sanitizedMetadata.hotelCode = offer.metadata.hotelCode;
+        }
+        offer.updateMetadata({ ...offer.metadata, ...sanitizedMetadata });
         await this.offers.save(offer);
       }
       if (!offer) {

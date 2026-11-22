@@ -9,7 +9,7 @@ const envSchema = z.object({
   PROVIDER_SERVICE_URL: z.string().url().default('http://localhost:3002'),
   AI_SERVICE_URL: z.string().url().default('http://localhost:8000'),
   CORS_ORIGIN: z.string().default('*'),
-  HTTP_TIMEOUT_MS: z.coerce.number().default(10000),
+  HTTP_TIMEOUT_MS: z.coerce.number().default(35000),
   ENABLE_MOCK_FALLBACK: z
     .string()
     .default('false')

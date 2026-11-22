@@ -65,13 +65,13 @@ export const CheckoutView: React.FC = () => {
   const inboundFlightCost = inboundFlight ? (transportBudget - outboundFlightCost) : 0;
   const inboundPerPerson = inboundFlight ? Math.round(inboundFlightCost / travelers) : 0;
 
-  const outboundOrigin = resolveAirportCode(tripDraft.origin);
-  const outboundDest = resolveAirportCode(tripDraft.destination);
+  const outboundOrigin = (outboundFlight as any)?.originAirport || resolveAirportCode(tripDraft.origin, false);
+  const outboundDest = (outboundFlight as any)?.destinationAirport || resolveAirportCode(tripDraft.destination, true);
   const outboundFlightNum = outboundFlight?.flightNumber || 'Vuelo Directo';
   const outboundOfferId = (outboundFlight as any)?.offerId || `offer-${outboundFlightNum.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
 
-  const inboundOrigin = resolveAirportCode(tripDraft.destination);
-  const inboundDest = resolveAirportCode(tripDraft.origin);
+  const inboundOrigin = (inboundFlight as any)?.originAirport || resolveAirportCode(tripDraft.destination, true);
+  const inboundDest = (inboundFlight as any)?.destinationAirport || resolveAirportCode(tripDraft.origin, false);
   const inboundFlightNum = inboundFlight?.flightNumber || 'Vuelo Retorno';
   const inboundOfferId = (inboundFlight as any)?.offerId || `offer-${inboundFlightNum.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
 
@@ -97,7 +97,8 @@ export const CheckoutView: React.FC = () => {
         flightNumber: outboundFlightNum,
         airline: outboundFlight?.airline || 'Aerolínea',
         cabinClass: 'economy',
-        isRealApi: (outboundFlight as any)?.isRealApi ?? true,
+        isRealApi: (outboundFlight as any)?.isRealApi === true && outboundOrigin !== outboundDest,
+        isEstimate: (outboundFlight as any)?.isEstimate === true || (outboundFlight as any)?.isRealApi === false || outboundOrigin === outboundDest,
       },
     },
     ...(inboundFlight ? [{
@@ -114,7 +115,8 @@ export const CheckoutView: React.FC = () => {
         flightNumber: inboundFlightNum,
         airline: inboundFlight?.airline || 'Aerolínea',
         cabinClass: 'economy',
-        isRealApi: (inboundFlight as any)?.isRealApi ?? true,
+        isRealApi: (inboundFlight as any)?.isRealApi === true && inboundOrigin !== inboundDest,
+        isEstimate: (inboundFlight as any)?.isEstimate === true || (inboundFlight as any)?.isRealApi === false || inboundOrigin === inboundDest,
       },
     }] : []),
     {
@@ -128,14 +130,15 @@ export const CheckoutView: React.FC = () => {
       unitPrice: accommodationBudget,
       metadata: {
         city: tripDraft.destination,
-        cityCode: tripDraft.destination,
+        cityCode: (accommodation as any)?.cityCode || tripDraft.destination,
         hotelName: hotelName,
-        hotelCode: (accommodation as any)?.hotelCode || hotelOfferId,
+        hotelCode: (accommodation as any)?.hotelCode || (accommodation as any)?.id || hotelOfferId,
         checkInDate: tripDraft.startDate,
         checkOutDate: tripDraft.endDate || tripDraft.startDate,
         roomType: accommodation?.hotelType || 'Standard',
         guests: travelers,
-        isRealApi: (accommodation as any)?.isRealApi ?? true,
+        isRealApi: (accommodation as any)?.isRealApi === true,
+        isEstimate: (accommodation as any)?.isEstimate === true,
       },
     },
     ...(activitiesBudget > 0 ? [{
