@@ -54,7 +54,8 @@ def test_fechas_invertidas_responden_400():
     assert response.json()["error"]["code"] == "INVALID_DATA"
 
 
-def test_un_plan_imposible_responde_422_con_el_motivo(monkeypatch):
+def _graph_with_transport(monkeypatch, outbound_cost):
+    """Reconstruye el grafo con agentes falsos y un transporte de ida con el costo dado."""
     from application import graph
 
     def fake_personality(state):
@@ -67,16 +68,15 @@ def test_un_plan_imposible_responde_422_con_el_motivo(monkeypatch):
             },
         }
 
-    def expensive_transport(state):
-        # El transporte solo ya supera el presupuesto sugerido.
+    def fake_transport(state):
         return {
             "transport_result": {
-                "routeSummary": "Ruta muy costosa",
+                "routeSummary": "Ruta de prueba",
                 "outbound": [{
-                    "origin": "Bogotá", "destination": "Cartagena", "mode": "flight",
-                    "estimatedDuration": "1 hora", "estimatedCost": 50_000_000,
+                    "origin": "Bogotá", "destination": "Villa de Leyva", "mode": "flight",
+                    "estimatedDuration": "1 hora", "estimatedCost": outbound_cost,
                 }],
-                "totalTransportCost": 50_000_000,
+                "totalTransportCost": outbound_cost,
             },
         }
 
@@ -88,9 +88,14 @@ def test_un_plan_imposible_responde_422_con_el_motivo(monkeypatch):
         }
 
     monkeypatch.setattr(graph, "personality_agent", fake_personality)
-    monkeypatch.setattr(graph, "transport_agent", expensive_transport)
+    monkeypatch.setattr(graph, "transport_agent", fake_transport)
     monkeypatch.setattr(graph, "activities_food_agent", fake_experiences)
     monkeypatch.setattr(main, "travel_graph", build_graph())
+
+
+def test_un_plan_imposible_responde_422_con_el_motivo(monkeypatch):
+    # Sin ningún transporte con costo válido no se puede armar el plan.
+    _graph_with_transport(monkeypatch, outbound_cost=None)
 
     response = client.post("/api/v1/ai/plan", json=VALID_REQUEST)
     body = response.json()
@@ -99,6 +104,20 @@ def test_un_plan_imposible_responde_422_con_el_motivo(monkeypatch):
     assert body["success"] is False
     assert body["error"]["code"] == "PLAN_NOT_POSSIBLE"
     assert body["error"]["details"]["errors"]
+
+
+def test_un_transporte_costoso_ajusta_el_presupuesto_sugerido(monkeypatch):
+    # Sin monto del usuario, el presupuesto se adapta al costo real del destino
+    # en vez de rechazar el plan.
+    _graph_with_transport(monkeypatch, outbound_cost=50_000_000)
+
+    response = client.post("/api/v1/ai/plan", json=VALID_REQUEST)
+    body = response.json()
+
+    assert response.status_code == 200
+    budget = body["data"]["budget"]
+    assert budget["breakdown"]["transport"] == 50_000_000
+    assert budget["isBudgetExceeded"] is False
 
 
 def test_ruta_inexistente_responde_404_con_el_formato_comun():

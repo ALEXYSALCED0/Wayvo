@@ -122,7 +122,7 @@ describe('TripMediator', () => {
 
       const added = events.find((e) => e.isAlternative)!;
       expect(added.title).toBe('Tren a Roma (reprogramado)');
-      expect(added.alternativeBadge).toBe('Alternativa');
+      expect(added.alternativeBadge).toBe('Sustituto IA');
       expect(added.time).toBe('10:00');
       // el orden queda por hora: tren 08:00, alternativa 10:00, museo 16:00
       expect(events.map((e) => e.order)).toEqual([1, 2, 3]);

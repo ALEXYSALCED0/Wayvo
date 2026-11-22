@@ -252,7 +252,7 @@ La sustentacion individual evalua la capacidad de cada desarrollador para:
 
 #### Por que LangGraph para el motor multiagente en Python?
 - **Arquitectura de Grafo de Estados (`StateGraph`):** A diferencia de un pipeline lineal rigido, LangGraph permite que agentes especializados con roles definidos compartan un estado comun (`TripPlanState`). Los nodos son:
-  1. `personality_agent`: Sintetiza el arquetipo turistico (Aventura, Relax, Cultural, Inversion).
+  1. `personality_agent`: Sintetiza el arquetipo turistico (Aventura, Relax, Cultural, Gastronómico, Eco-Turismo).
   2. `budget_agent`: Distribucion financiera porcentual (transporte, hospedaje, alimentacion, imprevistos).
   3. `transport_agent`: Rutas y conectividad de entrada y salida.
   4. `activities_food_agent`: Cronograma de planes y gastronomia local autentica.

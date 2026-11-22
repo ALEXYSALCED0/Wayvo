@@ -13,7 +13,6 @@ VALID_STYLES = {
     "Aventura",
     "Relax",
     "Cultural",
-    "Inversión",
     "Gastronómico",
     "Eco-Turismo",
 }
@@ -57,7 +56,7 @@ El JSON debe tener exactamente estos campos:
 
 Reglas:
 - analyzedStyle debe ser uno de:
-  Aventura, Relax, Cultural, Inversión, Gastronómico, Eco-Turismo.
+  Aventura, Relax, Cultural, Gastronómico, Eco-Turismo.
 - dominantPace debe ser Relajado, Moderado o Intenso.
 - Si se proporciona un estilo preferido válido, respétalo.
 - No inventes información psicológica que no esté respaldada
