@@ -2,7 +2,6 @@ export enum TravelStyle {
   AVENTURA = 'Aventura',
   RELAX = 'Relax',
   CULTURAL = 'Cultural',
-  INVERSION = 'Inversión',
   GASTRONOMICO = 'Gastronómico',
   ECO_TURISMO = 'Eco-Turismo',
 }

@@ -1,0 +1,114 @@
+// Esquema de la Trip DB (PostgreSQL). Solo trip-service la usa:
+// en microservicios cada servicio es dueño de su propia base de datos.
+
+// El cliente se genera dentro de este servicio para no pisar el de
+// booking-service / provider-service en el node_modules compartido del monorepo.
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/trip-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TripStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  CANCELLED
+}
+
+enum EventType {
+  TRANSPORT
+  FLIGHT
+  MEAL
+  MUSEUM
+  TOUR
+  HOTEL
+  ACTIVITY
+}
+
+enum EventStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  ISSUE
+  CANCELLED
+}
+
+enum ReservationStatus {
+  NOT_RESERVED
+  CONFIRMED
+}
+
+enum IssueType {
+  MISSED
+  CANCELLED
+  USER_CHANGED_PLAN
+  UNAVAILABLE
+}
+
+// Raíz del agregado Trip.
+model Trip {
+  id          String      @id
+  userId      String      @map("user_id")
+  title       String
+  destination String
+  origin      String?
+  startDate   DateTime    @map("start_date")
+  endDate     DateTime    @map("end_date")
+  travelers   Int?
+  description String?
+  imageUrl    String?     @map("image_url")
+  status      TripStatus
+  createdAt   DateTime    @map("created_at")
+  updatedAt   DateTime    @map("updated_at")
+  events      TripEvent[]
+
+  // "Mis viajes" filtra por usuario: clave para el multiusuario.
+  @@index([userId, createdAt])
+  @@map("trips")
+}
+
+// Cada elemento del itinerario. Pertenece al agregado Trip (se guarda junto con él).
+model TripEvent {
+  id                 String            @id
+  tripId             String            @map("trip_id")
+  type               EventType
+  title              String
+  description        String
+  startDateTime      DateTime          @map("start_date_time")
+  endDateTime        DateTime?         @map("end_date_time")
+  location           String?
+  status             EventStatus
+  reservationStatus  ReservationStatus @map("reservation_status")
+  order              Int               @map("sort_order")
+  isAlternative      Boolean           @default(false) @map("is_alternative")
+  issueReason        String?           @map("issue_reason")
+  replacedByTitle    String?           @map("replaced_by_title")
+  replacesEventTitle String?           @map("replaces_event_title")
+  // Datos flexibles que vienen de la IA / proveedores (asiento, código de reserva...).
+  details            Json?
+  // Alternativas propuestas por la IA mientras el evento está en ISSUE.
+  alternatives       Json              @default("[]")
+  trip               Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@map("trip_events")
+}
+
+// Incidentes reportados (EventService, coordinado por el TripMediator).
+model Incident {
+  id         String    @id
+  tripId     String    @map("trip_id")
+  eventId    String    @map("event_id")
+  type       IssueType
+  reason     String
+  occurredAt DateTime  @map("occurred_at")
+  resolved   Boolean   @default(false)
+
+  @@index([tripId])
+  @@map("incidents")
+}

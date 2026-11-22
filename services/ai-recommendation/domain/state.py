@@ -6,7 +6,6 @@ TravelStyle = Literal[
     "Aventura",
     "Relax",
     "Cultural",
-    "Inversión",
     "Gastronómico",
     "Eco-Turismo",
 ]

@@ -22,8 +22,10 @@ app.use((req: Request, res: Response, next) => {
   next();
 });
 
-// Dependencias
-const { mediator, tripController } = buildContainer();
+// Dependencias. En tests (vitest pone NODE_ENV=test) siempre se usa memoria,
+// aunque exista un .env con DATABASE_URL.
+const databaseUrl = process.env.NODE_ENV === 'test' ? null : process.env.DATABASE_URL;
+const { mediator, tripController, persistence } = buildContainer(databaseUrl);
 const eventController = new EventController(mediator);
 
 // Health check
@@ -70,7 +72,7 @@ app.post('/api/v1/trips/:id/events/:eventId/cancel', tripController.cancelEvent)
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, () => {
-    console.log(`[Trip Service] Running on port ${port}`);
+    console.log(`[Trip Service] Running on port ${port} (persistence: ${persistence})`);
   });
 }
 

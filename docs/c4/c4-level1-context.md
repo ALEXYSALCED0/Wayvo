@@ -76,7 +76,7 @@ El sistema central esta delimitado dentro del monorepo e incluye:
 
 ### Flujo 1: Planificacion Inteligente Asistida por IA
 1. El Viajero completa el test de afinidad psicologica y preferencias (presupuesto, fechas, acompanantes, tipo de viaje).
-2. Wayvo invoca a los agentes de IA para sintetizar un perfil de viajero (Aventura, Relax, Cultural, Inversion).
+2. Wayvo invoca a los agentes de IA para sintetizar un perfil de viajero (Aventura, Relax, Cultural, Gastronómico, Eco-Turismo).
 3. El sistema consulta a los proveedores de transporte, alojamiento y actividades, consolidando una propuesta integral con estimacion presupuestaria desglosada.
 
 ### Flujo 2: Confirmacion con Garantia de Consistencia (Saga)

@@ -170,12 +170,18 @@ def test_moneda_sin_tarifas_devuelve_error_explicito():
 
 
 def test_sin_monto_sugiere_un_presupuesto_por_categoria():
-    # Estándar en COP: 450.000 por persona y día, 2 viajeros, 4 días.
+    # Sin monto del usuario el presupuesto se ajusta al destino:
+    #   base esencial = transporte más barato (100.000) + alojamiento más barato (350.000)
+    #   margen extra  = max(25% de la tarifa de categoría, 400.000 por viajero)
+    #                 = max(0.25 * 3.600.000, 800.000) = 900.000
+    # (Estándar en COP: 450.000 por persona y día, 2 viajeros, 4 días = 3.600.000)
     result = budget_agent(make_state(budget=None))
 
     assert "budget_result" in result
-    assert result["budget_amount"] == 3_600_000
-    assert result["budget_result"]["estimatedTotalCost"] <= 3_600_000
+    assert result["budget_amount"] == 1_350_000
+    assert result["budget_result"]["estimatedTotalCost"] <= result["budget_amount"]
+    assert result["budget_result"]["userBudget"] is None
+    assert result["budget_result"]["isBudgetExceeded"] is False
 
 
 def test_sin_presupuesto_devuelve_error():
