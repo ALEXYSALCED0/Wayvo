@@ -16,7 +16,12 @@ import type {
   Provider,
   ResolveIncidentAIInput,
   ResolveIncidentAIOutput,
+  AuthSession,
+  AuthUserDTO,
+  LoginRequest,
+  RegisterRequest,
 } from '@wayvo/contracts';
+import { session } from './session';
 
 export const CORRELATION_ID_HEADER = 'x-correlation-id';
 
@@ -50,6 +55,18 @@ function notifyTelemetry(entry: TelemetryLogEntry) {
   listeners.forEach((l) => l(entry));
 }
 
+// El Inspector Dev muestra los cuerpos de las peticiones: nunca deben verse
+// contraseñas ni tokens en esa telemetría.
+function maskSecrets(value: unknown): unknown {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(maskSecrets);
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, v]) =>
+      ['password', 'token'].includes(key) ? [key, '••••••'] : [key, maskSecrets(v)],
+    ),
+  );
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const correlationId = `gw-client-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
   const startTime = performance.now();
@@ -61,8 +78,11 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     method,
     endpoint,
     correlationId,
-    requestPayload: options.body ? JSON.parse(options.body as string) : undefined,
+    requestPayload: options.body ? maskSecrets(JSON.parse(options.body as string)) : undefined,
   };
+
+  // Multiusuario: cada petición lleva el JWT; el API Gateway lo valida.
+  const token = session.getToken();
 
   try {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -70,6 +90,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       headers: {
         'Content-Type': 'application/json',
         [CORRELATION_ID_HEADER]: correlationId,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers || {}),
       },
     });
@@ -79,8 +100,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     entry.durationMs = durationMs;
 
     const body: ApiResponse<T> = await response.json();
-    entry.responsePayload = body;
+    entry.responsePayload = maskSecrets(body);
     notifyTelemetry(entry);
+
+    // Token ausente, alterado o expirado: se cierra la sesión (salvo en el propio login).
+    if (response.status === 401 && !endpoint.startsWith('/api/v1/auth/')) {
+      session.notifyUnauthorized();
+    }
 
     if (!response.ok && !body.data) {
       const errMessage = body.error?.message || `HTTP ${response.status}: ${response.statusText}`;
@@ -97,6 +123,28 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw err;
   }
 }
+
+// Autenticación (auth-service a través del API Gateway)
+export const AuthApi = {
+  register: async (payload: RegisterRequest): Promise<AuthSession> => {
+    return request<AuthSession>('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  login: async (payload: LoginRequest): Promise<AuthSession> => {
+    return request<AuthSession>('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Comprueba que el token guardado sigue siendo válido y devuelve el usuario.
+  me: async (): Promise<AuthUserDTO> => {
+    return request<AuthUserDTO>('/api/v1/auth/me');
+  },
+};
 
 export const WayvoApi = {
   // 1. Facade: Plan Trip via AI Multiagents (LangGraph)
@@ -129,8 +177,9 @@ export const WayvoApi = {
   },
 
   // 3b. Trip Service: List all trips for a user
-  listTrips: async (userId: string = 'usr-client'): Promise<Trip[]> => {
-    return request<Trip[]>(`/api/v1/trips?userId=${encodeURIComponent(userId)}`);
+  // El gateway devuelve solo los viajes del usuario del token.
+  listTrips: async (): Promise<Trip[]> => {
+    return request<Trip[]>('/api/v1/trips');
   },
 
   // 3c. Trip Service: Start a trip (transitions to ACTIVE)

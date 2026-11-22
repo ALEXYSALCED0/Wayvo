@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 export const Navbar: React.FC = () => {
   const {
@@ -18,6 +19,7 @@ export const Navbar: React.FC = () => {
     setDevBypassTimeValidation,
     setPlanResult,
   } = useApp();
+  const { user, isAdmin, logout } = useAuth();
 
   const stages = [
     { id: 'ONBOARDING', step: '1', label: 'Perfil & Plan', devLabel: '1. Perfil' },
@@ -150,7 +152,9 @@ export const Navbar: React.FC = () => {
             </button>
           )}
 
-          {/* Mode Switch Button (Usuario / Dev) */}
+          {/* Mode Switch Button (Usuario / Dev). El modo Dev (telemetría y modo caos)
+              solo está disponible para administradores: el gateway exige rol ADMIN. */}
+          {isAdmin && (
           <div className="flex items-center gap-1 p-1 bg-surface-container rounded-full border border-outline-variant/30">
             <button
               onClick={() => setAppMode('USER')}
@@ -176,6 +180,7 @@ export const Navbar: React.FC = () => {
               <span>Dev</span>
             </button>
           </div>
+          )}
 
           {/* Dev Inspector Trigger */}
           {appMode === 'DEV' && (
@@ -187,6 +192,33 @@ export const Navbar: React.FC = () => {
               <span className="material-symbols-outlined text-[15px] text-secondary">monitoring</span>
               <span>HUD ({telemetryLogs.length})</span>
             </button>
+          )}
+
+          {/* Usuario autenticado y cierre de sesión */}
+          {user && (
+            <div className="flex items-center gap-2 pl-1">
+              <div
+                className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-surface-container border border-outline-variant/30"
+                title={user.email}
+              >
+                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-secondary to-primary text-on-primary text-[11px] font-bold flex items-center justify-center">
+                  {user.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="text-xs font-semibold text-primary max-w-[120px] truncate">{user.name}</span>
+                {isAdmin && (
+                  <span className="px-1.5 rounded-full bg-secondary-fixed text-on-secondary-fixed text-[9px] font-bold">ADMIN</span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={logout}
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">logout</span>
+              </button>
+            </div>
           )}
 
           {/* Chat Drawer Concierge */}
