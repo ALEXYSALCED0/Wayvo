@@ -1,270 +1,323 @@
-# WAYVO MVP - Plataforma Inteligente de Viajes
+# WAYVO - Plataforma Inteligente de Viajes
 
-> **Sistema Multi-Plataforma con Arquitectura de Microservicios, Clean Architecture, 4 Patrones GoF/Arquitectónicos y Motor Multiagente LangGraph en Python**
-
----
-
-## Índice de Contenidos
-1. [Visión General y Objetivos del MVP](#visión-general-y-objetivos-del-mvp)
-2. [Equipo de Proyecto y Asignación de Roles](#equipo-de-proyecto-y-asignación-de-roles)
-3. [Tabla Maestra de Patrones Implementados](#tabla-maestra-de-patrones-implementados)
-4. [Documentación Técnica Detallada (Diagramas C4)](#documentación-técnica-detallada-diagramas-c4)
-5. [Arquitectura de Microservicios y Topología de Red](#arquitectura-de-microservicios-y-topología-de-red)
-6. [Estructura de Capas Clean Architecture](#estructura-de-capas-clean-architecture)
-7. [Catálogo de Microservicios y Endpoints REST](#catálogo-de-microservicios-y-endpoints-rest)
-8. [Guía Paso a Paso de Ejecución con Docker Compose](#guía-paso-a-paso-de-ejecución-con-docker-compose)
-9. [Pruebas de Integración y Demostración de Resiliencia](#pruebas-de-integración-y-demostración-de-resiliencia)
-10. [Manejo Centralizado de Errores y Trazabilidad (Req. 8.18)](#manejo-centralizado-de-errores-y-trazabilidad-req-818)
+> **Plataforma multiusuario de microservicios con Clean Architecture, 4 patrones (Saga, Facade, Adapter, Mediator), motor multiagente LangGraph en Python y autenticación JWT.**
 
 ---
 
-## Visión General y Objetivos del MVP
-
-**Wayvo** es una plataforma multiplataforma (Web y Móvil) diseñada para optimizar la planificación, reserva y gestión dinámica de viajes:
-- **Planificación Hiperpersonalizada:** Cuestionario de perfilamiento psicológico procesado por un grafo de agentes inteligentes en **LangGraph** (Python) que evalúa personalidad, presupuesto, conexiones de transporte y actividades locales.
-- **Transacciones Distribuidas Resilientes:** Coordinación de reservas y proveedores mediante el patrón **Saga (Orquestador)**, garantizando consistencia eventual y rollback compensatorio automático ante fallas de proveedores externos.
-- **Gestión Dinámica en Ruta:** Aplicación interactiva que permite al viajero marcar el avance de su itinerario en tiempo real, reportar eventualidades (vuelos cancelados, mal tiempo) y recibir planes alternativos inteligentes mediante el patrón **Mediator**.
-- **Aislamiento de Terceros:** Normalización de APIs heterogéneas de aerolíneas y hoteles a través del patrón **Adapter**.
-- **Punto Único de Entrada y Desacoplamiento:** API Gateway con el patrón **Facade** que simplifica la interacción del cliente frontend y centraliza el manejo de excepciones.
-
----
-
-## Equipo de Proyecto y Asignación de Roles
-
-| Desarrollador | Módulos Asignados | Patrón Asignado (Tipo) | Foco de la Defensa Técnica |
-| :--- | :--- | :--- | :--- |
-| **Dev 1 (Joshua Lobo)** | `services/booking-service` + Orquestador Saga | **Saga (Orquestador)** *(Arquitectónico)* | Transacciones distribuidas sin 2PC, consistencia eventual, secuencia de rollback compensatorio y registro en `CompensationLog`. |
-| **Dev 2 (Alexy Salcedo)** | `services/api-gateway` + `apps/client` (Web & Mobile) | **Facade** *(Estructural GoF)* | Desacoplamiento del cliente respecto a microservicios internos, reducción de chatty network I/O, prevención de God Object y middleware centralizado de errores (8.18). |
-| **Dev 3 (Kesly Rodríguez)** | `services/provider-service` + Mocks APIs | **Adapter** *(Estructural GoF)* | Normalización de APIs heterogéneas de terceros (vuelos, hoteles) al modelo interno `IProveedorExterno` y simulador de caos para fallos controlados. |
-| **Dev 4 (Santiago Vengoechea)** | `services/trip-service` + `services/ai-recommendation` | **Mediator** *(Comportamiento GoF)* | Desacoplamiento de eventos e incidencias de viaje (`EventService`, `AlternativeService`, `TripService`) y flujo multiagente en LangGraph. |
+## Índice
+1. [Visión general](#visión-general)
+2. [Equipo](#equipo)
+3. [Patrones implementados](#patrones-implementados)
+4. [Multiusuario y seguridad](#multiusuario-y-seguridad)
+5. [Documentación de arquitectura (C4)](#documentación-de-arquitectura-c4)
+6. [Microservicios, puertos y bases de datos](#microservicios-puertos-y-bases-de-datos)
+7. [Clean Architecture](#clean-architecture)
+8. [Catálogo de endpoints](#catálogo-de-endpoints)
+9. [Configuración (.env)](#configuración-env)
+10. [Ejecución con Docker Compose](#ejecución-con-docker-compose)
+11. [Pruebas automatizadas](#pruebas-automatizadas)
+12. [Guion de demostración](#guion-de-demostración)
+13. [Manejo centralizado de errores y trazabilidad (Req. 8.18)](#manejo-centralizado-de-errores-y-trazabilidad-req-818)
 
 ---
 
-## Tabla Maestra de Patrones Implementados
+## Visión general
 
-| Patrón | Clasificación | Microservicio | Ubicación Exacta de Archivos Clave | Responsabilidad en el Sistema |
-| :--- | :--- | :--- | :--- | :--- |
-| **Saga** | Arquitectónico (Transaccional) | `booking-service` | [`saga-orchestrator.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/booking-service/src/application/saga/saga-orchestrator.ts)<br/>[`compensation-log.entity.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/booking-service/src/domain/entities/compensation-log.entity.ts) | Orquesta los pasos hacia adelante (crear viaje -> crear reserva -> validar proveedor). Si el proveedor falla, ejecuta compensación automática cancelando reserva y viaje. |
-| **Facade** | Estructural (GoF) | `api-gateway` | [`trip.facade.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/api-gateway/src/application/facades/trip.facade.ts)<br/>[`trip-facade.controller.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/api-gateway/src/adapters/http/controllers/trip-facade.controller.ts) | Proporciona endpoints de alto nivel (`/api/v1/trips/plan`, `/api/v1/trips/checkout`), agregando llamadas internas a la IA y la Saga para evitar que el cliente haga múltiples peticiones. |
-| **Adapter** | Estructural (GoF) | `provider-service` | [`proveedor-externo.port.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/provider-service/src/application/ports/proveedor-externo.port.ts)<br/>[`transporte.adapter.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/provider-service/src/adapters/external/transporte.adapter.ts)<br/>[`alojamiento.adapter.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/provider-service/src/adapters/external/alojamiento.adapter.ts) | Adapta interfaces dispares de APIs externas (SerpAPI Flights, Hotels API) al puerto canónico `IProveedorExterno`. Permite cambiar de proveedor sin tocar la lógica de negocio. |
-| **Mediator** | Comportamiento (GoF) | `trip-service` | [`TripMediator.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/trip-service/src/application/mediator/TripMediator.ts)<br/>[`IMediator.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/trip-service/src/application/mediator/IMediator.ts) | Coordina las interacciones entre `EventService` (registra novedades), `AlternativeService` (solicita opciones a la IA) y `TripService` (actualiza el itinerario), garantizando cero acoplamiento directo entre ellos. |
+**Wayvo** es una plataforma web responsive para planificar, reservar y gestionar viajes:
+
+- **Multiusuario:** cada viajero tiene su cuenta (registro e inicio de sesión con JWT). Sus viajes y reservas son privados.
+- **Planificación con IA:** un grafo de agentes en **LangGraph** (Python + Gemini) analiza el perfil del viajero y arma transporte, alojamiento, actividades, comida y presupuesto.
+- **Reservas consistentes:** la confirmación del viaje es una transacción distribuida con el patrón **Saga**, con compensación automática si un proveedor falla.
+- **Cupos sin sobreventa:** la reserva de cupos es atómica; con usuarios concurrentes, nunca se vende dos veces el mismo cupo.
+- **Itinerario vivo:** el viajero reporta imprevistos y recibe alternativas coordinadas por el patrón **Mediator**.
+- **Integración con terceros:** APIs de vuelos y hoteles normalizadas con el patrón **Adapter**.
+- **Punto único de entrada:** API Gateway con el patrón **Facade**, autenticación y manejo centralizado de errores.
+- **Pagos con Stripe:** *en desarrollo* (ver [estado de la entrega final](#estado-de-la-entrega-final)).
 
 ---
 
-## Documentación Técnica Detallada (Diagramas C4)
+## Equipo
 
-Cada diagrama de arquitectura se encuentra estructurado en su archivo independiente:
+### Entrega final
 
-| Documento | Ubicación | Descripción |
+| Integrante | Responsabilidades |
+| :--- | :--- |
+| **Santiago Vengoechea** | `trip-service` (Mediator), `ai-recommendation` (LangGraph). Multiusuario: `auth-service`, autenticación JWT en el gateway, aislamiento de datos por usuario y login en el cliente. Persistencia de `trip-service` en PostgreSQL y reserva atómica de cupos. |
+| **Kesly Rodríguez** | `provider-service` (Adapter). Pasarela de pagos con Stripe (*en desarrollo*). |
+
+### Primera entrega (créditos)
+
+| Integrante | Módulos | Patrón |
 | :--- | :--- | :--- |
-| **C4 Nivel 1: Contexto del Sistema** | [`docs/c4/c4-level1-context.md`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/docs/c4/c4-level1-context.md) | Diagrama de contexto del sistema, actores (Viajero y Administrador/Dev), sistemas externos (APIs de transporte, alojamiento y modelos de lenguaje) y flujos de valor. |
-| **C4 Nivel 2: Contenedores** | [`docs/c4/c4-level2-containers.md`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/docs/c4/c4-level2-containers.md) | Topología de contenedores, puertos de red, bases de datos independientes (**Database-per-Service**) y protocolos de comunicación HTTP/REST. |
-| **C4 Nivel 3: Componentes y Clean Architecture** | [`docs/c4/c4-level3-components.md`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/docs/c4/c4-level3-components.md) | Desglose en capas (Domain, Application, Adapters, Infrastructure) y diagramas de secuencia para Booking (Saga), Provider (Adapter) y Trip (Mediator). |
+| **Joshua Lobo** | `services/booking-service` | **Saga** (orquestador) |
+| **Alexy Salcedo** | `services/api-gateway`, `apps/client`, `shared/contracts` | **Facade** |
+| **Kesly Rodríguez** | `services/provider-service` + mocks de APIs externas | **Adapter** |
+| **Santiago Vengoechea** | `services/trip-service`, `services/ai-recommendation` | **Mediator** + LangGraph |
+
+### Estado de la entrega final
+
+| Requisito | Estado |
+| :--- | :--- |
+| Multiusuario (registro, login, JWT, aislamiento por usuario, roles) | ✅ Implementado |
+| Concurrencia en reservas (cupos atómicos) | ✅ Implementado |
+| Persistencia de `trip-service` en PostgreSQL | ✅ Implementado |
+| Pasarela de pagos con Stripe | 🚧 En desarrollo |
 
 ---
 
-## Arquitectura de Microservicios y Topología de Red
+## Patrones implementados
 
-```text
-wayvo-monorepo/
-├── apps/
-│   └── client/                 # React + Vite (Web y Responsive Móvil) [Puerto 5173]
-├── services/
-│   ├── api-gateway/            # Express / Node.js [Puerto 3000] -> Patrón Facade
-│   ├── booking-service/        # Node.js + TypeScript [Puerto 3001] -> Patrón Saga
-│   ├── provider-service/       # Node.js + TypeScript [Puerto 3002] -> Patrón Adapter
-│   ├── trip-service/           # Node.js + TypeScript [Puerto 3003] -> Patrón Mediator
-│   └── ai-recommendation/      # Python + FastAPI + LangGraph [Puerto 8000]
-├── shared/
-│   └── contracts/              # @wayvo/contracts: DTOs Zod y esquemas JSON comunes
-├── docs/                       # Documentación técnica de arquitectura
-│   └── c4/                     # Archivos de diagramas C4 Nivel 1, 2 y 3
-├── docker-compose.yml          # Orquestación de contenedores y bases de datos
-├── package.json                # Workspaces de npm y scripts globales
-└── README.md                   # Documentación raíz del proyecto
-```
-
-### Mapeo de Puertos y Bases de Datos (Database-per-Service)
-
-| Servicio / Contenedor | Lenguaje / Framework | Puerto Host | Puerto Contenedor | Base de Datos Asociada |
+| Patrón | Tipo | Servicio | Archivos clave | Responsabilidad |
 | :--- | :--- | :--- | :--- | :--- |
-| **`client`** | React 18 / TypeScript / Vite | `5173` | `80` (o `5173`) | N/A (Frontend SPA) |
-| **`api-gateway`** | Node.js / Express | `3000` | `3000` | N/A (Stateless / Reverse Proxy) |
-| **`booking-service`** | Node.js / TypeScript | `3001` | `3001` | PostgreSQL `booking_db` (`5433:5432`) |
-| **`provider-service`**| Node.js / TypeScript | `3002` | `3002` | PostgreSQL `provider_db` (`5434:5432`) |
-| **`trip-service`**    | Node.js / TypeScript | `3003` | `3003` | PostgreSQL `trip_db` (`5435:5432`) |
-| **`ai-recommendation`**| Python 3.11 / FastAPI | `8000` | `8000` | In-Memory Graph / Vector Store |
+| **Saga** | Arquitectónico | `booking-service` | [`saga-orchestrator.ts`](services/booking-service/src/application/saga/saga-orchestrator.ts), [`compensation-log.ts`](services/booking-service/src/domain/entities/compensation-log.ts) | Orquesta crear viaje → crear reserva → reservar con proveedores → confirmar. Si algo falla, compensa en orden inverso y registra `CompensationLog`. |
+| **Facade** | Estructural (GoF) | `api-gateway` | [`trip.facade.ts`](services/api-gateway/src/application/facades/trip.facade.ts), [`trip-facade.controller.ts`](services/api-gateway/src/adapters/http/controllers/trip-facade.controller.ts) | Endpoints de alto nivel (`/trips/plan`, `/trips/checkout`) que ocultan la IA y la Saga al cliente. |
+| **Adapter** | Estructural (GoF) | `provider-service` | [`proveedor-externo.port.ts`](services/provider-service/src/application/ports/proveedor-externo.port.ts), [`transporte.adapter.ts`](services/provider-service/src/adapters/external/transporte.adapter.ts), [`alojamiento.adapter.ts`](services/provider-service/src/adapters/external/alojamiento.adapter.ts) | Adapta SerpAPI (vuelos) y Hotels API al puerto `IProveedorExterno`. |
+| **Mediator** | Comportamiento (GoF) | `trip-service` | [`IMediator.ts`](services/trip-service/src/application/mediator/IMediator.ts), [`TripMediator.ts`](services/trip-service/src/application/mediator/TripMediator.ts) | Coordina `EventService`, `AlternativeService` y `TripService` ante incidencias, sin que se conozcan entre sí. |
+
+El motor de IA está en [`graph.py`](services/ai-recommendation/application/graph.py) (`StateGraph` de LangGraph).
 
 ---
 
-## Estructura de Capas Clean Architecture
-
-Cada microservicio implementa la separación estricta en 4 capas concéntricas:
+## Multiusuario y seguridad
 
 ```text
-service/
-├── src/
-│   ├── domain/           # Capa de Dominio (Entidades puras, Value Objects, Enums de estado, Reglas de negocio)
-│   ├── application/      # Capa de Aplicación (Casos de uso, Puertos/Interfaces, Orquestadores/Mediadores)
-│   ├── adapters/         # Capa de Adaptadores (Controladores HTTP, Presentadores, Adaptadores externos, Gateways)
-│   └── infrastructure/   # Capa de Infraestructura (TypeORM, Conexiones a bases de datos, Express, Logs)
+Cliente ──(Bearer JWT)──► API Gateway ──(x-user-id)──► trip / booking / provider / ai
+   ▲                         │ verifica firma del JWT
+   └──── token ◄── auth-service (registro / login, bcrypt + JWT)
 ```
 
-- **Dominio:** Contiene entidades como `Trip`, `Booking`, `Provider`, independientes de cualquier framework.
-- **Aplicación:** Implementa los casos de uso del negocio interactuando con el exterior únicamente a través de **Puertos** (`ports`).
-- **Adaptadores:** Convierten los datos del formato externo (HTTP, JSON) al formato de la aplicación y viceversa.
-- **Infraestructura:** Concreta los detalles técnicos (motores SQL, llamadas `fetch`, clientes de red).
+- **`auth-service`** registra usuarios (contraseña guardada como hash **bcrypt**) y emite **JWT** firmados con `JWT_SECRET`.
+- El **API Gateway** verifica el JWT en cada petición (sin llamar a `auth-service`), borra cualquier `x-user-id` enviado por el cliente y propaga el verdadero. Sin token válido responde **401**.
+- **Aislamiento:** `trip-service` y `booking-service` solo devuelven y modifican recursos del usuario; lo ajeno responde **404**.
+- **Roles:** `TRAVELER` por defecto; los correos en `ADMIN_EMAILS` reciben `ADMIN` al registrarse. El modo Dev y el simulador de fallos (`/api/v1/mock/*`) son solo para `ADMIN` (**403** para el resto).
+- **Concurrencia:** los cupos se apartan con un `UPDATE` atómico en PostgreSQL ([`prisma-service-offer.repository.ts`](services/provider-service/src/infrastructure/persistence/prisma/prisma-service-offer.repository.ts)).
+
+Archivos clave: [`auth.middleware.ts`](services/api-gateway/src/adapters/http/middlewares/auth.middleware.ts), [`auth-service`](services/auth-service/src), [`identity.ts`](services/trip-service/src/adapters/middlewares/identity.ts), [`AuthContext.tsx`](apps/client/src/context/AuthContext.tsx).
 
 ---
 
-## Catálogo de Microservicios y Endpoints REST
+## Documentación de arquitectura (C4)
 
-### 1. API Gateway (Puerto 3000)
-- `POST /api/v1/trips/plan`: Agregación de fachada para disparar el motor multiagente y retornar una propuesta estructurada.
-- `POST /api/v1/trips/checkout`: Agregación de fachada que dispara la transacción distribuida Saga en `booking-service`.
-- `GET /health`: Health-check consolidado del Gateway y verificación de conectividad con todos los microservicios.
-- `ALL /api/v1/*`: Proxy inverso dinámico hacia los microservicios internos.
-
-### 2. Booking Service (Puerto 3001)
-- `POST /api/v1/saga/confirm-trip`: Ejecuta la orquestación Saga hacia adelante y coordina el rollback si falla.
-- `GET /api/v1/saga/:correlationId/compensation-log`: Consulta la auditoría de compensaciones de una transacción específica.
-- `POST /api/v1/bookings`: Crea una reserva local en estado `PENDING`.
-- `POST /api/v1/bookings/:id/cancel`: Caso de uso de compensación para marcar reserva como `CANCELLED`.
-
-### 3. Provider Service (Puerto 3002)
-- `POST /api/v1/providers/check-availability`: Consulta estandarizada a través de adaptadores (`TransporteAdapter`, `AlojamientoAdapter`).
-- `POST /api/v1/providers/confirm`: Confirma el bloqueo de cupos con el proveedor externo.
-- `GET /api/v1/mock/simulate-failure?mode=unavailable`: Interruptor de simulación de fallos para probar la resiliencia de la Saga.
-- `GET /api/v1/mock/simulate-failure?mode=normal`: Restaura el funcionamiento normal del simulador.
-
-### 4. Trip Service (Puerto 3003)
-- `POST /api/v1/trips`: Crea un nuevo viaje en estado `DRAFT` o `PENDING`.
-- `GET /api/v1/trips`: Lista todos los viajes registrados.
-- `GET /api/v1/trips/:id`: Obtiene el detalle completo del viaje, itinerario y eventos diarios.
-- `DELETE /api/v1/trips/:id`: Elimina permanentemente un viaje de la base de datos.
-- `POST /api/v1/trips/:id/incidents`: Reporta un imprevisto y delega a `TripMediator` para obtener alternativas inteligentes.
-- `POST /api/v1/trips/:id/resolve-incident`: Cancela el evento original e inyecta la alternativa seleccionada.
-- `PATCH /api/v1/trips/:id/events/:eventId/status`: Actualiza el estado del evento (`CONFIRMED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`).
-
-### 5. AI Recommendation Service (Puerto 8000)
-- `POST /api/v1/recommend/plan`: Ejecuta el grafo de estados de LangGraph y genera el desglose de viaje.
-- `POST /api/v1/recommend/incident-resolution`: Agente de incidencias que propone 3 soluciones viables y contextuales.
-- `POST /api/v1/chat`: Chat contextual con el agente turístico.
+| Documento | Contenido |
+| :--- | :--- |
+| [C4 Nivel 1: Contexto](docs/c4/c4-level1-context.md) | Actores (viajero, administrador), sistemas externos (SerpAPI, Hotels API, LLM, Stripe) y flujos de valor. |
+| [C4 Nivel 2: Contenedores](docs/c4/c4-level2-containers.md) | Contenedores, puertos, bases de datos (Database-per-Service), autenticación en el gateway y concurrencia. |
+| [C4 Nivel 3: Componentes](docs/c4/c4-level3-components.md) | Capas de Clean Architecture y secuencias de `auth-service`, Saga, Adapter y Mediator. |
+| [Guía de sustentación](docs/defense/guia-sustentacion-desarrolladores.md) | Justificación de cada patrón para la defensa técnica. |
 
 ---
 
-## Guía Paso a Paso de Ejecución con Docker Compose
+## Microservicios, puertos y bases de datos
+
+```text
+wayvo/
+├── apps/
+│   └── client/               # React + Vite + Tailwind (web responsive) [5173]
+├── services/
+│   ├── api-gateway/          # Express [3000] -> Facade + autenticación JWT
+│   ├── auth-service/         # Node + TS [3004] -> usuarios, login, JWT
+│   ├── booking-service/      # Node + TS [3001] -> Saga
+│   ├── provider-service/     # Node + TS [3002] -> Adapter
+│   ├── trip-service/         # Node + TS [3003] -> Mediator
+│   └── ai-recommendation/    # Python + FastAPI + LangGraph [8000]
+├── shared/
+│   └── contracts/            # @wayvo/contracts: DTOs y esquemas zod compartidos
+├── docs/                     # C4 y guía de sustentación
+└── docker-compose.yml
+```
+
+| Servicio | Tecnología | Puerto | Base de datos (puerto host) |
+| :--- | :--- | :--- | :--- |
+| `client` | React 18 + Vite | `5173` | — |
+| `api-gateway` | Node.js + Express | `3000` | — (stateless) |
+| `auth-service` | Node.js + TypeScript + Prisma | `3004` | PostgreSQL `auth_db` (`5436`) |
+| `booking-service` | Node.js + TypeScript + Prisma | `3001` | PostgreSQL `booking_db` (`5433`) |
+| `provider-service` | Node.js + TypeScript + Prisma | `3002` | PostgreSQL `provider_db` (`5434`) |
+| `trip-service` | Node.js + TypeScript + Prisma | `3003` | PostgreSQL `trip_db` (`5435`) |
+| `ai-recommendation` | Python + FastAPI + LangGraph | `8000` | — |
+
+---
+
+## Clean Architecture
+
+```text
+service/src/
+├── domain/          # Entidades, value objects, reglas de negocio (sin frameworks)
+├── application/     # Casos de uso, puertos (interfaces), Saga / Mediator / Facade
+├── adapters/        # Controllers HTTP, middlewares, gateways y adapters externos
+└── infrastructure/  # Prisma, Express, bcrypt, JWT, clientes HTTP, logger, container.ts
+```
+
+Las dependencias apuntan hacia adentro. Cada servicio elige sus implementaciones concretas solo en `infrastructure/container.ts` (raíz de composición): por ejemplo, `trip-service` usa PostgreSQL si hay `DATABASE_URL` y repositorios en memoria en los tests.
+
+---
+
+## Catálogo de endpoints
+
+Todas las rutas pasan por el gateway (`http://localhost:3000`) y requieren `Authorization: Bearer <token>`, salvo las marcadas como **públicas**.
+
+### Autenticación (`auth-service`)
+| Método | Ruta | Descripción |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/register` | **Pública.** Crea la cuenta y devuelve `{ token, expiresAt, user }`. |
+| `POST` | `/api/v1/auth/login` | **Pública.** Devuelve `{ token, expiresAt, user }`. |
+| `GET` | `/api/v1/auth/me` | Usuario del token. |
+
+### Facade (`api-gateway`)
+| Método | Ruta | Descripción |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/trips/plan` | Genera el plan con el motor multiagente (el `userId` sale del token). |
+| `POST` | `/api/v1/trips/checkout` | Confirma el viaje ejecutando la Saga. `201` confirmado, `409` compensado. |
+| `GET` | `/health`, `/health/services` | **Públicas.** Estado del gateway y de los servicios. |
+
+### Viajes (`trip-service`) - solo los del usuario
+| Método | Ruta | Descripción |
+| :--- | :--- | :--- |
+| `GET` / `POST` | `/api/v1/trips` | Lista "mis viajes" / crea un viaje. |
+| `GET` / `DELETE` | `/api/v1/trips/:id` | Detalle / eliminación. |
+| `POST` | `/api/v1/trips/:id/start`, `/confirm`, `/cancel` | Cambios de estado del viaje. |
+| `POST` | `/api/v1/trips/:id/incidents` | Reporta un imprevisto (Mediator, paso 1). |
+| `POST` | `/api/v1/trips/:id/alternatives` | Elige una alternativa (Mediator, paso 2). |
+| `POST` | `/api/v1/trips/:id/resolve-incident` | Aplica una alternativa propuesta por la IA. |
+| `PATCH` / `POST` | `/api/v1/trips/:id/events/:eventId/...` | Reserva, inicio, finalización y cancelación de eventos. |
+
+### Reservas y Saga (`booking-service`)
+| Método | Ruta | Descripción |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/saga/confirm-trip` | Ejecuta la Saga (normalmente vía `/trips/checkout`). |
+| `GET` | `/api/v1/saga/:correlationId/compensation-log` | Auditoría de compensaciones. |
+| `POST` / `GET` | `/api/v1/bookings`, `/api/v1/bookings/:id` | Crear / consultar reserva propia. |
+| `POST` | `/api/v1/bookings/:id/cancel` | Cancelar reserva propia. |
+
+### Proveedores (`provider-service`)
+| Método | Ruta | Descripción |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/providers` | Catálogo de proveedores verificados. |
+| `POST` | `/api/v1/providers/check-availability` | Disponibilidad vía adapters. |
+| `POST` | `/api/v1/providers/confirm` | Reserva atómica de cupos + confirmación externa. |
+| `GET` | `/api/v1/mock/simulate-failure?mode=unavailable\|slow\|error\|normal` | **Solo ADMIN.** Simulador de fallos. |
+
+### IA (`ai-recommendation`)
+| Método | Ruta | Descripción |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/ai/plan` | Ejecuta el grafo LangGraph (normalmente vía `/trips/plan`). |
+| `POST` | `/api/v1/ai/chat` | Chat libre con el asistente de viajes. |
+| `POST` | `/api/v1/ai/incidents/resolve` | Alternativas contextuales ante un imprevisto (`incident_agent`). |
+
+---
+
+## Configuración (.env)
+
+1. Copia la plantilla en la raíz del proyecto:
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+2. Completa las variables. **`.env` nunca se sube a git** (está en `.gitignore`):
+
+| Variable | Obligatoria | Descripción |
+| :--- | :--- | :--- |
+| `GOOGLE_API_KEY` | Sí (para la IA) | Clave de Gemini (Google AI Studio). |
+| `GROQ_API_KEY`, `OPENROUTER_API_KEY` | No | LLM de respaldo si Gemini falla. |
+| `JWT_SECRET` | Recomendada | Secreto para firmar los JWT (mismo valor para gateway y auth). Vacío = secreto de desarrollo. Generar uno con: `[Convert]::ToBase64String((1..48 \| ForEach-Object { Get-Random -Maximum 256 }))` |
+| `ADMIN_EMAILS` | No | Correos (separados por coma) que reciben rol `ADMIN` al registrarse. |
+| `EXTERNAL_PROVIDERS_MODE` | Sí | `real` (SerpAPI + Hotels API, requiere sus claves) o `mock` (simulador, sin claves). |
+| `SERPAPI_API_KEY`, `HOTELS_API_KEY` | Si `real` | Claves de las APIs de vuelos y hoteles. |
+| `DEMO_AUTO_REFILL_CAPACITY` | No | `true` (por defecto) recarga cupos agotados; `false` muestra el rechazo real por falta de cupo. |
+
+---
+
+## Ejecución con Docker Compose
 
 ### Prerrequisitos
-- **Docker** y **Docker Compose** instalados (Docker Desktop en Mac/Windows o Docker Engine en Linux).
-- Node.js 18+ (opcional, solo si se desea correr fuera de contenedores).
+- **Docker Desktop** (Windows/Mac) o Docker Engine (Linux).
+- Node.js 20+ y Python 3.11+ solo si se ejecuta sin Docker.
 
-### 1. Clonar el repositorio y configurar variables de entorno
-```bash
-cp .env.example .env
-```
-
-### 2. Construir y levantar todos los servicios con Docker Compose
-```bash
-# Levantar bases de datos, microservicios backend y API gateway en background
+### Levantar todo
+```powershell
 docker compose up --build -d
-
-# Si se desea incluir también el cliente frontend en contenedor:
-docker compose --profile client up --build -d
 ```
+Abre **http://localhost:5173**, crea una cuenta y empieza a planificar.
 
-### 3. Verificar que los contenedores estén saludables
-```bash
-docker compose ps
-```
-Debe visualizar los siguientes contenedores en ejecución:
-- `wayvo-api-gateway`
-- `wayvo-booking-service`
-- `wayvo-provider-service`
-- `wayvo-trip-service`
-- `wayvo-ai-recommendation`
-- `wayvo-booking-db`
-- `wayvo-provider-db`
-- `wayvo-trip-db`
+Contenedores esperados (`docker compose ps`): `wayvo-client`, `wayvo-api-gateway`, `wayvo-auth-service`, `wayvo-booking-service`, `wayvo-provider-service`, `wayvo-trip-service`, `wayvo-ai-recommendation`, `wayvo-auth-db`, `wayvo-booking-db`, `wayvo-provider-db`, `wayvo-trip-db`.
 
-### 4. Ejecución en Modo Desarrollo Local (Bases de datos en Docker, servicios en terminal)
-```bash
-# 1. Levantar únicamente las bases de datos
-docker compose up -d booking_db provider_db trip_db
+Las migraciones de Prisma se aplican solas al arrancar cada servicio.
 
-# 2. Instalar dependencias globales del monorepo
+### Desarrollo local (sin Docker para los servicios)
+```powershell
+docker compose up -d auth-db booking-db provider-db trip-db
 npm install
-
-# 3. Compilar los contratos compartidos
 npm run build:contracts
-
-# 4. Levantar los servicios en terminales separadas
-npm run dev:gateway      # Puerto 3000
-npm run dev:booking      # Puerto 3001
-npm run dev:provider     # Puerto 3002
-npm run dev:trip         # Puerto 3003
-npm run dev:client       # Puerto 5173
+```
+Luego, cada servicio en su propia terminal (cada uno necesita su propio `.env`, copiado de su `.env.example`):
+```powershell
+npm run dev:gateway   # 3000
+npm run dev:auth      # 3004
+npm run dev:booking   # 3001
+npm run dev:provider  # 3002
+npm run dev:trip      # 3003
+npm run dev:client    # 5173
 ```
 
 ---
 
-## Pruebas de Integración y Demostración de Resiliencia
+## Pruebas automatizadas
 
-### Prueba 1: Flujo Normal de Integración End-to-End
-1. Abrir el navegador en `http://localhost:5173`.
-2. Completar el cuestionario de onboarding psicológico (ej. Destino: "Santa Marta", Estilo: "Aventura", Presupuesto: "Estándar").
-3. Hacer clic en **"Generar Propuesta con IA"**.
-   - Flujo: Frontend -> Gateway (`POST /trips/plan`) -> AI LangGraph (:8000) -> Propuesta generada con desglose de transporte, hotel y actividades.
-4. En la pantalla de propuesta, hacer clic en **"Confirmar Viaje"**.
-   - Flujo: Gateway -> Booking Service (`POST /saga/confirm-trip`) -> Trip Service (Crear viaje `PENDING`) -> Booking Service (Crear reserva `PENDING`) -> Provider Service (Verificar cupos) -> Todos exitosos -> Estado final: `CONFIRMED`.
-5. El usuario es redirigido al panel de **Mis Viajes** y al **Itinerario Activo**.
+```powershell
+npm run typecheck                                  # todo el monorepo
+npm --prefix services/auth-service test
+npm --prefix services/api-gateway test
+npm --prefix services/booking-service test
+npm --prefix services/provider-service test
+npm --prefix services/trip-service test
+cd services/ai-recommendation; python -m pytest    # requiere su entorno virtual
+```
 
-### Prueba 2: Prueba de Resiliencia y Rollback Automático de la Saga
-1. **Activar la simulación de indisponibilidad en el proveedor:**
-   ```bash
-   curl http://localhost:3002/api/v1/mock/simulate-failure?mode=unavailable
-   ```
-2. Intentar confirmar un viaje desde la interfaz o vía curl:
-   ```bash
-   curl -X POST http://localhost:3000/api/v1/trips/checkout \
-     -H "Content-Type: application/json" \
-     -d '{"tripData": {"destination": "Cartagena", "totalBudget": 1500000}}'
-   ```
-3. **Comportamiento esperado:**
-   - La terminal de `booking-service` detecta el fallo del proveedor en el paso 3.
-   - Se activa la **secuencia de compensación automática**:
-     - La reserva local se marca como `CANCELLED`.
-     - El viaje en `trip-service` se actualiza a `CANCELLED`.
-     - Se registra la traza en `CompensationLog`.
-   - La interfaz muestra un mensaje claro indicando que los proveedores no tienen disponibilidad y que no se generaron registros huérfanos.
-4. **Restaurar el proveedor a modo normal:**
-   ```bash
-   curl http://localhost:3002/api/v1/mock/simulate-failure?mode=normal
-   ```
+Los tests contra PostgreSQL real se activan con `TEST_DATABASE_URL` (ver el encabezado de cada archivo `*prisma*.test.ts`). Incluyen, entre otros, la prueba de concurrencia: 20 reservas simultáneas sobre 3 cupos deben dejar exactamente 3 ganadoras.
 
 ---
 
-## Manejo Centralizado de Errores y Trazabilidad (Req. 8.18)
+## Guion de demostración
 
-### 1. Formato Homogéneo de Respuesta de Excepciones
-Toda falla en la plataforma es interceptada por el middleware centralizado (`error.middleware.ts`) del API Gateway, devolviendo siempre una estructura uniforme:
+### 1. Multiusuario
+1. En `http://localhost:5173` registra a **Ana** y crea un viaje.
+2. Cierra sesión y registra a **Luis**: "Mis viajes" está vacío.
+3. (Opcional, por API) con el token de Luis, `GET /api/v1/trips/<id de Ana>` → **404**; sin token → **401**.
+
+### 2. Flujo completo con IA y Saga
+1. Completa el onboarding (destino, fechas, estilo, presupuesto) → **Generar propuesta con IA**.
+   - Cliente → Gateway (`/trips/plan`, Facade) → LangGraph → propuesta.
+2. **Confirmar viaje** → Gateway (`/trips/checkout`) → Saga: crear viaje `PENDING` → crear reserva `PENDING` → reservar cupos → `CONFIRMED`.
+
+### 3. Resiliencia: rollback de la Saga
+Con un usuario **ADMIN** (correo en `ADMIN_EMAILS`), activa el modo **Dev** y el simulador:
+```powershell
+# o desde el Inspector Dev del cliente
+curl.exe -H "Authorization: Bearer <token ADMIN>" "http://localhost:3000/api/v1/mock/simulate-failure?mode=unavailable"
+```
+Al confirmar un viaje, `booking-service` detecta el fallo y compensa: reserva y viaje quedan `CANCELLED`, se registra `CompensationLog` y el cliente muestra el motivo. Restaurar con `mode=normal`.
+
+Alternativa sin modo caos: `DEMO_AUTO_REFILL_CAPACITY=false` en `.env` y una oferta sin cupo → la Saga compensa en el paso `RESERVE_PROVIDER`.
+
+### 4. Incidencia en ruta (Mediator)
+En un viaje activo, reporta un imprevisto (ej. "Perdí el tren") → el `TripMediator` registra la incidencia, propone alternativas y, al elegir una, reemplaza el evento en el itinerario.
+
+---
+
+## Manejo centralizado de errores y trazabilidad (Req. 8.18)
+
+Toda falla se devuelve con el mismo formato desde el middleware centralizado ([`error.middleware.ts`](services/api-gateway/src/adapters/http/middlewares/error.middleware.ts)) y desde cada servicio:
 
 ```json
 {
   "success": false,
   "error": {
-    "code": "EXTERNAL_PROVIDER_UNAVAILABLE",
-    "message": "Los proveedores externos de transporte no tienen cupos disponibles.",
-    "details": {
-      "failedService": "provider-service",
-      "correlationId": "wayvo-cor-78a9c-2026"
-    }
+    "code": "SAGA_COMPENSATED",
+    "message": "Trip could not be confirmed and was rolled back cleanly: ...",
+    "details": { "correlationId": "gw-client-...", "failedStep": "RESERVE_PROVIDER" }
   }
 }
 ```
 
-### 2. Trazabilidad con `x-correlation-id`
-Cada solicitud entrante recibe o propaga el encabezado HTTP `x-correlation-id`. Este identificador:
-- Se registra con timestamp ISO en los registros de consola de cada microservicio.
-- Se adjunta a cada entrada de la tabla `CompensationLog`.
-- Permite auditar el ciclo de vida completo de cualquier transacción con el **DevInspector HUD** integrado en la aplicación cliente.
+Códigos frecuentes: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400), `SAGA_COMPENSATED` (409), `DOWNSTREAM_SERVICE_UNAVAILABLE` (503).
+
+Cada petición lleva un `x-correlation-id` que viaja por todos los servicios, aparece en los logs y en `CompensationLog`, y se puede seguir desde el Inspector Dev del cliente.

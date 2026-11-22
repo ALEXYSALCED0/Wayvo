@@ -51,7 +51,7 @@ La sustentacion individual evalua la capacidad de cada desarrollador para:
 
 ### 2.3 Archivos Clave a Abrir en el IDE Durante la Sustentacion
 
-1. [`services/booking-service/src/application/saga/saga-orchestrator.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/booking-service/src/application/saga/saga-orchestrator.ts):
+1. [`services/booking-service/src/application/saga/saga-orchestrator.ts`](../../services/booking-service/src/application/saga/saga-orchestrator.ts):
    - **Lineas 30-75:** Metodo principal `execute(payload: ConfirmTripSagaInput)`. Mostrar los 4 pasos hacia adelante:
      1. Crear viaje en `trip-service` en estado `PENDING`.
      2. Crear reserva local en `booking-service` en estado `PENDING`.
@@ -61,9 +61,9 @@ La sustentacion individual evalua la capacidad de cada desarrollador para:
      1. Cancelar reserva local (`CancelBookingUseCase`).
      2. Cancelar viaje remoto en `trip-service` (`tripGateway.cancelTrip`).
      3. Persistir la traza completa en el repositorio `compensationLogRepository.save(...)`.
-2. [`services/booking-service/src/domain/entities/compensation-log.entity.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/booking-service/src/domain/entities/compensation-log.entity.ts):
+2. [`services/booking-service/src/domain/entities/compensation-log.ts`](../../services/booking-service/src/domain/entities/compensation-log.ts):
    - Mostrar la entidad pura de dominio que almacena: `correlationId`, `tripId`, `bookingId`, `reason`, `failedStep` y `timestamp`.
-3. [`services/booking-service/src/adapters/gateways/http/http-provider-service.gateway.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/booking-service/src/adapters/gateways/http/http-provider-service.gateway.ts):
+3. [`services/booking-service/src/adapters/gateways/http/http-provider-service.gateway.ts`](../../services/booking-service/src/adapters/gateways/http/http-provider-service.gateway.ts):
    - Mostrar la implementacion del puerto `IProviderGateway` usando `fetch`/HTTP desacoplado de la capa de aplicacion.
 
 ---
@@ -130,12 +130,12 @@ La sustentacion individual evalua la capacidad de cada desarrollador para:
 
 ### 3.3 Archivos Clave a Abrir en el IDE Durante la Sustentacion
 
-1. [`services/api-gateway/src/application/facades/trip.facade.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/api-gateway/src/application/facades/trip.facade.ts):
+1. [`services/api-gateway/src/application/facades/trip.facade.ts`](../../services/api-gateway/src/application/facades/trip.facade.ts):
    - **Metodo `planTrip(input)`:** Mostrar como recibe las respuestas del motor de IA (`ai-recommendation:8000`) y estructura la propuesta consumible por el cliente.
    - **Metodo `checkoutTrip(input)`:** Mostrar como invoca a `booking-service` (Saga) propagando el correlation ID.
-2. [`services/api-gateway/src/adapters/http/middlewares/error.middleware.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/api-gateway/src/adapters/http/middlewares/error.middleware.ts) *(Requisito 8.18)*:
+2. [`services/api-gateway/src/adapters/http/middlewares/error.middleware.ts`](../../services/api-gateway/src/adapters/http/middlewares/error.middleware.ts) *(Requisito 8.18)*:
    - Mostrar como captura cualquier excepcion interna y responde con el formato estandar `{ success: false, error: { code, message, details } }`.
-3. [`apps/client/src/App.tsx`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/apps/client/src/App.tsx) y [`apps/client/src/components/MyTripsView.tsx`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/apps/client/src/components/MyTripsView.tsx):
+3. [`apps/client/src/App.tsx`](../../apps/client/src/App.tsx) y [`apps/client/src/components/MyTripsView.tsx`](../../apps/client/src/components/MyTripsView.tsx):
    - Mostrar la arquitectura del cliente: renderizado con Tailwind, modales montados con React Portal (`createPortal`) para evitar bloqueos de viewport, y consumo centralizado a traves de `WayvoApi` apuntando unicamente al puerto 3000.
 
 ---
@@ -193,15 +193,15 @@ La sustentacion individual evalua la capacidad de cada desarrollador para:
 
 ### 4.3 Archivos Clave a Abrir en el IDE Durante la Sustentacion
 
-1. [`services/provider-service/src/application/ports/proveedor-externo.port.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/provider-service/src/application/ports/proveedor-externo.port.ts):
+1. [`services/provider-service/src/application/ports/proveedor-externo.port.ts`](../../services/provider-service/src/application/ports/proveedor-externo.port.ts):
    - Mostrar la interfaz target estandarizada:
      - `consultarDisponibilidad(criterios: DisponibilidadQuery): Promise<DisponibilidadResultado>`
      - `confirmarReserva(datos: ReservaDatos): Promise<ConfirmacionResultado>`
-2. [`services/provider-service/src/adapters/external/transporte.adapter.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/provider-service/src/adapters/external/transporte.adapter.ts):
+2. [`services/provider-service/src/adapters/external/transporte.adapter.ts`](../../services/provider-service/src/adapters/external/transporte.adapter.ts):
    - Mostrar como traduce los criterios de Wayvo (`origen`, `destino`, `fecha`) al formato requerido por la API de vuelos y como transforma la respuesta externa al modelo canonico de Wayvo (`disponible: boolean`, `precioEstimado`, `referenciaExterna`).
-3. [`services/provider-service/src/adapters/external/alojamiento.adapter.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/provider-service/src/adapters/external/alojamiento.adapter.ts):
+3. [`services/provider-service/src/adapters/external/alojamiento.adapter.ts`](../../services/provider-service/src/adapters/external/alojamiento.adapter.ts):
    - Mostrar la adaptacion para hoteles y hospedaje.
-4. [`services/provider-service/src/infrastructure/mock/mock-inventory.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/provider-service/src/infrastructure/mock/mock-inventory.ts) y controlador de caos:
+4. [`services/provider-service/src/infrastructure/mock/mock-inventory.ts`](../../services/provider-service/src/infrastructure/mock/mock-inventory.ts) y controlador de caos:
    - Mostrar el mecanismo de inyeccion de fallos controlados para pruebas de resiliencia (`mode=unavailable`).
 
 ---
@@ -262,17 +262,17 @@ La sustentacion individual evalua la capacidad de cada desarrollador para:
 
 ### 5.3 Archivos Clave a Abrir en el IDE Durante la Sustentacion
 
-1. [`services/trip-service/src/application/mediator/IMediator.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/trip-service/src/application/mediator/IMediator.ts):
+1. [`services/trip-service/src/application/mediator/IMediator.ts`](../../services/trip-service/src/application/mediator/IMediator.ts):
    - Mostrar la interfaz del patron GoF:
      ```typescript
      export interface IMediator {
        notify(sender: object, event: string, data?: any): Promise<any>;
      }
      ```
-2. [`services/trip-service/src/application/mediator/TripMediator.ts`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/trip-service/src/application/mediator/TripMediator.ts):
+2. [`services/trip-service/src/application/mediator/TripMediator.ts`](../../services/trip-service/src/application/mediator/TripMediator.ts):
    - **Lineas 25-65:** Mostrar como recibe las notificaciones `'INCIDENT_REPORTED'` y `'RESOLVE_INCIDENT'`.
    - Mostrar como instruye a `EventService` para marcar el evento original como `CANCELLED` y a `TripService` para inyectar el nuevo evento sustituto, sin que ninguno de ellos se llame directamente.
-3. [`services/ai-recommendation/application/graph.py`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/ai-recommendation/application/graph.py) y [`incident_agent.py`](file:///Users/alexy/Documents/Uninorte/Octavo%20Semestre/Disen%CC%83o%202/Wayvo/services/ai-recommendation/application/incident_agent.py):
+3. [`services/ai-recommendation/application/graph.py`](../../services/ai-recommendation/application/graph.py) y [`incident_agent.py`](../../services/ai-recommendation/application/incident_agent.py):
    - Mostrar la construccion del `StateGraph` de LangGraph y como el agente de incidentes razona contextualmente ante la perdida de un transporte o actividad.
 
 ---
@@ -346,7 +346,7 @@ Antes de iniciar la llamada o sesion de evaluacion:
   - `http://localhost:5173` (Wayvo UI con el DevInspector HUD visible).
   - Pestana de Red de las DevTools lista para mostrar encabezados `x-correlation-id`.
 - [ ] **Archivos abiertos en el editor de codigo:**
-  - Joshua: `saga-orchestrator.ts` y `compensation-log.entity.ts`.
+  - Joshua: `saga-orchestrator.ts` y `compensation-log.ts`.
   - Alexy: `trip.facade.ts` y `error.middleware.ts`.
   - Kesly: `proveedor-externo.port.ts` y `transporte.adapter.ts`.
   - Santiago: `TripMediator.ts` y `graph.py` / `incident_agent.py`.
