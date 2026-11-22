@@ -36,11 +36,14 @@ export async function seedCatalog(
 
   // Los proveedores van antes que sus ofertas (clave foránea)
   for (const seed of buildSeedOffers(now)) {
-    if (!force && (await offers.findById(seed.id))) {
+    const existing = await offers.findById(seed.id);
+    if (!force && existing) {
       result.offersSkipped++;
       continue;
     }
     await offers.save(ServiceOffer.create({ ...seed, now }));
+    // save() no toca el cupo de una oferta existente: con --force se restaura aparte.
+    if (existing) await offers.resetCapacity(seed.id, seed.availableCapacity);
     result.offersCreated++;
   }
 

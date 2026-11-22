@@ -161,4 +161,49 @@ describe('ConfirmReservationUseCase', () => {
     const useCase = new ConfirmReservationUseCase(providers, offers, new FakeResolver({ [ServiceOfferType.TRANSPORT]: external }), silentLogger);
     await expect(useCase.execute({ bookingId: 'b10', items: [item('offer-1', 1)] })).resolves.toBeDefined();
   });
+
+  describe('concurrencia multiusuario', () => {
+    it('muchos usuarios a la vez por los últimos cupos: solo se venden los que hay', async () => {
+      const { useCase, offers, external } = await setup();
+      await offers.resetCapacity('offer-2', 2); // quedan 2 cupos
+
+      // 10 reservas simultáneas de 1 cupo cada una (10 usuarios distintos).
+      const results = await Promise.allSettled(
+        Array.from({ length: 10 }, (_, i) => useCase.execute({ bookingId: `b-${i}`, items: [item('offer-2', 1)] })),
+      );
+
+      const ok = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+      expect(ok).toHaveLength(2);
+      expect(rejected).toHaveLength(8);
+      rejected.forEach((r) => expect((r as PromiseRejectedResult).reason).toBeInstanceOf(ReservationRejectedError));
+      expect((await offers.findById('offer-2'))!.availableCapacity).toBe(0);
+      // Al proveedor externo solo se le confirmó lo que realmente se pudo apartar.
+      expect(external.confirmations).toHaveLength(2);
+    });
+
+    it('si el proveedor externo rechaza, el cupo apartado se devuelve', async () => {
+      const { useCase, offers, external } = await setup();
+      external.results.push({ success: false, reason: 'Sin sillas' });
+
+      await expect(useCase.execute({ bookingId: 'b1', items: [item('offer-1', 4)] })).rejects.toThrow(
+        ReservationRejectedError,
+      );
+
+      expect((await offers.findById('offer-1'))!.availableCapacity).toBe(10);
+    });
+
+    it('guardar una oferta con datos viejos no pisa el cupo ya reservado', async () => {
+      const { offers } = await setup();
+      const stale = (await offers.findById('offer-1'))!; // cupo 10 en esta copia
+
+      await offers.tryReserve('offer-1', 3); // otro usuario reserva 3
+      stale.updateMetadata({ flightNumber: 'WY999' });
+      await offers.save(stale); // se guarda la copia vieja
+
+      const current = (await offers.findById('offer-1'))!;
+      expect(current.availableCapacity).toBe(7);
+      expect(current.metadata).toEqual({ flightNumber: 'WY999' });
+    });
+  });
 });
