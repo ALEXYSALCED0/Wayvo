@@ -33,3 +33,37 @@ describe('User (entidad de dominio)', () => {
     expect(user.createdAt).toEqual(createdAt);
   });
 });
+
+describe('User: plan de la cuenta', () => {
+  it('una cuenta nueva es FREE y sin suscripción', () => {
+    const user = User.register(base);
+    expect(user.plan).toBe('FREE');
+    expect(user.isPremium()).toBe(false);
+    expect(user.planSubscriptionId).toBeNull();
+  });
+
+  it('restore de una cuenta anterior (sin campos de plan) queda FREE', () => {
+    const user = User.restore({ ...base, email: 'ana@correo.com', role: UserRole.TRAVELER, createdAt: new Date() });
+    expect(user.plan).toBe('FREE');
+  });
+
+  it('changePlan a PREMIUM guarda la suscripción y el fin del periodo; a FREE los borra', () => {
+    const user = User.register(base);
+    const end = new Date('2026-12-23T00:00:00Z');
+
+    user.changePlan('PREMIUM' as never, 'sub_1', end);
+    expect(user.isPremium()).toBe(true);
+    expect(user.planSubscriptionId).toBe('sub_1');
+    expect(user.planExpiresAt).toEqual(end);
+
+    user.changePlan('FREE' as never, null, null);
+    expect(user.isPremium()).toBe(false);
+    expect(user.planSubscriptionId).toBeNull();
+    expect(user.planExpiresAt).toBeNull();
+  });
+
+  it('PREMIUM sin suscripción se rechaza', () => {
+    const user = User.register(base);
+    expect(() => user.changePlan('PREMIUM' as never, null, null)).toThrow(InvalidUserError);
+  });
+});

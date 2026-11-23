@@ -26,6 +26,8 @@ export interface AppConfig {
   port: number;
   nodeEnv: string;
   mode: PaymentsMode;
+  // null = suscripciones en memoria (se pierden al reiniciar; solo desarrollo y pruebas)
+  databaseUrl: string | null;
   stripe: StripeConfig | null;
   // null = cuenta simulada en memoria (solo para desarrollo y pruebas)
   account: AccountConfig | null;
@@ -73,10 +75,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('AUTH_SERVICE_URL and INTERNAL_SERVICE_TOKEN are required in production.');
   }
 
+  const databaseUrl = env.DATABASE_URL?.trim() || null;
+  if (!databaseUrl && nodeEnv === 'production') {
+    throw new Error('DATABASE_URL is required in production (subscriptions must not live only in memory).');
+  }
+
   return {
     port: Number(env.PORT ?? 3005),
     nodeEnv,
     mode,
+    databaseUrl,
     stripe,
     account,
     plan: {

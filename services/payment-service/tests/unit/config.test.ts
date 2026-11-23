@@ -25,6 +25,7 @@ describe('loadConfig', () => {
         STRIPE_PRICE_ID: 'price_1',
         AUTH_SERVICE_URL: 'http://auth:3004',
         INTERNAL_SERVICE_TOKEN: 't',
+        DATABASE_URL: 'postgresql://x',
       }),
     ).not.toThrow();
   });
@@ -46,6 +47,22 @@ describe('loadConfig', () => {
 
     it('en producción la cuenta real es obligatoria', () => {
       expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/AUTH_SERVICE_URL/);
+    });
+  });
+
+  describe('base de datos', () => {
+    it('sin DATABASE_URL las suscripciones van en memoria', () => {
+      expect(loadConfig({}).databaseUrl).toBeNull();
+    });
+
+    it('con DATABASE_URL se usa PostgreSQL', () => {
+      expect(loadConfig({ DATABASE_URL: ' postgresql://x ' }).databaseUrl).toBe('postgresql://x');
+    });
+
+    it('en producción la base de datos es obligatoria', () => {
+      expect(() =>
+        loadConfig({ NODE_ENV: 'production', AUTH_SERVICE_URL: 'http://auth:3004', INTERNAL_SERVICE_TOKEN: 't' }),
+      ).toThrow(/DATABASE_URL/);
     });
   });
 });

@@ -8,6 +8,9 @@ const config = loadConfig();
 const container = buildContainer(config);
 const app = createApp(container, { nodeEnv: config.nodeEnv });
 
+if (!config.databaseUrl) {
+  container.logger.warn('DATABASE_URL no está definido: las suscripciones se guardan en memoria y se pierden al reiniciar (solo desarrollo)');
+}
 if (!config.account) {
   container.logger.warn('AUTH_SERVICE_URL no está definido: el plan se guarda en una cuenta SIMULADA en memoria (no cambia el plan real del usuario)');
 }
@@ -28,7 +31,9 @@ const server = app.listen(config.port, () => {
 
 function shutdown(signal: string): void {
   container.logger.info('Shutting down', { signal });
-  server.close(() => process.exit(0));
+  server.close(() => {
+    container.shutdown().finally(() => process.exit(0));
+  });
 }
 
 process.on('SIGINT', () => shutdown('SIGINT'));

@@ -7,6 +7,8 @@ import { GetCurrentUserUseCase } from '../../../src/application/use-cases/get-cu
 import { LoginUserUseCase } from '../../../src/application/use-cases/login-user.use-case';
 import { RegisterUserUseCase } from '../../../src/application/use-cases/register-user.use-case';
 import { UserRole } from '../../../src/domain/entities/user';
+import { PlanPolicy } from '../../../src/domain/policies/plan-policy';
+import { InMemoryAiPlanUsageRepository } from '../../../src/infrastructure/persistence/in-memory-ai-plan-usage.repository';
 import { InMemoryUserRepository } from '../../../src/infrastructure/persistence/in-memory-user.repository';
 import { FakePasswordHasher, SequentialIdGenerator, silentLogger, testTokens } from '../helpers';
 
@@ -19,7 +21,7 @@ function setup(adminEmails: string[] = []) {
     tokens,
     register: new RegisterUserUseCase(users, hasher, tokens, new SequentialIdGenerator(), silentLogger, new Set(adminEmails)),
     login: new LoginUserUseCase(users, hasher, tokens, silentLogger),
-    me: new GetCurrentUserUseCase(users, tokens),
+    me: new GetCurrentUserUseCase(users, tokens, new InMemoryAiPlanUsageRepository(), new PlanPolicy(5), 'America/Bogota'),
   };
 }
 
@@ -83,6 +85,8 @@ describe('GetCurrentUserUseCase', () => {
     const user = await me.execute(session.token);
 
     expect(user.email).toBe('ana@correo.com');
+    expect(user.entitlements).toMatchObject({ plan: 'FREE', luxuryBudget: false });
+    expect(user.entitlements.aiPlans).toMatchObject({ limit: 5, used: 0, remaining: 5 });
   });
 
   it('sin token o con token inválido responde InvalidTokenError', async () => {

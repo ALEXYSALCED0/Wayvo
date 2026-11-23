@@ -18,6 +18,12 @@ enum UserRole {
   ADMIN
 }
 
+// Plan de la cuenta. Lo escribe payment-service por la ruta interna; nunca el navegador.
+enum AccountPlan {
+  FREE
+  PREMIUM
+}
+
 model User {
   id           String   @id
   // Único: no puede haber dos cuentas con el mismo correo (se guarda en minúsculas).
@@ -27,6 +33,21 @@ model User {
   passwordHash String   @map("password_hash")
   role         UserRole @default(TRAVELER)
   createdAt    DateTime @map("created_at")
+  plan               AccountPlan @default(FREE)
+  // Suscripción (de payment-service) que respalda el plan PREMIUM.
+  planSubscriptionId String?     @map("plan_subscription_id")
+  planExpiresAt      DateTime?   @map("plan_expires_at")
 
   @@map("users")
+}
+
+// Planes de IA generados por usuario y mes calendario ("2026-11"). Cada mes es una fila nueva:
+// el contador de un mes nuevo arranca en cero sin tener que reiniciar nada.
+model AiPlanUsage {
+  userId String @map("user_id")
+  period String
+  used   Int    @default(0)
+
+  @@id([userId, period])
+  @@map("ai_plan_usage")
 }

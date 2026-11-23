@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import {
+  AccountNotFoundError,
   ApplicationError,
   EmailAlreadyRegisteredError,
   InvalidCredentialsError,
@@ -8,6 +9,7 @@ import {
 } from '../../../application/errors/application.error';
 import { LoggerPort } from '../../../application/ports/logger.port';
 import { DomainError } from '../../../domain/errors/domain.error';
+import { InvalidInternalTokenError } from './internal-token.middleware';
 import { RequestValidationError } from '../validation/validate';
 
 // Traduce errores de cada capa a HTTP con el formato común del proyecto:
@@ -17,6 +19,8 @@ function toHttp(err: Error): { status: number; code: string; details: unknown } 
   if (err instanceof InvalidCredentialsError || err instanceof InvalidTokenError || err instanceof UserNotFoundError) {
     return { status: 401, code: err.code, details: null };
   }
+  if (err instanceof AccountNotFoundError) return { status: 404, code: err.code, details: null };
+  if (err instanceof InvalidInternalTokenError) return { status: 401, code: err.code, details: null };
   if (err instanceof EmailAlreadyRegisteredError) return { status: 409, code: err.code, details: null };
   if (err instanceof DomainError) return { status: 422, code: err.code, details: null };
   if (err instanceof ApplicationError) return { status: 400, code: err.code, details: null };

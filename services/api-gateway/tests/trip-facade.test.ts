@@ -12,6 +12,7 @@ import {
   SagaStep,
 } from '@wayvo/contracts';
 import { authHeader } from './auth-helpers';
+import { allowAllQuota } from './quota-helpers';
 
 describe('TripFacade - GoF Structural Pattern Tests', () => {
   // Mock implementations of ports
@@ -24,7 +25,7 @@ describe('TripFacade - GoF Structural Pattern Tests', () => {
   };
 
   const tripFacade = new TripFacade(mockAiService, mockBookingService);
-  const app = createApp({ tripFacade });
+  const app = createApp({ tripFacade, aiPlanQuota: allowAllQuota() });
 
   const samplePlanInput = {
     userId: 'usr-alexy',
@@ -119,7 +120,7 @@ describe('TripFacade - GoF Structural Pattern Tests', () => {
         failingAiService,
         mockBookingService,
       );
-      const testApp = createApp({ tripFacade: facadeWithFailingAi });
+      const testApp = createApp({ tripFacade: facadeWithFailingAi, aiPlanQuota: allowAllQuota() });
       const res = await request(testApp)
         .post('/api/v1/trips/plan')
         .set('Authorization', authHeader('usr-alexy'))

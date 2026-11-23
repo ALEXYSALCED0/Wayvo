@@ -1,4 +1,4 @@
-import { User, UserRole } from '../../domain/entities/user';
+import { AccountPlan, User, UserRole } from '../../domain/entities/user';
 import { IssuedToken } from '../ports/token-service.port';
 
 // Forma pública del usuario (coincide con AuthUserDTO de @wayvo/contracts).
@@ -9,6 +9,8 @@ export interface AuthUserOutput {
   name: string;
   role: UserRole;
   createdAt: string;
+  plan: AccountPlan;
+  planExpiresAt: string | null;
 }
 
 export interface AuthSessionOutput {
@@ -24,6 +26,8 @@ export function toAuthUserOutput(user: User): AuthUserOutput {
     name: user.name,
     role: user.role,
     createdAt: user.createdAt.toISOString(),
+    plan: user.plan,
+    planExpiresAt: user.planExpiresAt ? user.planExpiresAt.toISOString() : null,
   };
 }
 

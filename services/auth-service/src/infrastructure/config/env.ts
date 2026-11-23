@@ -1,7 +1,12 @@
 import 'dotenv/config';
+import { isValidTimeZone } from '../../domain/services/usage-window';
 
 // Secreto SOLO para desarrollo local. En producción el servicio se niega a arrancar con él.
 export const DEV_JWT_SECRET = 'wayvo-dev-secret-cambiar-en-produccion';
+
+// Token compartido con payment-service para las rutas internas. SOLO desarrollo: en producción
+// el servicio se niega a arrancar con él.
+export const DEV_INTERNAL_TOKEN = 'wayvo-dev-internal-token-cambiar-en-produccion';
 
 export interface AppConfig {
   port: number;
@@ -11,6 +16,11 @@ export interface AppConfig {
   jwtExpiresInSeconds: number;
   bcryptRounds: number;
   adminEmails: Set<string>;
+  internalToken: string;
+  // Planes de IA por mes calendario de una cuenta FREE.
+  freeAiPlansPerMonth: number;
+  // Zona horaria con la que se cuenta el mes calendario.
+  usageTimeZone: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -21,7 +31,24 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('JWT_SECRET es obligatorio en producción');
   }
 
+  const internalToken = env.INTERNAL_SERVICE_TOKEN?.trim() || DEV_INTERNAL_TOKEN;
+  if (nodeEnv === 'production' && internalToken === DEV_INTERNAL_TOKEN) {
+    throw new Error('INTERNAL_SERVICE_TOKEN es obligatorio en producción');
+  }
+
+  const freeAiPlansPerMonth = Number(env.FREE_AI_PLANS_PER_MONTH ?? 5);
+  if (!Number.isInteger(freeAiPlansPerMonth) || freeAiPlansPerMonth < 0) {
+    throw new Error('FREE_AI_PLANS_PER_MONTH debe ser un entero mayor o igual a 0');
+  }
+  const usageTimeZone = env.USAGE_TIMEZONE?.trim() || 'America/Bogota';
+  if (!isValidTimeZone(usageTimeZone)) {
+    throw new Error(`USAGE_TIMEZONE no es una zona horaria válida: ${usageTimeZone}`);
+  }
+
   return {
+    freeAiPlansPerMonth,
+    usageTimeZone,
+    internalToken,
     port: Number(env.PORT ?? 3004),
     nodeEnv,
     databaseUrl: env.DATABASE_URL || null,

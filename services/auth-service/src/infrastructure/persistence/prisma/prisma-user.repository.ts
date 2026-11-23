@@ -1,4 +1,4 @@
-import { User, UserRole } from '../../../domain/entities/user';
+import { AccountPlan, User, UserRole } from '../../../domain/entities/user';
 import { UserRepository } from '../../../domain/repositories/user.repository';
 import { Prisma, PrismaClient } from './prisma.client';
 
@@ -12,6 +12,9 @@ function toDomain(row: UserRow): User {
     passwordHash: row.passwordHash,
     role: row.role as UserRole,
     createdAt: row.createdAt,
+    plan: row.plan as AccountPlan,
+    planSubscriptionId: row.planSubscriptionId,
+    planExpiresAt: row.planExpiresAt,
   });
 }
 
@@ -26,6 +29,9 @@ export class PrismaUserRepository implements UserRepository {
       passwordHash: user.passwordHash,
       role: user.role,
       createdAt: user.createdAt,
+      plan: user.plan,
+      planSubscriptionId: user.planSubscriptionId,
+      planExpiresAt: user.planExpiresAt,
     };
     await this.prisma.user.upsert({
       where: { id: user.id },

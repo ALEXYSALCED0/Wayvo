@@ -26,6 +26,7 @@ healthRouter.get('/health/services', async (req: Request, res: Response) => {
     { name: 'provider-service', url: `${config.PROVIDER_SERVICE_URL}/health` },
     { name: 'ai-recommendation', url: `${config.AI_SERVICE_URL}/health` },
     { name: 'auth-service', url: `${config.AUTH_SERVICE_URL}/health` },
+    { name: 'payment-service', url: `${config.PAYMENT_SERVICE_URL}/health` },
   ];
 
   const results = await Promise.all(
