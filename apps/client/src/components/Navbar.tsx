@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { PlanBadge } from './PlanBadge';
 
 export const Navbar: React.FC = () => {
   const {
@@ -193,6 +194,9 @@ export const Navbar: React.FC = () => {
               <span>HUD ({telemetryLogs.length})</span>
             </button>
           )}
+
+          {/* Plan de la cuenta (FREE con planes restantes / PREMIUM) */}
+          <PlanBadge />
 
           {/* Usuario autenticado y cierre de sesión */}
           {user && (
