@@ -1,4 +1,5 @@
 import { SubscriptionRepository } from '../../domain/repositories/subscription.repository';
+import { AccountPlanGateway } from '../ports/account-plan.gateway';
 import { LoggerPort } from '../ports/logger.port';
 import { IPaymentGateway } from '../ports/payment-gateway.port';
 
@@ -14,6 +15,7 @@ export class HandleWebhookUseCase {
   constructor(
     private readonly subscriptions: SubscriptionRepository,
     private readonly gateway: IPaymentGateway,
+    private readonly accounts: AccountPlanGateway,
     private readonly logger: LoggerPort,
   ) {}
 
@@ -33,6 +35,22 @@ export class HandleWebhookUseCase {
 
     subscription.syncWith(event.subscription);
     await this.subscriptions.save(subscription);
+
+    // El plan de la cuenta sigue al estado de la suscripción MÁS RECIENTE del usuario:
+    // un evento atrasado de una suscripción vieja no debe quitarle el plan a la nueva.
+    // Si auth-service falla, el error sube (502) y Stripe reintenta el webhook; repetirlo es seguro.
+    const latest = await this.subscriptions.findLatestByUserId(subscription.userId);
+    if (latest?.id === subscription.id) {
+      await this.accounts.setPlan(
+        {
+          userId: subscription.userId,
+          plan: subscription.isActive ? 'PREMIUM' : 'FREE',
+          subscriptionId: subscription.id,
+          currentPeriodEnd: subscription.isActive ? subscription.currentPeriodEnd : null,
+        },
+        input.correlationId,
+      );
+    }
     this.logger.info('Subscription updated by webhook', {
       correlationId: input.correlationId,
       subscriptionId: subscription.id,

@@ -8,6 +8,9 @@ const config = loadConfig();
 const container = buildContainer(config);
 const app = createApp(container, { nodeEnv: config.nodeEnv });
 
+if (!config.account) {
+  container.logger.warn('AUTH_SERVICE_URL no está definido: el plan se guarda en una cuenta SIMULADA en memoria (no cambia el plan real del usuario)');
+}
 if (config.mode === 'mock') {
   container.logger.warn('PAYMENTS_MODE=mock: no se cobra nada real (simulador de pagos). Fallos: GET /api/v1/mock/simulate-payment?mode=declined|error|slow');
 } else if (!config.stripe?.webhookSecret) {

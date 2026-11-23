@@ -2,6 +2,7 @@ import { SubscriptionStatus } from '../../domain/entities/subscription';
 import { SubscriptionRepository } from '../../domain/repositories/subscription.repository';
 import { SubscriptionOutput, toSubscriptionOutput } from '../dtos/subscription.dto';
 import { SubscriptionNotFoundError } from '../errors/application.error';
+import { AccountPlanGateway } from '../ports/account-plan.gateway';
 import { LoggerPort } from '../ports/logger.port';
 import { IPaymentGateway } from '../ports/payment-gateway.port';
 
@@ -10,6 +11,9 @@ export interface CancelSubscriptionInput {
   subscriptionId: string;
   // true = además devolver el último pago (compensación de la Saga de suscripción).
   refund?: boolean;
+  // true (por defecto) = si la suscripción estaba activa, la cuenta vuelve a FREE.
+  // La Saga lo pasa en false: al compensar, la cuenta nunca llegó a ser PREMIUM.
+  downgradeAccount?: boolean;
   correlationId?: string;
 }
 
@@ -25,6 +29,7 @@ export class CancelSubscriptionUseCase {
   constructor(
     private readonly subscriptions: SubscriptionRepository,
     private readonly gateway: IPaymentGateway,
+    private readonly accounts: AccountPlanGateway,
     private readonly logger: LoggerPort,
   ) {}
 
@@ -36,11 +41,20 @@ export class CancelSubscriptionUseCase {
       return { subscription: toSubscriptionOutput(subscription), refunded: false };
     }
 
+    const wasActive = subscription.isActive;
     const result = await this.gateway.cancelSubscription(subscription.providerSubscriptionRef, {
       refund: input.refund === true,
     });
     subscription.markCanceled();
     await this.subscriptions.save(subscription);
+
+    // Quien cancela una suscripción activa pierde el plan PREMIUM de la cuenta.
+    if (wasActive && input.downgradeAccount !== false) {
+      await this.accounts.setPlan(
+        { userId: subscription.userId, plan: 'FREE', subscriptionId: subscription.id, currentPeriodEnd: null },
+        input.correlationId,
+      );
+    }
 
     this.logger.info('Subscription canceled', {
       correlationId: input.correlationId,
