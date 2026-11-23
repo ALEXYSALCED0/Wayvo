@@ -13,6 +13,7 @@ const envSchema = z.object({
   PROVIDER_SERVICE_URL: z.string().url().default('http://localhost:3002'),
   AI_SERVICE_URL: z.string().url().default('http://localhost:8000'),
   AUTH_SERVICE_URL: z.string().url().default('http://localhost:3004'),
+  PAYMENT_SERVICE_URL: z.string().url().default('http://localhost:3005'),
   // Mismo secreto con el que auth-service firma los JWT. Vacío = secreto de desarrollo.
   JWT_SECRET: z.string().optional().transform((val) => val || DEV_JWT_SECRET),
   CORS_ORIGIN: z.string().default('*'),

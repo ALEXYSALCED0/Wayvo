@@ -2,6 +2,7 @@ import request from 'supertest';
 import { buildContainer } from '../../src/infrastructure/container';
 import { createApp } from '../../src/infrastructure/http/app';
 import { MOCK_WEBHOOK_SIGNATURE } from '../../src/infrastructure/mock/fake-stripe.api';
+import { InMemorySubscriptionRepository } from '../../src/infrastructure/persistence/in-memory-subscription.repository';
 import { SequentialIdGenerator, silentLogger, testConfig } from '../unit/helpers';
 
 const BASE = '/api/v1/payments';
@@ -190,5 +191,32 @@ describe('payment-service API', () => {
       const app = createApp(container, { nodeEnv: 'production' });
       expect((await request(app).get('/api/v1/mock/simulate-payment')).status).toBe(404);
     });
+  });
+
+  it('el correo del token (header del gateway) tiene prioridad sobre el del cuerpo', async () => {
+    const subscriptions = new InMemorySubscriptionRepository();
+    const container = buildContainer(testConfig(), {
+      logger: silentLogger,
+      ids: new SequentialIdGenerator(),
+      subscriptions,
+    });
+    const app = createApp(container, { nodeEnv: 'test' });
+
+    const res = await request(app)
+      .post(`${BASE}/subscriptions`)
+      .set(as('user-1'))
+      .set('x-user-email', 'verificado@wayvo.test')
+      .set('x-user-name', encodeURIComponent('Kes Rodríguez'))
+      .send({ email: 'otro@correo.com' });
+
+    expect(res.status).toBe(201);
+    expect((await subscriptions.findLatestByUserId('user-1'))?.email).toBe('verificado@wayvo.test');
+  });
+
+  it('sin headers de correo y sin correo en el cuerpo → 400', async () => {
+    const { app } = setup();
+    const res = await request(app).post(`${BASE}/subscriptions`).set(as('user-1')).send({});
+
+    expect(res.status).toBe(400);
   });
 });

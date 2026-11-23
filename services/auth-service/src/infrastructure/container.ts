@@ -1,10 +1,12 @@
 import { AuthController } from '../adapters/http/controllers/auth.controller';
+import { InternalController } from '../adapters/http/controllers/internal.controller';
 import { IdGenerator } from '../application/ports/id-generator.port';
 import { LoggerPort } from '../application/ports/logger.port';
 import { PasswordHasher } from '../application/ports/password-hasher.port';
 import { TokenService } from '../application/ports/token-service.port';
 import { GetCurrentUserUseCase } from '../application/use-cases/get-current-user.use-case';
 import { LoginUserUseCase } from '../application/use-cases/login-user.use-case';
+import { SetAccountPlanUseCase } from '../application/use-cases/set-account-plan.use-case';
 import { RegisterUserUseCase } from '../application/use-cases/register-user.use-case';
 import { UserRepository } from '../domain/repositories/user.repository';
 import { AppConfig } from './config/env';
@@ -19,6 +21,8 @@ export interface Container {
   logger: LoggerPort;
   ids: IdGenerator;
   authController: AuthController;
+  internalController: InternalController;
+  internalToken: string;
   tokens: TokenService;
   persistence: 'postgres' | 'in-memory';
   shutdown(): Promise<void>;
@@ -47,10 +51,14 @@ export function buildContainer(config: AppConfig, logger: LoggerPort, overrides:
     new GetCurrentUserUseCase(users, tokens),
   );
 
+  const internalController = new InternalController(new SetAccountPlanUseCase(users, logger));
+
   return {
     logger,
     ids,
     authController,
+    internalController,
+    internalToken: config.internalToken,
     tokens,
     persistence: prisma ? 'postgres' : 'in-memory',
     shutdown: async () => {

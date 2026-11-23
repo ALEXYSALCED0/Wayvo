@@ -37,4 +37,19 @@ describe.skipIf(!url)('PrismaUserRepository (PostgreSQL real)', () => {
       users.save(User.register({ id: 'u2', email: 'ana@correo.com', name: 'Otra', passwordHash: 'h', role: UserRole.ADMIN })),
     ).rejects.toThrow();
   });
+
+  it('persiste el plan PREMIUM y las cuentas nuevas quedan FREE', async () => {
+    const user = User.register({ id: 'u1', email: 'ana@correo.com', name: 'Ana', passwordHash: 'h' });
+    await users.save(user);
+    expect((await users.findById('u1'))?.plan).toBe('FREE');
+
+    const end = new Date('2026-12-23T00:00:00Z');
+    user.changePlan('PREMIUM' as never, 'sub_1', end);
+    await users.save(user);
+
+    const saved = await users.findById('u1');
+    expect(saved?.isPremium()).toBe(true);
+    expect(saved?.planSubscriptionId).toBe('sub_1');
+    expect(saved?.planExpiresAt).toEqual(end);
+  });
 });

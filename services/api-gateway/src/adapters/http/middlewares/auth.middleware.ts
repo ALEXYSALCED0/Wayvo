@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { USER_ID_HEADER, USER_ROLE_HEADER, UserRole } from '@wayvo/contracts';
+import { USER_EMAIL_HEADER, USER_ID_HEADER, USER_NAME_HEADER, USER_ROLE_HEADER, UserRole } from '@wayvo/contracts';
 import { AuthenticatedUser, TokenVerifier } from '../../../application/ports/token-verifier.port';
 import { ForbiddenError, UnauthorizedError } from '../../../domain/errors/gateway.error';
 
@@ -7,10 +7,15 @@ import { ForbiddenError, UnauthorizedError } from '../../../domain/errors/gatewa
 const PUBLIC_ROUTES: Array<{ method: string; path: RegExp }> = [
   { method: 'GET', path: /^\/health(\/.*)?$/ },
   { method: 'POST', path: /^\/api\/v1\/auth\/(register|login)$/ },
+  // Stripe llama a este webhook sin sesión: se autentica con la firma de Stripe (payment-service).
+  { method: 'POST', path: /^\/api\/v1\/payments\/webhook$/ },
 ];
 
 // Rutas que además exigen rol ADMIN (herramientas de demostración / caos).
 const ADMIN_ROUTES: RegExp[] = [/^\/api\/v1\/mock(\/.*)?$/];
+
+// Rutas internas (servicio a servicio): el navegador nunca debe llegar a ellas.
+const BLOCKED_ROUTES: RegExp[] = [/^\/api\/v1\/internal(\/.*)?$/];
 
 function isPublic(req: Request): boolean {
   if (req.method === 'OPTIONS') return true; // preflight de CORS
@@ -40,6 +45,13 @@ export function createAuthMiddleware(verifier: TokenVerifier) {
   return (req: Request, res: Response, next: NextFunction): void => {
     delete req.headers[USER_ID_HEADER];
     delete req.headers[USER_ROLE_HEADER];
+    delete req.headers[USER_EMAIL_HEADER];
+    delete req.headers[USER_NAME_HEADER];
+
+    if (BLOCKED_ROUTES.some((r) => r.test(req.path))) {
+      next(new ForbiddenError('Ruta interna: no disponible desde el exterior'));
+      return;
+    }
 
     if (isPublic(req)) {
       next();
@@ -60,6 +72,8 @@ export function createAuthMiddleware(verifier: TokenVerifier) {
 
     req.headers[USER_ID_HEADER] = user.id;
     req.headers[USER_ROLE_HEADER] = user.role;
+    req.headers[USER_EMAIL_HEADER] = user.email;
+    req.headers[USER_NAME_HEADER] = encodeURIComponent(user.name);
     res.locals.user = user;
 
     if (req.body && typeof req.body === 'object' && !Array.isArray(req.body) && 'userId' in req.body) {

@@ -13,6 +13,7 @@ import { createTripFacadeRouter } from '../../adapters/http/routes/trip-facade.r
 import { TripFacade } from '../../application/facades/trip.facade';
 import { TokenVerifier } from '../../application/ports/token-verifier.port';
 import { RouteNotFoundError } from '../../domain/errors/gateway.error';
+import { createServiceProxy } from '../proxy/http-proxy';
 import { JwtTokenVerifier } from '../auth/jwt-token-verifier';
 import { config } from '../config/env';
 
@@ -39,6 +40,14 @@ export function createApp(deps: AppDependencies = {}): Express {
 
   // 2. Health routes (gateway liveness and readiness)
   app.use(healthRouter);
+
+  // 2b. Webhook de Stripe: va ANTES de los parsers de cuerpo. La firma de Stripe se calcula
+  //     sobre los bytes exactos, así que el gateway lo reenvía sin leer ni reescribir el cuerpo.
+  //     No lleva sesión: payment-service lo valida con la firma.
+  app.post(
+    '/api/v1/payments/webhook',
+    createServiceProxy({ serviceName: 'payment-service', target: config.PAYMENT_SERVICE_URL }),
+  );
 
   // 3. Body parsers (needed for local endpoints and logging)
   app.use(express.json({ limit: '10mb' }));

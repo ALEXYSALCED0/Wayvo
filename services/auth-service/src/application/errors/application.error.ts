@@ -40,3 +40,12 @@ export class UserNotFoundError extends ApplicationError {
     super('El usuario no existe');
   }
 }
+
+// Para rutas internas: la cuenta a la que se le quiere cambiar el plan no existe.
+export class AccountNotFoundError extends ApplicationError {
+  readonly code = 'ACCOUNT_NOT_FOUND';
+
+  constructor() {
+    super('La cuenta no existe');
+  }
+}

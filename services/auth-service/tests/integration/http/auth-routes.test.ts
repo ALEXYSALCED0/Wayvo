@@ -79,3 +79,67 @@ describe('Rutas HTTP de auth-service', () => {
     expect(res.body.data.service).toBe('auth-service');
   });
 });
+
+describe('Rutas internas: plan de la cuenta', () => {
+  const TOKEN = 'wayvo-dev-internal-token-cambiar-en-produccion';
+
+  async function registerAna(app: ReturnType<typeof buildTestApp>) {
+    const res = await request(app).post('/api/v1/auth/register').send(ana);
+    return { id: res.body.data.user.id as string, token: res.body.data.token as string };
+  }
+
+  it('sin token interno → 401 INVALID_INTERNAL_TOKEN', async () => {
+    const app = buildTestApp();
+    const { id } = await registerAna(app);
+
+    const res = await request(app).put(`/api/v1/internal/users/${id}/plan`).send({ plan: 'FREE' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('INVALID_INTERNAL_TOKEN');
+  });
+
+  it('el JWT de un usuario NO sirve para cambiarse el plan', async () => {
+    const app = buildTestApp();
+    const { id, token } = await registerAna(app);
+
+    const res = await request(app)
+      .put(`/api/v1/internal/users/${id}/plan`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ plan: 'PREMIUM', subscriptionId: 'sub_1' });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('con token interno sube a PREMIUM y /auth/me lo refleja; luego baja a FREE', async () => {
+    const app = buildTestApp();
+    const { id, token } = await registerAna(app);
+
+    const up = await request(app)
+      .put(`/api/v1/internal/users/${id}/plan`)
+      .set('x-internal-token', TOKEN)
+      .send({ plan: 'PREMIUM', subscriptionId: 'sub_1', currentPeriodEnd: '2026-12-23T00:00:00.000Z' });
+    expect(up.status).toBe(200);
+    expect(up.body.data.plan).toBe('PREMIUM');
+
+    const me = await request(app).get('/api/v1/auth/me').set('authorization', `Bearer ${token}`);
+    expect(me.body.data.plan).toBe('PREMIUM');
+    expect(me.body.data.planExpiresAt).toBe('2026-12-23T00:00:00.000Z');
+
+    const down = await request(app)
+      .put(`/api/v1/internal/users/${id}/plan`)
+      .set('x-internal-token', TOKEN)
+      .send({ plan: 'FREE' });
+    expect(down.body.data.plan).toBe('FREE');
+  });
+
+  it('PREMIUM sin suscripción → 422; usuario inexistente → 404; plan inválido → 400', async () => {
+    const app = buildTestApp();
+    const { id } = await registerAna(app);
+    const put = (uid: string, body: object) =>
+      request(app).put(`/api/v1/internal/users/${uid}/plan`).set('x-internal-token', TOKEN).send(body);
+
+    expect((await put(id, { plan: 'PREMIUM' })).status).toBe(422);
+    expect((await put('no-existe', { plan: 'FREE' })).status).toBe(404);
+    expect((await put(id, { plan: 'GOLD' })).status).toBe(400);
+  });
+});

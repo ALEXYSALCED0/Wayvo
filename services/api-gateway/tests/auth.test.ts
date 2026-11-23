@@ -91,3 +91,33 @@ describe('Autenticación en el API Gateway (multiusuario)', () => {
     expect(admin.body.error?.code).not.toBe('FORBIDDEN'); // pasa al proxy de provider-service
   });
 });
+
+describe('Rutas de pagos y rutas internas en el gateway', () => {
+  it('las rutas de suscripción exigen sesión (401 sin token)', async () => {
+    const res = await request(buildApp().app).get('/api/v1/payments/subscriptions/me');
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('el webhook de Stripe no pide sesión: nunca devuelve el 401 del gateway', async () => {
+    const res = await request(buildApp().app).post('/api/v1/payments/webhook').send('{}');
+
+    expect(res.body.error?.code).not.toBe('UNAUTHENTICATED');
+  });
+
+  it('las rutas internas están cerradas aunque el cliente tenga sesión (403)', async () => {
+    const res = await request(buildApp().app)
+      .put('/api/v1/internal/users/usr-1/plan')
+      .set('Authorization', authHeader('usr-1'))
+      .send({ plan: 'PREMIUM', subscriptionId: 'sub_1' });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('el simulador de pagos es solo para ADMIN', async () => {
+    const res = await request(buildApp().app).get('/api/v1/mock/simulate-payment').set('Authorization', authHeader('usr-1'));
+
+    expect(res.status).toBe(403);
+  });
+});

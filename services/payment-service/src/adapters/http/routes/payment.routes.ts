@@ -45,7 +45,13 @@ export function paymentRoutes(container: Container): Router {
   });
 
   secured.post('/subscriptions', async (req: Request, res: Response) => {
-    const body = parseBody(createSubscriptionBodySchema, req.body);
+    // El correo y el nombre del token tienen prioridad sobre los del cuerpo (que quedan
+    // para uso directo en desarrollo, sin gateway).
+    const body = parseBody(createSubscriptionBodySchema, {
+      ...req.body,
+      email: res.locals.userEmail ?? req.body?.email,
+      name: res.locals.userName ?? req.body?.name,
+    });
     const result = await container.createSubscription.execute({
       userId: res.locals.userId,
       email: body.email,

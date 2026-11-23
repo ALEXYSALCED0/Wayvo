@@ -78,6 +78,25 @@ services:
     networks:
       - wayvo-network
 
+  payment-db:
+    image: postgres:16-alpine
+    container_name: wayvo-payment-db
+    environment:
+      POSTGRES_USER: wayvo
+      POSTGRES_PASSWORD: wayvo
+      POSTGRES_DB: payment_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wayvo -d payment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wayvo-network
+
   # ==========================================
   # SERVICIOS BACKEND & IA
   # ==========================================
@@ -95,11 +114,41 @@ services:
       JWT_SECRET: ${JWT_SECRET:-}
       JWT_EXPIRES_IN_SECONDS: ${JWT_EXPIRES_IN_SECONDS:-28800}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      # Mismo token que payment-service: protege las rutas internas (cambiar el plan de una cuenta).
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-wayvo-dev-internal-token-cambiar-en-produccion}
     ports:
       - "3004:3004"
     depends_on:
       auth-db:
         condition: service_healthy
+    networks:
+      - wayvo-network
+
+  payment-service:
+    image: wayvo-payment-service:latest
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    container_name: wayvo-payment-service
+    environment:
+      PORT: 3005
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://wayvo:wayvo@payment-db:5432/payment_db?schema=public"
+      # mock = simulador sin claves; real = Stripe (claves de PRUEBA en .env, nunca aquí).
+      PAYMENTS_MODE: ${PAYMENTS_MODE:-mock}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PRICE_ID: ${STRIPE_PRICE_ID:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Aquí se guarda el plan FREE / PREMIUM de la cuenta.
+      AUTH_SERVICE_URL: http://auth-service:3004
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-wayvo-dev-internal-token-cambiar-en-produccion}
+    ports:
+      - "3005:3005"
+    depends_on:
+      payment-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
     networks:
       - wayvo-network
 
@@ -208,6 +257,7 @@ services:
       TRIP_SERVICE_URL: http://trip-service:3003
       AI_SERVICE_URL: http://ai-recommendation:8000
       AUTH_SERVICE_URL: http://auth-service:3004
+      PAYMENT_SERVICE_URL: http://payment-service:3005
       # Mismo secreto que auth-service: el gateway verifica la firma de los JWT.
       JWT_SECRET: ${JWT_SECRET:-}
       HTTP_TIMEOUT_MS: 35000
@@ -216,6 +266,7 @@ services:
       - "3000:3000"
     depends_on:
       - auth-service
+      - payment-service
       - booking-service
       - provider-service
       - trip-service
@@ -246,6 +297,8 @@ networks:
     driver: bridge
 
 volumes:
+  payment-db-data:
+    driver: local
   booking-db-data:
     driver: local
   provider-db-data:

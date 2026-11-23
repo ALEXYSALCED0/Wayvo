@@ -22,7 +22,7 @@ describe('API Gateway Integration Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.services).toBeInstanceOf(Array);
-      expect(res.body.data.services.length).toBe(5); // booking, trip, provider, ai, auth
+      expect(res.body.data.services.length).toBe(6); // booking, trip, provider, ai, auth, payment
     });
   });
 

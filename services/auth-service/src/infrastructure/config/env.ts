@@ -3,6 +3,10 @@ import 'dotenv/config';
 // Secreto SOLO para desarrollo local. En producción el servicio se niega a arrancar con él.
 export const DEV_JWT_SECRET = 'wayvo-dev-secret-cambiar-en-produccion';
 
+// Token compartido con payment-service para las rutas internas. SOLO desarrollo: en producción
+// el servicio se niega a arrancar con él.
+export const DEV_INTERNAL_TOKEN = 'wayvo-dev-internal-token-cambiar-en-produccion';
+
 export interface AppConfig {
   port: number;
   nodeEnv: string;
@@ -11,6 +15,7 @@ export interface AppConfig {
   jwtExpiresInSeconds: number;
   bcryptRounds: number;
   adminEmails: Set<string>;
+  internalToken: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -21,7 +26,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('JWT_SECRET es obligatorio en producción');
   }
 
+  const internalToken = env.INTERNAL_SERVICE_TOKEN?.trim() || DEV_INTERNAL_TOKEN;
+  if (nodeEnv === 'production' && internalToken === DEV_INTERNAL_TOKEN) {
+    throw new Error('INTERNAL_SERVICE_TOKEN es obligatorio en producción');
+  }
+
   return {
+    internalToken,
     port: Number(env.PORT ?? 3004),
     nodeEnv,
     databaseUrl: env.DATABASE_URL || null,

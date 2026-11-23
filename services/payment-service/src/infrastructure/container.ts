@@ -18,6 +18,8 @@ import { FakeAccountPlanGateway } from './mock/fake-account-plan.gateway';
 import { FakeStripeApi } from './mock/fake-stripe.api';
 import { PaymentSimulationState } from './mock/simulation-state';
 import { InMemorySubscriptionRepository } from './persistence/in-memory-subscription.repository';
+import { createPrismaClient } from './persistence/prisma/prisma.client';
+import { PrismaSubscriptionRepository } from './persistence/prisma/prisma-subscription.repository';
 import { StripeHttpApi } from './stripe/stripe-http.api';
 
 export interface Container {
@@ -25,7 +27,7 @@ export interface Container {
   ids: IdGenerator;
   plan: PlanInfo;
   mode: AppConfig['mode'];
-  persistence: 'in-memory';
+  persistence: 'postgres' | 'in-memory';
   // 'http' = auth-service real; 'simulated' = cuenta en memoria (solo desarrollo)
   account: 'http' | 'simulated';
   createSubscription: CreateSubscriptionUseCase;
@@ -38,6 +40,8 @@ export interface Container {
   simulation?: PaymentSimulationState;
   // Solo con cuenta simulada: permite ver qué plan quedó en la cuenta (pruebas y demo).
   simulatedAccounts?: FakeAccountPlanGateway;
+  // Cierra la conexión a la base de datos (apagado ordenado).
+  shutdown: () => Promise<void>;
 }
 
 export interface ContainerOverrides {
@@ -54,7 +58,9 @@ export interface ContainerOverrides {
 export function buildContainer(config: AppConfig, overrides: ContainerOverrides = {}): Container {
   const logger = overrides.logger ?? new ConsoleLogger('payment-service');
   const ids = overrides.ids ?? new UuidGenerator();
-  const subscriptions = overrides.subscriptions ?? new InMemorySubscriptionRepository();
+  const prisma = !overrides.subscriptions && config.databaseUrl ? createPrismaClient(config.databaseUrl) : null;
+  const subscriptions =
+    overrides.subscriptions ?? (prisma ? new PrismaSubscriptionRepository(prisma) : new InMemorySubscriptionRepository());
 
   let simulation: PaymentSimulationState | undefined;
   let gateway = overrides.gateway;
@@ -89,7 +95,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     ids,
     plan: config.plan,
     mode: config.mode,
-    persistence: 'in-memory',
+    persistence: prisma ? 'postgres' : 'in-memory',
     account: config.account ? 'http' : 'simulated',
     createSubscription: new CreateSubscriptionUseCase(subscriptions, gateway, ids, logger),
     confirmSubscription,
@@ -99,5 +105,8 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     handleWebhook: new HandleWebhookUseCase(subscriptions, gateway, accounts, logger),
     simulation,
     simulatedAccounts: accounts instanceof FakeAccountPlanGateway ? accounts : undefined,
+    shutdown: async () => {
+      await prisma?.$disconnect();
+    },
   };
 }

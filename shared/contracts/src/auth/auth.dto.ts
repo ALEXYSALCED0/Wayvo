@@ -12,10 +12,20 @@
 
 export const USER_ID_HEADER = 'x-user-id';
 export const USER_ROLE_HEADER = 'x-user-role';
+// Correo y nombre (este último codificado con encodeURIComponent) verificados del token.
+export const USER_EMAIL_HEADER = 'x-user-email';
+export const USER_NAME_HEADER = 'x-user-name';
 
 export enum UserRole {
   TRAVELER = 'TRAVELER',
   ADMIN = 'ADMIN',
+}
+
+// Plan de la cuenta: FREE (límites) o PREMIUM (suscripción mensual activa).
+// Lo cambia payment-service; el cliente solo lo lee.
+export enum AccountPlan {
+  FREE = 'FREE',
+  PREMIUM = 'PREMIUM',
 }
 
 // Usuario tal como se expone hacia afuera: nunca incluye la contraseña ni su hash.
@@ -25,6 +35,9 @@ export interface AuthUserDTO {
   name: string;
   role: UserRole;
   createdAt: string;
+  plan: AccountPlan;
+  // Fin del periodo pagado (null en FREE).
+  planExpiresAt: string | null;
 }
 
 export interface RegisterRequest {
