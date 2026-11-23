@@ -26,7 +26,8 @@ class SagaStepError extends Error {
 // Flujo feliz:  CREATE_TRIP -> CREATE_BOOKING -> RESERVE_PROVIDER -> CONFIRM
 // Si un paso falla: no se sigue hacia adelante y se ejecutan las compensaciones
 // de los pasos ya completados en orden inverso (pila LIFO), dejando la traza en
-// CompensationLog.
+// CompensationLog. Si CONFIRM falla, el orden es: liberar cupos del proveedor,
+// cancelar la reserva y cancelar el viaje.
 export class SagaOrchestrator {
   constructor(
     private readonly trips: TripServiceGateway,
@@ -98,8 +99,19 @@ export class SagaOrchestrator {
         }
         return result.reservationCode;
       });
-      // provider-service no expone un endpoint de liberación en el MVP, así que
-      // este paso no apila compensación. Si se agrega, se registraría aquí.
+      // Si algo falla después de reservar (por ejemplo, al confirmar el viaje), hay
+      // que devolver los cupos que apartó provider-service.
+      compensations.push({
+        step: SagaStep.COMPENSATE_PROVIDER,
+        run: () =>
+          this.providers.release(
+            {
+              bookingId: booking.id,
+              items: booking.items.map((bItem) => ({ offerId: bItem.offerId, quantity: bItem.quantity })),
+            },
+            correlationId,
+          ),
+      });
 
       // d. todo salió bien: marcar reserva y viaje como CONFIRMED
       await this.step(correlationId, SagaStep.CONFIRM, async () => {

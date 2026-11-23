@@ -254,3 +254,37 @@ describe('transversales', () => {
     expect(body.error).toEqual({ code: 'INTERNAL_ERROR', message: 'Internal server error' });
   });
 });
+
+describe('POST /api/v1/providers/release', () => {
+  it('devuelve el cupo apartado por /confirm', async () => {
+    const offerId = 'offer-aerocaribe-bog-ctg-am';
+    const before = (await offers.findById(offerId))!.availableCapacity;
+
+    const confirm = await postJson(`${ctx.base}/api/v1/providers/confirm`, {
+      bookingId: 'b-release-1',
+      items: [{ type: 'TRANSPORT', providerId: 'prov-aerocaribe', offerId, quantity: 2 }],
+    });
+    expect(confirm.status).toBe(200);
+    expect((await offers.findById(offerId))!.availableCapacity).toBe(before - 2);
+
+    const res = await postJson(`${ctx.base}/api/v1/providers/release`, {
+      bookingId: 'b-release-1',
+      items: [{ offerId, quantity: 2 }],
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.items).toEqual([{ offerId, quantity: 2, released: true }]);
+    expect((await offers.findById(offerId))!.availableCapacity).toBe(before);
+  });
+
+  it('responde 400 con una cantidad inválida', async () => {
+    const res = await postJson(`${ctx.base}/api/v1/providers/release`, {
+      bookingId: 'b-1',
+      items: [{ offerId: 'offer-aerocaribe-bog-ctg-am', quantity: 0 }],
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe('VALIDATION_ERROR');
+  });
+});

@@ -1,4 +1,5 @@
 import {
+  ProviderReleaseRequest,
   ProviderReservationRequest,
   ProviderReservationResult,
   ProviderServiceGateway,
@@ -15,5 +16,10 @@ export class FakeProviderServiceGateway implements ProviderServiceGateway {
     if (this.mode === 'error') throw new Error('provider-service unreachable (simulated)');
     if (this.mode === 'unavailable') return { available: false, reason: 'No availability (simulated)' };
     return { available: true, reservationCode: `FAKE-${request.bookingId.slice(0, 8)}` };
+  }
+
+  async release(request: ProviderReleaseRequest): Promise<void> {
+    // Nada que devolver: este gateway no aparta cupos reales.
+    void request;
   }
 }

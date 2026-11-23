@@ -108,6 +108,43 @@ describe('SagaOrchestrator.confirmTrip', () => {
     expect(trips.status.get('trip-1')).toBe('CANCELLED');
   });
 
+  it('si falla CONFIRM, devuelve los cupos al proveedor antes de cancelar reserva y viaje', async () => {
+    trips.failOn = 'confirm';
+
+    const result = await saga.confirmTrip(input());
+
+    expect(providers.releases).toHaveLength(1);
+    expect(providers.releases[0].bookingId).toBe(result.bookingId);
+    expect(providers.releases[0].items.length).toBeGreaterThan(0);
+    const log = await logs.findByCorrelationId('corr-1');
+    expect(log?.entries.map((e) => e.step)).toEqual([
+      SagaStep.COMPENSATE_PROVIDER,
+      SagaStep.COMPENSATE_BOOKING,
+      SagaStep.COMPENSATE_TRIP,
+    ]);
+  });
+
+  it('si el proveedor no tenía cupo, no hay nada que devolver (no se llama a release)', async () => {
+    providers.mode = 'unavailable';
+
+    await saga.confirmTrip(input());
+
+    expect(providers.releases).toHaveLength(0);
+  });
+
+  it('si falla la liberación de cupos, sigue compensando y reporta COMPENSATION_FAILED', async () => {
+    trips.failOn = 'confirm';
+    providers.failRelease = true;
+
+    const result = await saga.confirmTrip(input());
+
+    expect(result.status).toBe('COMPENSATION_FAILED');
+    expect((await bookings.findById(result.bookingId!))?.status).toBe(BookingStatus.CANCELLED);
+    expect(trips.status.get('trip-1')).toBe('CANCELLED');
+    const log = await logs.findByCorrelationId('corr-1');
+    expect(log?.entries[0]).toMatchObject({ step: SagaStep.COMPENSATE_PROVIDER, outcome: StepOutcome.FAILED });
+  });
+
   it('si una compensación falla, sigue con las demás y reporta COMPENSATION_FAILED', async () => {
     providers.mode = 'unavailable';
     trips.failOn = 'cancel';

@@ -18,8 +18,17 @@ export type ProviderReservationResult =
   | { available: true; reservationCode: string }
   | { available: false; reason: string };
 
+export interface ProviderReleaseRequest {
+  bookingId: string;
+  items: Array<{ offerId: string; quantity: number }>;
+}
+
 export interface ProviderServiceGateway {
   // Verifica disponibilidad y bloquea los cupos. Devuelve available=false si el
   // proveedor no tiene cupo; lanza una excepción si el servicio falla.
   reserve(request: ProviderReservationRequest, correlationId: string): Promise<ProviderReservationResult>;
+
+  // Compensación de reserve(): devuelve los cupos apartados. Lanza una excepción
+  // si algún cupo no se pudo devolver, para que la Saga lo deje en el log.
+  release(request: ProviderReleaseRequest, correlationId: string): Promise<void>;
 }
