@@ -1,5 +1,6 @@
 import type { ApiResponse, CheckAvailabilityResponse, ConfirmProviderReservationResponse } from '@wayvo/contracts';
 import { CheckAvailabilityOutput } from '../../application/dtos/availability.dto';
+import { ReleaseReservationOutput } from '../../application/dtos/release.dto';
 import { ConfirmReservationOutput } from '../../application/dtos/reservation.dto';
 import { ProviderWithOffersOutput } from '../../application/use-cases/list-providers.use-case';
 
@@ -36,5 +37,9 @@ export function presentAvailability(output: CheckAvailabilityOutput): CheckAvail
 export function presentConfirmation(
   output: ConfirmReservationOutput,
 ): ConfirmProviderReservationResponse & { items: ConfirmReservationOutput['items'] } {
+  return output;
+}
+
+export function presentRelease(output: ReleaseReservationOutput): ReleaseReservationOutput {
   return output;
 }

@@ -3,6 +3,7 @@ import { ProveedorExternoResolver } from '../application/ports/proveedor-externo
 import { CheckAvailabilityUseCase } from '../application/use-cases/check-availability.use-case';
 import { ConfirmReservationUseCase } from '../application/use-cases/confirm-reservation.use-case';
 import { ListProvidersUseCase } from '../application/use-cases/list-providers.use-case';
+import { ReleaseReservationUseCase } from '../application/use-cases/release-reservation.use-case';
 import { VerifyProviderUseCase } from '../application/use-cases/verify-provider.use-case';
 import { createExternalProviderRegistry } from './external/external-providers.factory';
 import { ConsoleLogger } from './logger/console.logger';
@@ -13,6 +14,7 @@ export interface Container {
   listProviders: ListProvidersUseCase;
   checkAvailability: CheckAvailabilityUseCase;
   confirmReservation: ConfirmReservationUseCase;
+  releaseReservation: ReleaseReservationUseCase;
   verifyProvider: VerifyProviderUseCase;
   persistence: Pick<Persistence, 'kind'>;
   shutdown(): Promise<void>;
@@ -43,6 +45,7 @@ export async function buildContainer(
     listProviders: new ListProvidersUseCase(persistence.providers, persistence.offers),
     checkAvailability: new CheckAvailabilityUseCase(persistence.providers, persistence.offers, externals, logger, reservationOptions),
     confirmReservation: new ConfirmReservationUseCase(persistence.providers, persistence.offers, externals, logger, reservationOptions),
+    releaseReservation: new ReleaseReservationUseCase(persistence.offers, logger),
     verifyProvider: new VerifyProviderUseCase(persistence.providers, logger),
     persistence: { kind: persistence.kind },
     shutdown: () => persistence.shutdown(),

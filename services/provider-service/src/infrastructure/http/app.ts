@@ -42,6 +42,7 @@ export function createApp(container: Container, { env = process.env }: AppOption
       listProviders: container.listProviders,
       checkAvailability: container.checkAvailability,
       confirmReservation: container.confirmReservation,
+      releaseReservation: container.releaseReservation,
       logger: container.logger,
     }),
   );
