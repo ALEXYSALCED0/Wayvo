@@ -60,6 +60,18 @@ describe('Adapters HTTP hacia trip-service y provider-service', () => {
     expect(await providers().reserve(reservation, 'c')).toEqual({ available: false, reason: 'No rooms left' });
   });
 
+  it('provider gateway libera cupos con el bookingId y las ofertas', async () => {
+    await providers().release({ bookingId: 'b-1', items: [{ offerId: 'offer-1', quantity: 2 }] }, 'c');
+    expect(mocks.providerReleases.at(-1)).toEqual({ bookingId: 'b-1', items: [{ offerId: 'offer-1', quantity: 2 }] });
+  });
+
+  it('provider gateway lanza error si algún cupo no se pudo devolver', async () => {
+    mocks.setReleaseFails(true);
+    await expect(providers().release({ bookingId: 'b-1', items: [{ offerId: 'x', quantity: 1 }] }, 'c'))
+      .rejects.toThrow('not released');
+    mocks.setReleaseFails(false);
+  });
+
   it('lanza HttpGatewayError si el servicio responde 5xx', async () => {
     mocks.setProviderMode('error');
     await expect(providers().reserve(reservation, 'c')).rejects.toThrow(HttpGatewayError);

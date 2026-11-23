@@ -10,6 +10,8 @@ export interface MockServices {
   providerUrl: string;
   tripStatus: Map<string, string>;
   receivedCorrelationIds: string[];
+  providerReleases: Array<{ bookingId: string; items: Array<{ offerId: string; quantity: number }> }>;
+  setReleaseFails(fails: boolean): void;
   setProviderMode(mode: 'ok' | 'unavailable' | 'error' | 'slow'): void;
   close(): Promise<void>;
 }
@@ -28,6 +30,8 @@ export async function startMockServices(): Promise<MockServices> {
   const receivedCorrelationIds: string[] = [];
   let providerMode: 'ok' | 'unavailable' | 'error' | 'slow' = 'ok';
   let nextTrip = 0;
+  const providerReleases: MockServices['providerReleases'] = [];
+  let releaseFails = false;
 
   const trip = express();
   trip.use(express.json());
@@ -68,6 +72,17 @@ export async function startMockServices(): Promise<MockServices> {
     res.json({ success: true, data: { reservationCode: 'RSV-HTTP-1' } });
   });
 
+  provider.post('/api/v1/providers/release', (req, res) => {
+    providerReleases.push(req.body);
+    const items = (req.body.items ?? []).map((i: { offerId: string; quantity: number }) => ({
+      offerId: i.offerId,
+      quantity: i.quantity,
+      released: !releaseFails,
+      ...(releaseFails && { reason: 'Offer not found' }),
+    }));
+    res.json({ success: true, data: { bookingId: req.body.bookingId, items } });
+  });
+
   const t = await listen(trip);
   const p = await listen(provider);
 
@@ -76,6 +91,10 @@ export async function startMockServices(): Promise<MockServices> {
     providerUrl: p.url,
     tripStatus,
     receivedCorrelationIds,
+    providerReleases,
+    setReleaseFails: (fails) => {
+      releaseFails = fails;
+    },
     setProviderMode: (mode) => {
       providerMode = mode;
     },
