@@ -28,6 +28,30 @@ export enum AccountPlan {
   PREMIUM = 'PREMIUM',
 }
 
+// Qué permite la cuenta y cuánto lleva usado este mes (GET /auth/me). El cliente lo usa para
+// mostrar avisos de límite; quien hace cumplir los límites es el servidor, no el cliente.
+export interface AccountEntitlements {
+  plan: AccountPlan;
+  aiPlans: {
+    // null = ilimitado (PREMIUM)
+    limit: number | null;
+    used: number;
+    remaining: number | null;
+    // Mes calendario que se está contando, p. ej. "2026-11"
+    period: string;
+    // Cuándo se renuevan los planes (inicio del mes siguiente)
+    resetsAt: string;
+  };
+  // Acceso al presupuesto "Lujo"
+  luxuryBudget: boolean;
+}
+
+// Motivos por los que se rechaza generar un plan con IA (código de error 403 del gateway).
+export enum AiPlanDenialCode {
+  LIMIT_REACHED = 'AI_PLAN_LIMIT_REACHED',
+  LUXURY_REQUIRES_PREMIUM = 'LUXURY_BUDGET_REQUIRES_PREMIUM',
+}
+
 // Usuario tal como se expone hacia afuera: nunca incluye la contraseña ni su hash.
 export interface AuthUserDTO {
   id: string;
@@ -38,6 +62,8 @@ export interface AuthUserDTO {
   plan: AccountPlan;
   // Fin del periodo pagado (null en FREE).
   planExpiresAt: string | null;
+  // Solo viene en GET /auth/me
+  entitlements?: AccountEntitlements;
 }
 
 export interface RegisterRequest {

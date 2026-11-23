@@ -2,6 +2,8 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import { HttpAiServiceGateway } from '../../adapters/gateways/http-ai-service.gateway';
 import { HttpBookingServiceGateway } from '../../adapters/gateways/http-booking-service.gateway';
 import { TripFacadeController } from '../../adapters/http/controllers/trip-facade.controller';
+import { HttpAiPlanQuotaGateway } from '../../adapters/gateways/http-ai-plan-quota.gateway';
+import { createAiPlanQuotaMiddleware } from '../../adapters/http/middlewares/ai-plan-quota.middleware';
 import { createAuthMiddleware } from '../../adapters/http/middlewares/auth.middleware';
 import { correlationIdMiddleware } from '../../adapters/http/middlewares/correlation-id.middleware';
 import { corsMiddleware } from '../../adapters/http/middlewares/cors.middleware';
@@ -11,6 +13,7 @@ import { healthRouter } from '../../adapters/http/routes/health.routes';
 import { proxyRouter } from '../../adapters/http/routes/proxy.routes';
 import { createTripFacadeRouter } from '../../adapters/http/routes/trip-facade.routes';
 import { TripFacade } from '../../application/facades/trip.facade';
+import { AiPlanQuotaPort } from '../../application/ports/ai-plan-quota.port';
 import { TokenVerifier } from '../../application/ports/token-verifier.port';
 import { RouteNotFoundError } from '../../domain/errors/gateway.error';
 import { createServiceProxy } from '../proxy/http-proxy';
@@ -20,6 +23,7 @@ import { config } from '../config/env';
 export interface AppDependencies {
   tripFacade?: TripFacade;
   tokenVerifier?: TokenVerifier;
+  aiPlanQuota?: AiPlanQuotaPort;
 }
 
 export function createApp(deps: AppDependencies = {}): Express {
@@ -31,6 +35,8 @@ export function createApp(deps: AppDependencies = {}): Express {
   const tripFacade = deps.tripFacade || new TripFacade(aiGateway, bookingGateway);
   const tripFacadeController = new TripFacadeController(tripFacade);
   const tripFacadeRouter = createTripFacadeRouter(tripFacadeController);
+  const aiPlanQuota =
+    deps.aiPlanQuota || new HttpAiPlanQuotaGateway(config.AUTH_SERVICE_URL, config.INTERNAL_SERVICE_TOKEN, 5000);
   const tokenVerifier = deps.tokenVerifier || new JwtTokenVerifier(config.JWT_SECRET);
 
   // 1. Essential security, CORS and tracing middlewares
@@ -56,6 +62,10 @@ export function createApp(deps: AppDependencies = {}): Express {
   // 4. Autenticación (multiusuario): valida el JWT y propaga la identidad
   //    (x-user-id / x-user-role) a todo lo que viene después.
   app.use(createAuthMiddleware(tokenVerifier));
+
+  // 4b. Cuota de planes con IA: FREE = 5 por mes y sin presupuesto Lujo; PREMIUM = sin límites.
+  //     Cubre la Facade y el acceso directo al servicio de IA (no hay forma de saltársela).
+  app.post(['/api/v1/trips/plan', '/api/v1/ai/plan'], createAiPlanQuotaMiddleware(aiPlanQuota));
 
   // 5. Facade routes (GoF Facade Pattern: POST /api/v1/trips/plan, POST /api/v1/trips/checkout)
   // Mounted before proxyRouter to intercept consolidated endpoints

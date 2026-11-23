@@ -143,3 +143,66 @@ describe('Rutas internas: plan de la cuenta', () => {
     expect((await put(id, { plan: 'GOLD' })).status).toBe(400);
   });
 });
+
+describe('Rutas internas: cuota de planes de IA y /auth/me', () => {
+  const TOKEN = 'wayvo-dev-internal-token-cambiar-en-produccion';
+
+  async function registerAna(app: ReturnType<typeof buildTestApp>) {
+    const res = await request(app).post('/api/v1/auth/register').send(ana);
+    return { id: res.body.data.user.id as string, token: res.body.data.token as string };
+  }
+  const consume = (app: ReturnType<typeof buildTestApp>, id: string, body: object = {}) =>
+    request(app).post(`/api/v1/internal/users/${id}/ai-plans/consume`).set('x-internal-token', TOKEN).send(body);
+
+  it('exige el token interno', async () => {
+    const app = buildTestApp();
+    const { id } = await registerAna(app);
+
+    const res = await request(app).post(`/api/v1/internal/users/${id}/ai-plans/consume`).send({});
+
+    expect(res.status).toBe(401);
+  });
+
+  it('consume descuenta un plan, release lo devuelve, y /auth/me muestra el uso', async () => {
+    const app = buildTestApp();
+    const { id, token } = await registerAna(app);
+
+    const used = await consume(app, id, { budgetCategory: 'Estándar' });
+    expect(used.body.data).toMatchObject({ allowed: true, counted: true });
+    expect(used.body.data.entitlements.aiPlans).toMatchObject({ used: 1, remaining: 4, limit: 5 });
+
+    const me = await request(app).get('/api/v1/auth/me').set('authorization', `Bearer ${token}`);
+    expect(me.body.data.entitlements).toMatchObject({ plan: 'FREE', luxuryBudget: false });
+    expect(me.body.data.entitlements.aiPlans.used).toBe(1);
+
+    const released = await request(app)
+      .post(`/api/v1/internal/users/${id}/ai-plans/release`)
+      .set('x-internal-token', TOKEN)
+      .send({ period: used.body.data.entitlements.aiPlans.period });
+    expect(released.body.data.entitlements.aiPlans.used).toBe(0);
+  });
+
+  it('FREE: Lujo se rechaza y el sexto plan también; PREMIUM puede todo', async () => {
+    const app = buildTestApp();
+    const { id } = await registerAna(app);
+
+    const luxury = await consume(app, id, { budgetCategory: 'Lujo' });
+    expect(luxury.status).toBe(200);
+    expect(luxury.body.data).toMatchObject({ allowed: false, code: 'LUXURY_BUDGET_REQUIRES_PREMIUM' });
+
+    for (let i = 0; i < 5; i++) await consume(app, id, { budgetCategory: 'Estándar' });
+    const sixth = await consume(app, id, { budgetCategory: 'Estándar' });
+    expect(sixth.body.data).toMatchObject({ allowed: false, code: 'AI_PLAN_LIMIT_REACHED' });
+
+    await request(app)
+      .put(`/api/v1/internal/users/${id}/plan`)
+      .set('x-internal-token', TOKEN)
+      .send({ plan: 'PREMIUM', subscriptionId: 'sub_1' });
+    const premium = await consume(app, id, { budgetCategory: 'Lujo' });
+    expect(premium.body.data).toMatchObject({ allowed: true, counted: false });
+  });
+
+  it('usuario inexistente → 404', async () => {
+    expect((await consume(buildTestApp(), 'nadie')).status).toBe(404);
+  });
+});

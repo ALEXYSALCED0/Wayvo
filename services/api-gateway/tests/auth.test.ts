@@ -6,6 +6,7 @@ import { TripFacade } from '../src/application/facades/trip.facade';
 import { AiServicePort } from '../src/application/ports/ai-service.port';
 import { BookingServicePort } from '../src/application/ports/booking-service.port';
 import { authHeader, signTestToken } from './auth-helpers';
+import { allowAllQuota } from './quota-helpers';
 
 const planInput = {
   origin: 'Barranquilla',
@@ -28,7 +29,7 @@ const planInput = {
 function buildApp() {
   const ai: AiServicePort = { generatePlan: vi.fn().mockResolvedValue({ planId: 'p1' }) };
   const booking: BookingServicePort = { executeConfirmTripSaga: vi.fn() };
-  return { app: createApp({ tripFacade: new TripFacade(ai, booking) }), ai };
+  return { app: createApp({ tripFacade: new TripFacade(ai, booking), aiPlanQuota: allowAllQuota() }), ai };
 }
 
 describe('Autenticación en el API Gateway (multiusuario)', () => {

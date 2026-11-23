@@ -72,3 +72,11 @@ export class ForbiddenError extends GatewayError {
     super('FORBIDDEN', message, 403);
   }
 }
+
+// 403: la cuenta FREE llegó a su límite o pidió algo exclusivo de PREMIUM.
+// details trae lo que el cliente necesita para mostrar el aviso (plan, usados, cuándo se renuevan).
+export class PlanLimitError extends GatewayError {
+  constructor(code: string, message = 'Tu plan no permite esta acción', entitlements?: unknown) {
+    super(code, message, 403, entitlements);
+  }
+}
