@@ -16,6 +16,7 @@
     "dev:auth": "npm --prefix services/auth-service run dev",
     "dev:booking": "npm --prefix services/booking-service run dev",
     "dev:provider": "npm --prefix services/provider-service run dev",
+    "dev:payment": "npm --prefix services/payment-service run dev",
     "dev:trip": "npm --prefix services/trip-service run dev",
     "dev:client": "npm --prefix apps/client run dev",
     "dev:services": "./scripts/dev-services.sh",
