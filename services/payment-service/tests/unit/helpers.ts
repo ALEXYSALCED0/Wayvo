@@ -17,6 +17,7 @@ export const testConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   nodeEnv: 'test',
   mode: 'mock',
   stripe: null,
+  account: null,
   plan: { code: 'PREMIUM', amountCents: 495, currency: 'usd', interval: 'month' },
   ...overrides,
 });

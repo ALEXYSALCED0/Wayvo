@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { AccountServiceError } from '../../account/errors';
 import { InvalidWebhookSignatureError, PaymentProviderError } from '../../payment/errors';
 import {
   AlreadySubscribedError,
@@ -18,7 +19,9 @@ function toHttp(err: Error): { status: number; code: string; details: unknown } 
   if (err instanceof UnauthenticatedError) return { status: 401, code: err.code, details: null };
   if (err instanceof SubscriptionNotFoundError) return { status: 404, code: err.code, details: null };
   if (err instanceof AlreadySubscribedError) return { status: 409, code: err.code, details: null };
-  if (err instanceof PaymentProviderError) return { status: 502, code: err.code, details: null };
+  if (err instanceof PaymentProviderError || err instanceof AccountServiceError) {
+    return { status: 502, code: err.code, details: null };
+  }
   if (err instanceof DomainError) return { status: 422, code: err.code, details: null };
   if (err instanceof ApplicationError) return { status: 400, code: err.code, details: null };
   if (err instanceof SyntaxError) return { status: 400, code: 'MALFORMED_JSON', details: null };
@@ -29,7 +32,7 @@ export function errorMiddleware(logger: LoggerPort) {
   return (err: Error, _req: Request, res: Response, _next: NextFunction): void => {
     const { status, code, details } = toHttp(err);
     const meta = { correlationId: res.locals.correlationId, code, error: err.message };
-    if (status >= 500 && !(err instanceof PaymentProviderError)) logger.error('Unhandled error', meta);
+    if (status >= 500 && !(err instanceof PaymentProviderError) && !(err instanceof AccountServiceError)) logger.error('Unhandled error', meta);
     else logger.warn('Request failed', meta);
 
     res.status(status).json({

@@ -10,6 +10,9 @@ export const PAYMENT_SIMULATION_MODES: PaymentSimulationMode[] = ['normal', 'dec
 export class PaymentSimulationState {
   mode: PaymentSimulationMode = 'normal';
   delayMs = 3000;
+  // true = la cuenta (auth-service) falla al activar el plan, DESPUÉS de haber cobrado.
+  // Sirve para demostrar la compensación: cancelar la suscripción y devolver el pago.
+  activationFails = false;
 
   set(mode: PaymentSimulationMode, delayMs?: number): void {
     this.mode = mode;
@@ -19,5 +22,6 @@ export class PaymentSimulationState {
   reset(): void {
     this.mode = 'normal';
     this.delayMs = 3000;
+    this.activationFails = false;
   }
 }

@@ -18,11 +18,34 @@ describe('loadConfig', () => {
   it('una clave live fuera de producción se rechaza', () => {
     expect(() => loadConfig({ PAYMENTS_MODE: 'real', STRIPE_SECRET_KEY: 'sk_live_x', STRIPE_PRICE_ID: 'price_1' })).toThrow(/sk_live_/);
     expect(() =>
-      loadConfig({ PAYMENTS_MODE: 'real', NODE_ENV: 'production', STRIPE_SECRET_KEY: 'sk_live_x', STRIPE_PRICE_ID: 'price_1' }),
+      loadConfig({
+        PAYMENTS_MODE: 'real',
+        NODE_ENV: 'production',
+        STRIPE_SECRET_KEY: 'sk_live_x',
+        STRIPE_PRICE_ID: 'price_1',
+        AUTH_SERVICE_URL: 'http://auth:3004',
+        INTERNAL_SERVICE_TOKEN: 't',
+      }),
     ).not.toThrow();
   });
 
   it('un modo desconocido es un error', () => {
     expect(() => loadConfig({ PAYMENTS_MODE: 'otro' })).toThrow(/PAYMENTS_MODE/);
+  });
+
+  describe('cuenta (auth-service)', () => {
+    it('sin AUTH_SERVICE_URL usa la cuenta simulada', () => {
+      expect(loadConfig({}).account).toBeNull();
+    });
+
+    it('con AUTH_SERVICE_URL exige el token interno', () => {
+      expect(() => loadConfig({ AUTH_SERVICE_URL: 'http://auth:3004' })).toThrow(/INTERNAL_SERVICE_TOKEN/);
+      const config = loadConfig({ AUTH_SERVICE_URL: 'http://auth:3004/', INTERNAL_SERVICE_TOKEN: 't' });
+      expect(config.account).toEqual({ authServiceUrl: 'http://auth:3004', internalToken: 't', timeoutMs: 5000 });
+    });
+
+    it('en producción la cuenta real es obligatoria', () => {
+      expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/AUTH_SERVICE_URL/);
+    });
   });
 });

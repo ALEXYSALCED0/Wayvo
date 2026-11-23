@@ -8,7 +8,9 @@ import {
 //   GET /api/v1/mock/simulate-payment                      estado actual
 //   GET /api/v1/mock/simulate-payment?mode=declined        provoca el fallo
 //   GET /api/v1/mock/simulate-payment?mode=slow&delayMs=4000
-// modes: normal | declined | error | slow. Solo se monta con PAYMENTS_MODE=mock fuera de producción.
+//   GET /api/v1/mock/simulate-payment?activation=fail     la cuenta falla DESPUÉS de cobrar (provoca la compensación)
+//   GET /api/v1/mock/simulate-payment?activation=ok
+// modes: normal | declined | error | slow. Solo se monta con pasarela o cuenta simuladas, y nunca en producción.
 export function mockRoutes(state: PaymentSimulationState): Router {
   const router = Router();
   router.get('/simulate-payment', (req: Request, res: Response) => {
@@ -24,7 +26,21 @@ export function mockRoutes(state: PaymentSimulationState): Router {
       const delay = req.query.delayMs === undefined ? undefined : Number(req.query.delayMs);
       state.set(mode as PaymentSimulationMode, Number.isFinite(delay) ? delay : undefined);
     }
-    res.status(200).json({ success: true, data: { mode: state.mode, delayMs: state.delayMs } });
+    const activation = req.query.activation;
+    if (activation !== undefined) {
+      if (activation !== 'fail' && activation !== 'ok') {
+        res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_ACTIVATION', message: 'activation must be "fail" or "ok"', details: null },
+        });
+        return;
+      }
+      state.activationFails = activation === 'fail';
+    }
+    res.status(200).json({
+      success: true,
+      data: { mode: state.mode, delayMs: state.delayMs, activation: state.activationFails ? 'fail' : 'ok' },
+    });
   });
   return router;
 }

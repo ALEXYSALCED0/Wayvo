@@ -1,7 +1,10 @@
+import { HttpAccountPlanGateway } from '../adapters/account/http-account-plan.gateway';
 import { StripePaymentAdapter } from '../adapters/payment/stripe.adapter';
+import { AccountPlanGateway } from '../application/ports/account-plan.gateway';
 import { IdGenerator } from '../application/ports/id-generator.port';
 import { LoggerPort } from '../application/ports/logger.port';
 import { IPaymentGateway } from '../application/ports/payment-gateway.port';
+import { ActivateSubscriptionUseCase } from '../application/use-cases/activate-subscription.use-case';
 import { CancelSubscriptionUseCase } from '../application/use-cases/cancel-subscription.use-case';
 import { ConfirmSubscriptionUseCase } from '../application/use-cases/confirm-subscription.use-case';
 import { CreateSubscriptionUseCase } from '../application/use-cases/create-subscription.use-case';
@@ -11,6 +14,7 @@ import { SubscriptionRepository } from '../domain/repositories/subscription.repo
 import { AppConfig, PlanInfo } from './config/env';
 import { UuidGenerator } from './id/uuid.generator';
 import { ConsoleLogger } from './logger/console.logger';
+import { FakeAccountPlanGateway } from './mock/fake-account-plan.gateway';
 import { FakeStripeApi } from './mock/fake-stripe.api';
 import { PaymentSimulationState } from './mock/simulation-state';
 import { InMemorySubscriptionRepository } from './persistence/in-memory-subscription.repository';
@@ -22,19 +26,25 @@ export interface Container {
   plan: PlanInfo;
   mode: AppConfig['mode'];
   persistence: 'in-memory';
+  // 'http' = auth-service real; 'simulated' = cuenta en memoria (solo desarrollo)
+  account: 'http' | 'simulated';
   createSubscription: CreateSubscriptionUseCase;
   confirmSubscription: ConfirmSubscriptionUseCase;
+  activateSubscription: ActivateSubscriptionUseCase;
   cancelSubscription: CancelSubscriptionUseCase;
   getMySubscription: GetMySubscriptionUseCase;
   handleWebhook: HandleWebhookUseCase;
   // Solo existe con PAYMENTS_MODE=mock: permite provocar fallos en una demo.
   simulation?: PaymentSimulationState;
+  // Solo con cuenta simulada: permite ver qué plan quedó en la cuenta (pruebas y demo).
+  simulatedAccounts?: FakeAccountPlanGateway;
 }
 
 export interface ContainerOverrides {
   logger?: LoggerPort;
   ids?: IdGenerator;
   gateway?: IPaymentGateway;
+  accounts?: AccountPlanGateway;
   subscriptions?: SubscriptionRepository;
 }
 
@@ -57,17 +67,37 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     }
   }
 
+  let accounts = overrides.accounts;
+  if (!accounts) {
+    if (config.account) {
+      accounts = new HttpAccountPlanGateway({
+        baseUrl: config.account.authServiceUrl,
+        internalToken: config.account.internalToken,
+        timeoutMs: config.account.timeoutMs,
+      });
+    } else {
+      simulation ??= new PaymentSimulationState();
+      accounts = new FakeAccountPlanGateway(simulation);
+    }
+  }
+
+  const confirmSubscription = new ConfirmSubscriptionUseCase(subscriptions, gateway, logger);
+  const cancelSubscription = new CancelSubscriptionUseCase(subscriptions, gateway, accounts, logger);
+
   return {
     logger,
     ids,
     plan: config.plan,
     mode: config.mode,
     persistence: 'in-memory',
+    account: config.account ? 'http' : 'simulated',
     createSubscription: new CreateSubscriptionUseCase(subscriptions, gateway, ids, logger),
-    confirmSubscription: new ConfirmSubscriptionUseCase(subscriptions, gateway, logger),
-    cancelSubscription: new CancelSubscriptionUseCase(subscriptions, gateway, logger),
+    confirmSubscription,
+    activateSubscription: new ActivateSubscriptionUseCase(subscriptions, confirmSubscription, cancelSubscription, accounts, logger),
+    cancelSubscription,
     getMySubscription: new GetMySubscriptionUseCase(subscriptions),
-    handleWebhook: new HandleWebhookUseCase(subscriptions, gateway, logger),
+    handleWebhook: new HandleWebhookUseCase(subscriptions, gateway, accounts, logger),
     simulation,
+    simulatedAccounts: accounts instanceof FakeAccountPlanGateway ? accounts : undefined,
   };
 }

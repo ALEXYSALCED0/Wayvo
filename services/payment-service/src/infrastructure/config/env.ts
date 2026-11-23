@@ -16,11 +16,19 @@ export interface PlanInfo {
   interval: 'month';
 }
 
+export interface AccountConfig {
+  authServiceUrl: string;
+  internalToken: string;
+  timeoutMs: number;
+}
+
 export interface AppConfig {
   port: number;
   nodeEnv: string;
   mode: PaymentsMode;
   stripe: StripeConfig | null;
+  // null = cuenta simulada en memoria (solo para desarrollo y pruebas)
+  account: AccountConfig | null;
   plan: PlanInfo;
 }
 
@@ -53,11 +61,24 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     };
   }
 
+  const authServiceUrl = env.AUTH_SERVICE_URL?.trim().replace(/\/+$/, '');
+  const internalToken = env.INTERNAL_SERVICE_TOKEN?.trim();
+  let account: AccountConfig | null = null;
+  if (authServiceUrl) {
+    if (!internalToken) {
+      throw new Error('AUTH_SERVICE_URL requires INTERNAL_SERVICE_TOKEN (the token shared with auth-service).');
+    }
+    account = { authServiceUrl, internalToken, timeoutMs: Number(env.ACCOUNT_TIMEOUT_MS ?? 5_000) };
+  } else if (nodeEnv === 'production') {
+    throw new Error('AUTH_SERVICE_URL and INTERNAL_SERVICE_TOKEN are required in production.');
+  }
+
   return {
     port: Number(env.PORT ?? 3005),
     nodeEnv,
     mode,
     stripe,
+    account,
     plan: {
       code: 'PREMIUM',
       amountCents: Number(env.PLAN_PRICE_CENTS ?? 495),
