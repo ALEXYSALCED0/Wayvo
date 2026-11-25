@@ -16,6 +16,7 @@ export const CheckoutView: React.FC = () => {
     chaosMode,
     setChaosMode,
     loadUserTrips,
+    userId,
   } = useApp();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -205,7 +206,7 @@ export const CheckoutView: React.FC = () => {
     }));
 
     const payload: TripCheckoutRequest = {
-      userId: tripDraft.userId || 'usr-client',
+      userId,
       currency: 'COP',
       trip: {
         destination: tripDraft.destination,
@@ -236,7 +237,7 @@ export const CheckoutView: React.FC = () => {
             } else {
               setActiveTrip({
                 id: response.saga.tripId,
-                userId: tripDraft.userId || 'usr-client',
+                userId,
                 title: tripDraft.title || `Viaje a ${tripDraft.destination}`,
                 destination: tripDraft.destination,
                 origin: tripDraft.origin,
@@ -249,7 +250,7 @@ export const CheckoutView: React.FC = () => {
           } catch {
             setActiveTrip({
               id: response.saga.tripId,
-              userId: tripDraft.userId || 'usr-client',
+              userId,
               title: tripDraft.title || `Viaje a ${tripDraft.destination}`,
               destination: tripDraft.destination,
               origin: tripDraft.origin,

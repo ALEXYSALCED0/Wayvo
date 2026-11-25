@@ -1,11 +1,14 @@
 # C4 Model - Nivel 1: Diagrama de Contexto del Sistema
 
-## 1. Vision General del Sistema Wayvo
+## 1. Visión General del Sistema Wayvo
 
-Wayvo es una plataforma de planificacion, reservas y gestion dinamica de viajes construida sobre una arquitectura desacoplada de microservicios. Su proposito es acompanar al viajero antes, durante y despues del viaje:
-1. **Antes del viaje:** Perfila psicologicamente al usuario mediante un sistema multiagente de Inteligencia Artificial (LangGraph) para generar propuestas de itinerario hiperpersonalizadas que balancean presupuesto, transporte, alojamiento y actividades.
-2. **Confirmacion:** Gestiona la confirmacion integral de los servicios turisticos mediante una transaccion distribuida resiliente con el patron Saga, garantizando consistencia eventual y compensacion automatica si algun proveedor externo falla.
-3. **Durante el viaje:** Actua como un gestor de viaje en tiempo real donde el usuario puede confirmar eventos a medida que ocurren, reportar incidencias (vuelo cancelado, tren perdido, lluvia torrencial) y recibir re-planificaciones inmediatas gestionadas por el patron Mediator.
+Wayvo es una plataforma **multiusuario** de planificación, reservas y gestión dinámica de viajes construida sobre una arquitectura de microservicios. Acompaña al viajero antes, durante y después del viaje:
+
+1. **Cuenta propia (multiusuario):** cada viajero se registra e inicia sesión. Sus viajes, reservas e itinerarios son privados: ningún otro usuario puede verlos ni modificarlos.
+2. **Antes del viaje:** perfila al viajero con un sistema multiagente de IA (LangGraph + Gemini) que genera propuestas de itinerario personalizadas balanceando presupuesto, transporte, alojamiento y actividades.
+3. **Confirmación:** confirma los servicios con una transacción distribuida resiliente (patrón **Saga**), con compensación automática si algún proveedor falla. Las reservas de cupos son atómicas: dos viajeros no pueden quedarse con el mismo último cupo.
+4. **Durante el viaje:** el viajero marca el avance de su itinerario, reporta incidencias (vuelo cancelado, tren perdido, lluvia) y recibe alternativas que se integran al itinerario mediante el patrón **Mediator**.
+5. **Suscripción PREMIUM:** un único plan de pago (USD 4.95 al mes) con la pasarela **Stripe**. La cuenta **FREE** genera hasta 5 planes de IA por mes y no accede al presupuesto Lujo; la cuenta **PREMIUM** no tiene límite y accede a todos los presupuestos. Planificar y calcular el presupuesto es gratis.
 
 ---
 
@@ -18,72 +21,87 @@ flowchart TD
     classDef external fill:#1e1e2f,stroke:#64748b,stroke-width:2px,stroke-dasharray: 5 5,color:#cbd5e1;
 
     %% Actores
-    Viajero["Viajero / Usuario Final<br/><b>[Persona]</b><br/>Planifica viajes segun su estilo, gestiona su itinerario y reporta eventualidades en ruta."]:::person
-    AdminDev["Desarrollador / Admin<br/><b>[Persona]</b><br/>Inspecciona la orquestacion Saga, simula fallos y monitorea trazas con el Dev HUD."]:::person
+    Viajero["Viajero<br/><b>[Persona - rol TRAVELER]</b><br/>Se registra, planifica viajes según su estilo, confirma reservas, gestiona su itinerario y reporta eventualidades."]:::person
+    Admin["Administrador<br/><b>[Persona - rol ADMIN]</b><br/>Todo lo del viajero, más el Inspector Dev: trazas, simulación de fallos (modo caos) y auditoría de la Saga."]:::person
 
     %% Sistema Central
-    WayvoSystem["Plataforma Wayvo<br/><b>[Sistema Software Central]</b><br/>Monorepo de Microservicios, Clean Architecture, Motor Multiagente LangGraph y cliente Web/Movil."]:::system
+    WayvoSystem["Plataforma Wayvo<br/><b>[Sistema de Software]</b><br/>Microservicios con Clean Architecture, autenticación JWT, planes FREE/PREMIUM, motor multiagente LangGraph y cliente web responsive."]:::system
 
     %% Sistemas Externos
-    APITransporte["Proveedores de Transporte<br/><b>[Sistema Externo - APIs]</b><br/>APIs de aerolineas, trenes y vuelos (ej. SerpAPI / Google Flights API)."]:::external
-    APIAlojamiento["Proveedores de Alojamiento<br/><b>[Sistema Externo - APIs]</b><br/>APIs hoteleras y de hospedaje (ej. Hotels API, Booking, Airbnb)."]:::external
-    APIActividades["Catalogo de Actividades y Guias<br/><b>[Sistema Externo - APIs]</b><br/>Atracciones culturales, parques nacionales y tours locales."]:::external
-    LLMProvider["Proveedor de LLM / IA<br/><b>[Sistema Externo - Cloud/Local]</b><br/>Modelos de lenguaje (OpenAI GPT-4o / Groq Llama 3 / Ollama) para el grafo LangGraph."]:::external
+    APITransporte["Proveedores de Transporte<br/><b>[Sistema Externo]</b><br/>SerpAPI (Google Flights)."]:::external
+    APIAlojamiento["Proveedores de Alojamiento<br/><b>[Sistema Externo]</b><br/>Hotels API."]:::external
+    LLMProvider["Proveedor de LLM<br/><b>[Sistema Externo]</b><br/>Google Gemini (principal); Groq y OpenRouter como respaldo."]:::external
+    Stripe["Stripe<br/><b>[Sistema Externo]</b><br/>Cobro mensual de la suscripción PREMIUM y webhooks de renovación y cancelación."]:::external
 
     %% Relaciones
-    Viajero -->|"Completa cuestionario, explora propuestas, confirma viajes y reporta incidencias [HTTPS / UI]"| WayvoSystem
-    AdminDev -->|"Monitorea correlation IDs, fuerza compensaciones e inspecciona microservicios [HTTP / UI]"| WayvoSystem
+    Viajero -->|"Se registra / inicia sesión, planifica, confirma, reporta incidencias y se suscribe a PREMIUM [HTTPS + JWT]"| WayvoSystem
+    Viajero -->|"Ingresa los datos de su tarjeta en el formulario de Stripe [HTTPS]"| Stripe
+    Admin -->|"Inspecciona trazas y simula fallos de proveedores [HTTPS + JWT rol ADMIN]"| WayvoSystem
 
-    WayvoSystem -->|"Consulta disponibilidad y bloquea asientos [HTTP REST / JSON]"| APITransporte
-    WayvoSystem -->|"Consulta tarifas y bloquea habitaciones [HTTP REST / JSON]"| APIAlojamiento
-    WayvoSystem -->|"Verifica cupos y actividades turisticas [HTTP REST / JSON]"| APIActividades
-    WayvoSystem -->|"Envia prompts de perfilamiento, optimizacion de presupuesto e incidentes [HTTP REST / OpenAI SDK]"| LLMProvider
+    WayvoSystem -->|"Consulta disponibilidad y confirma reservas [HTTPS / JSON]"| APITransporte
+    WayvoSystem -->|"Consulta tarifas y confirma estadías [HTTPS / JSON]"| APIAlojamiento
+    WayvoSystem -->|"Prompts de perfilamiento, plan, chat e incidencias [HTTPS]"| LLMProvider
+    WayvoSystem -->|"Crea y cobra la suscripción PREMIUM [HTTPS / JSON]"| Stripe
+    Stripe -->|"Webhooks firmados: renovación, cobro fallido, cancelación [HTTPS]"| WayvoSystem
 ```
 
 ---
 
-## 3. Catalogo de Actores y Sistemas
+## 3. Catálogo de Actores y Sistemas
 
-### 3.1 Actores Principales
+### 3.1 Actores
 
-| Actor | Rol en el Ecosistema | Interaccion con Wayvo |
+| Actor | Rol | Interacción con Wayvo |
 | :--- | :--- | :--- |
-| **Viajero / Usuario Final** | Consumidor principal de la experiencia turistica. | Interactua con la aplicacion cliente multiplataforma (Web y Movil) para realizar el onboarding psicologico, evaluar propuestas generadas por IA, confirmar reservas y administrar las actividades en tiempo real. |
-| **Desarrollador / Administrador** | Operador tecnico y evaluador del sistema. | Utiliza el panel de inspeccion de desarrollo (DevInspector HUD) para validar transacciones distribuidas, revisar la bitacora de compensaciones (`CompensationLog`) y conmutar el simulador de fallos de proveedores para pruebas de resiliencia. |
+| **Viajero** | `TRAVELER` (rol por defecto al registrarse) | Usa la aplicación web para crear su cuenta, completar el perfilamiento, evaluar propuestas de la IA, confirmar el viaje y administrar su itinerario en tiempo real. Puede suscribirse a PREMIUM desde la pantalla de su plan. Solo ve sus propios viajes y reservas. |
+| **Administrador** | `ADMIN` (correos definidos en `ADMIN_EMAILS`) | Además de lo anterior, activa el **modo Dev**: Inspector de red, bitácora de compensaciones (`CompensationLog`) y simulador de fallos de proveedores (`/api/v1/mock/*`, bloqueado para viajeros con HTTP 403). |
 
-### 3.2 Sistema Central: Plataforma Wayvo
+### 3.2 Sistema central: Plataforma Wayvo
 
-El sistema central esta delimitado dentro del monorepo e incluye:
-- **Cliente Multiplataforma (`apps/client`):** Frontend React con Tailwind CSS adaptado para escritorio y dispositivos moviles.
-- **API Gateway (`services/api-gateway`):** Punto unico de contacto que implementa el patron Facade y el middleware centralizado de errores (Requisito 8.18).
-- **Booking Service (`services/booking-service`):** Orquestador de la transaccion distribuida con el patron Saga.
-- **Provider Service (`services/provider-service`):** Capa de integracion que implementa el patron Adapter para normalizar contratos con proveedores externos.
-- **Trip Service (`services/trip-service`):** Gestor central del ciclo de vida del viaje que implementa el patron Mediator para coordinar incidencias y re-planificacion.
-- **AI Recommendation Service (`services/ai-recommendation`):** Grafo multiagente en Python (LangGraph) para perfilamiento psicologico, asignacion de presupuesto y alternativas ante imprevistos.
+Delimitado dentro del monorepo:
+- **Cliente web (`apps/client`):** React + Vite + Tailwind, responsive para escritorio y móvil. Pantalla de login/registro, sesión con JWT y pantalla de suscripción con el Payment Element de Stripe.
+- **API Gateway (`services/api-gateway`):** punto único de entrada. Valida el JWT, propaga la identidad (`x-user-id`), implementa el patrón **Facade** y el middleware centralizado de errores (Requisito 8.18).
+- **Auth Service (`services/auth-service`):** registro, login y emisión de tokens JWT (multiusuario). Guarda el **plan de la cuenta** (FREE / PREMIUM) y cuenta los planes de IA de cada mes.
+- **Payment Service (`services/payment-service`):** suscripción mensual PREMIUM con Stripe detrás del patrón **Adapter** y Saga de activación con compensación.
+- **Booking Service (`services/booking-service`):** reservas y orquestador de la **Saga**.
+- **Provider Service (`services/provider-service`):** catálogo de proveedores, reserva atómica de cupos y patrón **Adapter** hacia las APIs externas.
+- **Trip Service (`services/trip-service`):** ciclo de vida del viaje e itinerario; patrón **Mediator** para incidencias.
+- **AI Recommendation (`services/ai-recommendation`):** grafo multiagente LangGraph (Python) para el plan de viaje, chat e incidencias.
 
-### 3.3 Sistemas Externos (Dependencias de Terceros)
+### 3.3 Sistemas externos
 
-| Sistema Externo | Tipo | Proposito y Protocolo |
+| Sistema Externo | Tipo | Propósito |
 | :--- | :--- | :--- |
-| **Proveedores de Transporte** | API REST / HTTP | Proporciona tarifas, horarios y disponibilidad de vuelos, trenes y buses. Wayvo se comunica a traves de adaptadores especificos (`TransporteAdapter`) para aislar cambios de esquema externos. |
-| **Proveedores de Alojamiento** | API REST / HTTP | Proveedores de inventario hotelero y estancias turisticas. Integrado mediante `AlojamientoAdapter`. |
-| **Catalogo de Actividades y Tours** | API REST / JSON | Servicios de reserva para excursiones, museos y experiencias locales. |
-| **Proveedor de LLM (OpenAI / Groq)** | API Cloud / SDK | Inferencia para los agentes de LangGraph (`personality_agent`, `budget_agent`, `transport_agent`, `activities_food_agent`, `incident_agent`). |
+| **SerpAPI (Google Flights)** | API REST | Vuelos: tarifas, horarios y disponibilidad. Integrado con `TransporteAdapter`. |
+| **Hotels API** | API REST | Inventario hotelero. Integrado con `AlojamientoAdapter`. |
+| **Google Gemini / Groq / OpenRouter** | API de LLM | Inferencia para los agentes de LangGraph. Si un proveedor falla por cuota o red, se conmuta al siguiente. |
+| **Stripe** | Pasarela de pagos | Cobro recurrente de la suscripción PREMIUM. Integrado con `StripePaymentAdapter` (modo de prueba en desarrollo). Los datos de la tarjeta los recibe Stripe directamente: nunca pasan por Wayvo. Avisa por webhook las renovaciones, cobros fallidos y cancelaciones. |
 
 ---
 
-## 4. Flujos de Valor Clave a Nivel de Contexto
+## 4. Flujos de Valor a Nivel de Contexto
 
-### Flujo 1: Planificacion Inteligente Asistida por IA
-1. El Viajero completa el test de afinidad psicologica y preferencias (presupuesto, fechas, acompanantes, tipo de viaje).
-2. Wayvo invoca a los agentes de IA para sintetizar un perfil de viajero (Aventura, Relax, Cultural, Inversion).
-3. El sistema consulta a los proveedores de transporte, alojamiento y actividades, consolidando una propuesta integral con estimacion presupuestaria desglosada.
+### Flujo 0: Registro e inicio de sesión (multiusuario)
+1. El viajero crea su cuenta (nombre, correo, contraseña) o inicia sesión.
+2. Wayvo devuelve un token de sesión (JWT) que el cliente envía en cada petición.
+3. Desde ese momento todo lo que crea (viajes, reservas) queda a su nombre y es invisible para otros usuarios.
 
-### Flujo 2: Confirmacion con Garantia de Consistencia (Saga)
-1. El Viajero decide confirmar su viaje desde la interfaz.
-2. Wayvo coordina internamente la reserva en sus bases de datos y la verificacion con proveedores externos.
-3. Si un proveedor externo rechaza la solicitud o se encuentra indisponible, el sistema activa automaticamente un rollback compensatorio, liberando las reservas previas y notificando al viajero sin inconsistencias en sus datos.
+### Flujo 1: Planificación inteligente asistida por IA
+1. El viajero completa el perfilamiento (presupuesto, fechas, acompañantes, intereses).
+2. Los agentes de IA sintetizan su estilo de viaje (Aventura, Relax, Cultural, Gastronómico, Eco-Turismo) y arman transporte, alojamiento, actividades y presupuesto.
+3. Wayvo devuelve una propuesta de itinerario con el desglose de costos.
 
-### Flujo 3: Adaptabilidad en Ruta (Manejo de Imprevistos con Mediator)
-1. Durante el viaje, el Viajero reporta una eventualidad (ej. "Perdi el vuelo de conexion" o "El museo cerro por clima").
-2. Wayvo canaliza la novedad a traves del mediador central, consulta al motor de IA para proponer alternativas viables en tiempo y costo, y actualiza el itinerario en vivo al seleccionar una opcion.
+### Flujo 2: Confirmación con garantía de consistencia (Saga)
+1. El viajero confirma su viaje.
+2. Wayvo crea el viaje y la reserva, y aparta los cupos con los proveedores.
+3. Si un proveedor rechaza o no hay cupo, se ejecuta un rollback compensatorio automático y el viajero recibe un mensaje claro, sin registros huérfanos.
+
+### Flujo 3: Adaptabilidad en ruta (Mediator)
+1. Durante el viaje, el viajero reporta una eventualidad (ej. "Perdí el vuelo").
+2. Wayvo registra la incidencia, propone alternativas y, al elegir una, reemplaza el evento afectado en el itinerario.
+
+### Flujo 4: Suscripción PREMIUM
+1. El viajero con cuenta FREE llega a su límite (5 planes de IA por mes) o intenta usar el presupuesto Lujo y Wayvo le ofrece pasar a PREMIUM.
+2. El viajero se suscribe: ingresa su tarjeta en el formulario seguro de Stripe y Wayvo confirma el cobro.
+3. La cuenta pasa a PREMIUM (planes ilimitados y todos los presupuestos). Si se cobró pero la cuenta no se pudo actualizar, Wayvo cancela la suscripción y devuelve el dinero automáticamente (compensación de la Saga).
+4. Stripe avisa por webhook las renovaciones, los cobros fallidos y las cancelaciones, y la cuenta vuelve a FREE cuando la suscripción deja de estar vigente.

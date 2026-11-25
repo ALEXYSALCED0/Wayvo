@@ -21,6 +21,16 @@ export const confirmReservationBodySchema = z.object({
   items: z.array(itemSchema).min(1),
 });
 
+// Para liberar solo hace falta la oferta y la cantidad; si la Saga manda el item
+// completo (type, providerId...), los campos extra se ignoran.
+export const releaseReservationBodySchema = z.object({
+  bookingId: z.string().min(1),
+  items: z.array(z.object({
+    offerId: z.string().min(1),
+    quantity: z.number().int().positive(),
+  })).min(1),
+});
+
 export const listProvidersQuerySchema = z.object({
   type: z.nativeEnum(ProviderType).optional(),
   verificationStatus: z.nativeEnum(VerificationStatus).optional(),

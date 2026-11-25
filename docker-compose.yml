@@ -59,9 +59,102 @@ services:
     networks:
       - wayvo-network
 
+  auth-db:
+    image: postgres:16-alpine
+    container_name: wayvo-auth-db
+    environment:
+      POSTGRES_USER: wayvo
+      POSTGRES_PASSWORD: wayvo
+      POSTGRES_DB: auth_db
+    ports:
+      - "5436:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wayvo -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wayvo-network
+
+  payment-db:
+    image: postgres:16-alpine
+    container_name: wayvo-payment-db
+    environment:
+      POSTGRES_USER: wayvo
+      POSTGRES_PASSWORD: wayvo
+      POSTGRES_DB: payment_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wayvo -d payment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wayvo-network
+
   # ==========================================
   # SERVICIOS BACKEND & IA
   # ==========================================
+  auth-service:
+    image: wayvo-auth-service:latest
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: wayvo-auth-service
+    environment:
+      PORT: 3004
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://wayvo:wayvo@auth-db:5432/auth_db?schema=public"
+      # Debe ser el mismo secreto que usa el api-gateway para verificar los tokens.
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_EXPIRES_IN_SECONDS: ${JWT_EXPIRES_IN_SECONDS:-28800}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      # Cuenta FREE: planes de IA por mes calendario (PREMIUM: sin límite) y zona horaria del mes.
+      FREE_AI_PLANS_PER_MONTH: ${FREE_AI_PLANS_PER_MONTH:-5}
+      USAGE_TIMEZONE: ${USAGE_TIMEZONE:-America/Bogota}
+      # Mismo token que payment-service: protege las rutas internas (cambiar el plan de una cuenta).
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-wayvo-dev-internal-token-cambiar-en-produccion}
+    ports:
+      - "3004:3004"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - wayvo-network
+
+  payment-service:
+    image: wayvo-payment-service:latest
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    container_name: wayvo-payment-service
+    environment:
+      PORT: 3005
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://wayvo:wayvo@payment-db:5432/payment_db?schema=public"
+      # mock = simulador sin claves; real = Stripe (claves de PRUEBA en .env, nunca aquí).
+      PAYMENTS_MODE: ${PAYMENTS_MODE:-mock}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PRICE_ID: ${STRIPE_PRICE_ID:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Aquí se guarda el plan FREE / PREMIUM de la cuenta.
+      AUTH_SERVICE_URL: http://auth-service:3004
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-wayvo-dev-internal-token-cambiar-en-produccion}
+    ports:
+      - "3005:3005"
+    depends_on:
+      payment-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - wayvo-network
+
   booking-service:
     image: wayvo-booking-service:latest
     build:
@@ -96,10 +189,11 @@ services:
       NODE_ENV: development
       DATABASE_URL: "postgresql://wayvo:wayvo@provider-db:5432/provider_db?schema=public"
       SIMULATE_FAILURE_MODE: normal
+      DEMO_AUTO_REFILL_CAPACITY: ${DEMO_AUTO_REFILL_CAPACITY:-true}
       EXTERNAL_PROVIDERS_MODE: ${EXTERNAL_PROVIDERS_MODE:-real}
-      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-c48cbe0752d4830e58ea4d61a121b880571fb4af43823ff1e125c2a4c2987013}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
       SERPAPI_CURRENCY: ${SERPAPI_CURRENCY:-COP}
-      HOTELS_API_KEY: ${HOTELS_API_KEY:-a77f3de04ec325726bc983587daae9066000032b55fa90c2c64ed75d597b7c3a}
+      HOTELS_API_KEY: ${HOTELS_API_KEY:-}
       HOTELS_API_LIMIT: ${HOTELS_API_LIMIT:-20}
       EXTERNAL_API_TIMEOUT_MS: ${EXTERNAL_API_TIMEOUT_MS:-15000}
     ports:
@@ -139,10 +233,11 @@ services:
       PORT: 8000
       ENVIRONMENT: development
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-c48cbe0752d4830e58ea4d61a121b880571fb4af43823ff1e125c2a4c2987013}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
       SERPAPI_CURRENCY: ${SERPAPI_CURRENCY:-COP}
-      HOTELS_API_KEY: ${HOTELS_API_KEY:-a77f3de04ec325726bc983587daae9066000032b55fa90c2c64ed75d597b7c3a}
+      HOTELS_API_KEY: ${HOTELS_API_KEY:-}
     ports:
       - "8000:8000"
     networks:
@@ -164,11 +259,19 @@ services:
       PROVIDER_SERVICE_URL: http://provider-service:3002
       TRIP_SERVICE_URL: http://trip-service:3003
       AI_SERVICE_URL: http://ai-recommendation:8000
+      AUTH_SERVICE_URL: http://auth-service:3004
+      PAYMENT_SERVICE_URL: http://payment-service:3005
+      # Para consultar/descontar los planes de IA de la cuenta en auth-service (rutas internas).
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-wayvo-dev-internal-token-cambiar-en-produccion}
+      # Mismo secreto que auth-service: el gateway verifica la firma de los JWT.
+      JWT_SECRET: ${JWT_SECRET:-}
       HTTP_TIMEOUT_MS: 35000
       CORS_ORIGIN: "*"
     ports:
       - "3000:3000"
     depends_on:
+      - auth-service
+      - payment-service
       - booking-service
       - provider-service
       - trip-service
@@ -187,6 +290,8 @@ services:
     container_name: wayvo-client
     environment:
       VITE_API_URL: http://localhost:3000
+      # Clave PUBLICABLE de Stripe (pk_test_...), solo con PAYMENTS_MODE=real. Con el simulador no hace falta.
+      VITE_STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
     ports:
       - "5173:5173"
     depends_on:
@@ -199,9 +304,13 @@ networks:
     driver: bridge
 
 volumes:
+  payment-db-data:
+    driver: local
   booking-db-data:
     driver: local
   provider-db-data:
     driver: local
   trip-db-data:
+    driver: local
+  auth-db-data:
     driver: local

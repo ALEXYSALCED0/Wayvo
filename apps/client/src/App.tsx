@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthView } from './components/AuthView';
 import { Navbar } from './components/Navbar';
 import { LandingView } from './components/LandingView';
 import { MyTripsView } from './components/MyTripsView';
@@ -9,9 +11,16 @@ import { CheckoutView } from './components/CheckoutView';
 import { ActiveTripView } from './components/ActiveTripView';
 import { DevInspectorHUD } from './components/DevInspectorHUD';
 import { AIChatDrawer } from './components/AIChatDrawer';
+import { PENDING_SUBSCRIPTION_KEY, SubscriptionView } from './components/SubscriptionView';
 
 function AppContent() {
-  const { currentView, isChatOpen, setIsChatOpen, appMode, isDevInspectorOpen, setIsDevInspectorOpen } = useApp();
+  const { currentView, setCurrentView, isChatOpen, setIsChatOpen, appMode, isDevInspectorOpen, setIsDevInspectorOpen } = useApp();
+
+  // Volvemos de la verificación del banco (3D Secure) con un pago a medias: la pantalla de
+  // suscripción lo termina de activar.
+  useEffect(() => {
+    if (sessionStorage.getItem(PENDING_SUBSCRIPTION_KEY)) setCurrentView('SUBSCRIPTION');
+  }, [setCurrentView]);
 
   return (
     <div className="min-h-screen flex flex-col bg-surface font-sans text-on-surface antialiased relative">
@@ -24,6 +33,7 @@ function AppContent() {
         {currentView === 'PROPOSAL' && <ProposalView />}
         {currentView === 'CHECKOUT' && <CheckoutView />}
         {currentView === 'ACTIVE_TRIP' && <ActiveTripView />}
+        {currentView === 'SUBSCRIPTION' && <SubscriptionView />}
       </main>
 
       {/* Footer */}
@@ -70,10 +80,34 @@ function AppContent() {
   );
 }
 
-export default function App() {
+// Multiusuario: sin sesión solo se ve la pantalla de login/registro.
+// AppProvider se monta con key = id del usuario: al cambiar de cuenta todo el
+// estado de la app (viajes, plan, itinerario) se reinicia y no se mezcla entre usuarios.
+function AuthGate() {
+  const { status, user } = useAuth();
+
+  if (status === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface text-on-surface-variant gap-2 text-sm">
+        <span className="material-symbols-outlined animate-spin text-secondary">progress_activity</span>
+        <span>Verificando tu sesión...</span>
+      </div>
+    );
+  }
+
+  if (status === 'anonymous' || !user) return <AuthView />;
+
   return (
-    <AppProvider>
+    <AppProvider key={user.id} userId={user.id}>
       <AppContent />
     </AppProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AuthGate />
+    </AuthProvider>
   );
 }

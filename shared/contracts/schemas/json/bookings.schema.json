@@ -19,6 +19,7 @@
         "CREATE_BOOKING",
         "RESERVE_PROVIDER",
         "CONFIRM",
+        "COMPENSATE_PROVIDER",
         "COMPENSATE_BOOKING",
         "COMPENSATE_TRIP"
       ]

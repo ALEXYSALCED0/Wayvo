@@ -202,18 +202,6 @@ export const LandingView: React.FC = () => {
           <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
           <span className="font-medium text-primary">WAYVO Intelligence Services • Operacional</span>
         </div>
-
-        <div className="flex items-center gap-4 text-[11px] text-on-surface-variant/80">
-          <span>Desktop Version • 1280px / 1440px / 1920px</span>
-          <span className="hidden md:inline">•</span>
-          <span className="hidden md:inline">Rubik Typography System</span>
-          <span className="hidden md:inline">•</span>
-          <span className="hidden md:inline">Havelock Blue Scale</span>
-        </div>
-
-        <div className="font-mono text-[10px] text-on-surface-variant/60">
-          {appMode === 'DEV' ? 'SYS.ROUTE_CALC // SEC_AUTH_ONBOARD [DEV]' : 'SYS.ROUTE_CALC // SEC_AUTH_ONBOARD'}
-        </div>
       </footer>
     </div>
   );

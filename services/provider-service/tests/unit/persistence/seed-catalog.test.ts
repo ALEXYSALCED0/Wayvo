@@ -42,9 +42,7 @@ describe('catálogo precargado', () => {
     const { providers, offers } = fresh();
     await seedCatalog(providers, offers, { now });
 
-    const offer = (await offers.findById('offer-aerocaribe-bog-ctg-am'))!;
-    offer.reserve(5);
-    await offers.save(offer);
+    await offers.tryReserve('offer-aerocaribe-bog-ctg-am', 5);
     const pending = (await providers.findById('prov-brisas-hostal'))!;
     pending.verify();
     await providers.save(pending);
@@ -58,9 +56,7 @@ describe('catálogo precargado', () => {
   it('--force restaura el estado inicial', async () => {
     const { providers, offers } = fresh();
     await seedCatalog(providers, offers, { now });
-    const offer = (await offers.findById('offer-aerocaribe-bog-ctg-am'))!;
-    offer.reserve(5);
-    await offers.save(offer);
+    await offers.tryReserve('offer-aerocaribe-bog-ctg-am', 5);
 
     await seedCatalog(providers, offers, { now, force: true });
     expect((await offers.findById('offer-aerocaribe-bog-ctg-am'))!.availableCapacity).toBe(30);

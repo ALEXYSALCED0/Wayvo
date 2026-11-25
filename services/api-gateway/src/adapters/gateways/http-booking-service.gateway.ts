@@ -2,6 +2,7 @@ import {
   ConfirmTripSagaInput,
   ConfirmTripSagaResult,
   CORRELATION_ID_HEADER,
+  USER_ID_HEADER,
 } from '@wayvo/contracts';
 import { BookingServicePort } from '../../application/ports/booking-service.port';
 import { BadGatewayError, ServiceUnavailableError } from '../../domain/errors/gateway.error';
@@ -27,6 +28,8 @@ export class HttpBookingServiceGateway implements BookingServicePort {
         headers: {
           'Content-Type': 'application/json',
           [CORRELATION_ID_HEADER]: correlationId,
+          // Identidad del usuario autenticado (la Saga la usa como dueño del viaje y la reserva).
+          [USER_ID_HEADER]: input.userId,
         },
         body: JSON.stringify(input),
         signal: controller.signal,

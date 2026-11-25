@@ -1,4 +1,5 @@
 import {
+  ProviderReleaseRequest,
   ProviderReservationRequest,
   ProviderReservationResult,
   ProviderServiceGateway,
@@ -36,11 +37,18 @@ export class FakeTripService implements TripServiceGateway {
 export class FakeProviderService implements ProviderServiceGateway {
   mode: 'ok' | 'unavailable' | 'error' = 'ok';
   requests: ProviderReservationRequest[] = [];
+  releases: ProviderReleaseRequest[] = [];
+  failRelease = false;
 
   async reserve(request: ProviderReservationRequest): Promise<ProviderReservationResult> {
     this.requests.push(request);
     if (this.mode === 'error') throw new Error('provider-service 503');
     if (this.mode === 'unavailable') return { available: false, reason: 'No rooms left' };
     return { available: true, reservationCode: 'RSV-001' };
+  }
+
+  async release(request: ProviderReleaseRequest): Promise<void> {
+    this.releases.push(request);
+    if (this.failRelease) throw new Error('provider-service down during release');
   }
 }

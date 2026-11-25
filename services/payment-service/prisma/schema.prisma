@@ -1,0 +1,48 @@
+// Esquema de la Payment DB (PostgreSQL). Solo payment-service la usa:
+// en microservicios cada servicio es dueño de su propia base de datos.
+//
+// Aquí NO se guardan datos de tarjeta: eso lo maneja Stripe. Solo se guarda la
+// referencia a la suscripción de Stripe y el estado que Wayvo necesita para decidir el plan.
+
+// Cliente generado dentro del servicio para no pisar el de los otros servicios
+// en el node_modules compartido del monorepo.
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/payment-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum PlanCode {
+  PREMIUM
+}
+
+model Subscription {
+  id                      String             @id
+  userId                  String             @map("user_id")
+  email                   String
+  plan                    PlanCode
+  status                  SubscriptionStatus
+  providerCustomerRef     String             @map("provider_customer_ref")
+  // Único: un evento de Stripe siempre apunta a una sola suscripción de Wayvo.
+  providerSubscriptionRef String             @unique @map("provider_subscription_ref")
+  currentPeriodEnd        DateTime?          @map("current_period_end")
+  cancelAtPeriodEnd       Boolean            @default(false) @map("cancel_at_period_end")
+  createdAt               DateTime           @map("created_at")
+  updatedAt               DateTime           @map("updated_at")
+  canceledAt              DateTime?          @map("canceled_at")
+
+  // "la suscripción más reciente de este usuario"
+  @@index([userId, createdAt])
+  @@map("subscriptions")
+}

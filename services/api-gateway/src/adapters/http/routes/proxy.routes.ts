@@ -6,6 +6,38 @@ import { config } from '../../../infrastructure/config/env';
 export const proxyRouter = Router();
 
 // ==========================================
+// 0. AUTH SERVICE (:3004) - Multiusuario (registro, login, /me)
+// ==========================================
+proxyRouter.use(
+  '/api/v1/auth',
+  createServiceProxy({
+    serviceName: 'auth-service',
+    target: config.AUTH_SERVICE_URL,
+  }),
+);
+
+// ==========================================
+// 0b. PAYMENT SERVICE (:3005) - Suscripción PREMIUM de la cuenta (Stripe detrás del Adapter)
+//     El webhook de Stripe se monta aparte en app.ts (necesita el cuerpo crudo).
+// ==========================================
+proxyRouter.use(
+  '/api/v1/payments',
+  createServiceProxy({
+    serviceName: 'payment-service',
+    target: config.PAYMENT_SERVICE_URL,
+  }),
+);
+
+// Simulador de pagos (solo ADMIN, solo con PAYMENTS_MODE=mock). Va antes del /mock de provider-service.
+proxyRouter.use(
+  '/api/v1/mock/simulate-payment',
+  createServiceProxy({
+    serviceName: 'payment-service',
+    target: config.PAYMENT_SERVICE_URL,
+  }),
+);
+
+// ==========================================
 // 1. BOOKING SERVICE (:3001) - Dev 1 (Saga Orchestrator)
 // ==========================================
 proxyRouter.use(

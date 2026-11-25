@@ -3,6 +3,7 @@ import { SagaOrchestrator } from '../../../application/saga/saga-orchestrator';
 import { GetCompensationLogUseCase } from '../../../application/use-cases/get-compensation-log.use-case';
 import { confirmTripSchema } from '../validation/schemas';
 import { parseBody } from '../validation/validate';
+import { requestUserId } from '../identity';
 
 export class SagaController {
   constructor(
@@ -13,7 +14,9 @@ export class SagaController {
   // CONFIRMED -> 201. COMPENSATED -> 409 (el viaje no se pudo confirmar, pero el
   // sistema quedó consistente). COMPENSATION_FAILED -> 500 (requiere revisión).
   confirmTrip = async (req: Request, res: Response): Promise<void> => {
-    const input = parseBody(confirmTripSchema, req.body);
+    // El viaje y la reserva quedan a nombre del usuario autenticado (header del gateway).
+    const userId = requestUserId(req);
+    const input = parseBody(confirmTripSchema, { ...req.body, ...(userId ? { userId } : {}) });
     const result = await this.saga.confirmTrip({ ...input, correlationId: res.locals.correlationId });
 
     if (result.status === 'CONFIRMED') {

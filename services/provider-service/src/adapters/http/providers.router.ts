@@ -3,13 +3,15 @@ import { LoggerPort } from '../../application/ports/logger.port';
 import { CheckAvailabilityUseCase } from '../../application/use-cases/check-availability.use-case';
 import { ConfirmReservationUseCase } from '../../application/use-cases/confirm-reservation.use-case';
 import { ListProvidersUseCase } from '../../application/use-cases/list-providers.use-case';
+import { ReleaseReservationUseCase } from '../../application/use-cases/release-reservation.use-case';
 import { toHttpFailure } from './error-mapper';
-import { ok, presentAvailability, presentConfirmation, presentProvider } from './presenters';
+import { ok, presentAvailability, presentConfirmation, presentProvider, presentRelease } from './presenters';
 import {
   checkAvailabilityBodySchema,
   confirmReservationBodySchema,
   listProvidersQuerySchema,
   parseOrThrow,
+  releaseReservationBodySchema,
 } from './schemas';
 
 export const CORRELATION_ID_HEADER = 'x-correlation-id';
@@ -18,16 +20,19 @@ export interface ProvidersRouterDeps {
   listProviders: ListProvidersUseCase;
   checkAvailability: CheckAvailabilityUseCase;
   confirmReservation: ConfirmReservationUseCase;
+  releaseReservation: ReleaseReservationUseCase;
   logger: LoggerPort;
 }
 
 //   GET  /                    catálogo (?type, ?verificationStatus, ?includeOffers=true)
 //   POST /check-availability  { items } -> { available, reason?, details }
 //   POST /confirm             { bookingId, items } -> { reservationCode, ... }
+//   POST /release             { bookingId, items:[{offerId, quantity}] } -> cupos devueltos (compensación de la Saga)
 export function createProvidersRouter({
   listProviders,
   checkAvailability,
   confirmReservation,
+  releaseReservation,
   logger,
 }: ProvidersRouterDeps): Router {
   const router = Router();
@@ -76,6 +81,12 @@ export function createProvidersRouter({
     const body = parseOrThrow(confirmReservationBodySchema, req.body);
     const result = await confirmReservation.execute({ ...body, correlationId: correlationIdOf(res) });
     res.status(200).json(ok(presentConfirmation(result), 'Reservation confirmed'));
+  }));
+
+  router.post('/release', handle(async (req, res) => {
+    const body = parseOrThrow(releaseReservationBodySchema, req.body);
+    const result = await releaseReservation.execute({ ...body, correlationId: correlationIdOf(res) });
+    res.status(200).json(ok(presentRelease(result), 'Reservation released'));
   }));
 
   return router;

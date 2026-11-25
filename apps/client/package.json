@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^7.3.0",
     "@wayvo/contracts": "*",
     "lucide-react": "^0.475.0",
     "react": "^18.3.1",

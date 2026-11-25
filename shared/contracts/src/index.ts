@@ -20,3 +20,9 @@ export * from './providers';
 
 // API Gateway Facade contracts (Dev 2 - Facade, Aggregated Endpoints)
 export * from './gateway';
+
+// Auth & multiusuario (auth-service, JWT, headers de identidad que propaga el gateway)
+export * from './auth';
+
+// Pagos: suscripción PREMIUM de la cuenta (payment-service + Stripe)
+export * from './payments';

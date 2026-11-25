@@ -1,0 +1,53 @@
+// Esquema de la Auth DB (PostgreSQL). Solo auth-service la usa:
+// en microservicios cada servicio es dueño de su propia base de datos.
+
+// Cliente generado dentro del servicio para no pisar el de los otros servicios
+// en el node_modules compartido del monorepo.
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/auth-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  TRAVELER
+  ADMIN
+}
+
+// Plan de la cuenta. Lo escribe payment-service por la ruta interna; nunca el navegador.
+enum AccountPlan {
+  FREE
+  PREMIUM
+}
+
+model User {
+  id           String   @id
+  // Único: no puede haber dos cuentas con el mismo correo (se guarda en minúsculas).
+  email        String   @unique
+  name         String
+  // Solo el hash bcrypt; la contraseña en texto plano nunca se guarda.
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(TRAVELER)
+  createdAt    DateTime @map("created_at")
+  plan               AccountPlan @default(FREE)
+  // Suscripción (de payment-service) que respalda el plan PREMIUM.
+  planSubscriptionId String?     @map("plan_subscription_id")
+  planExpiresAt      DateTime?   @map("plan_expires_at")
+
+  @@map("users")
+}
+
+// Planes de IA generados por usuario y mes calendario ("2026-11"). Cada mes es una fila nueva:
+// el contador de un mes nuevo arranca en cero sin tener que reiniciar nada.
+model AiPlanUsage {
+  userId String @map("user_id")
+  period String
+  used   Int    @default(0)
+
+  @@id([userId, period])
+  @@map("ai_plan_usage")
+}
