@@ -49,9 +49,16 @@ shared/contracts/
 │   │   ├── mock-simulator.dto.ts     # MockSimulationQuery (?mode=unavailable)
 │   │   ├── provider.schemas.ts       # Esquemas Zod para proveedores y simulador
 │   │   └── index.ts
-│   └── gateway/                      # Fachada consolidada del API Gateway (Dev 2 - Facade)
-│       ├── facade.dto.ts             # TripPlanRequest/Response, TripCheckoutRequest/Response
-│       ├── facade.schemas.ts         # Esquemas Zod para endpoints de la fachada
+│   ├── gateway/                      # Fachada consolidada del API Gateway (Dev 2 - Facade)
+│   │   ├── facade.dto.ts             # TripPlanRequest/Response, TripCheckoutRequest/Response
+│   │   ├── facade.schemas.ts         # Esquemas Zod para endpoints de la fachada
+│   │   └── index.ts
+│   ├── auth/                         # Multiusuario y plan de la cuenta (auth-service, JWT)
+│   │   ├── auth.dto.ts               # AuthUserDTO, AccountPlan, AccountEntitlements, AiPlanDenialCode, headers de identidad
+│   │   ├── auth.schemas.ts           # Esquemas Zod de registro y login
+│   │   └── index.ts
+│   └── payments/                     # Suscripción PREMIUM (payment-service, Stripe)
+│       ├── subscription.dto.ts       # PremiumPlanInfo, SubscriptionDTO, MySubscriptionDTO, CreateSubscriptionResponse, ActivationFailureCode
 │       └── index.ts
 └── schemas/
     └── json/                         # Esquemas JSON agnósticos (JSON Schema Draft 2020-12)
@@ -71,7 +78,7 @@ shared/contracts/
 | :--- | :--- | :--- | :--- |
 | **Dev 1 (Joshua)** | `services/booking-service` + Saga | **Saga (Orquestador)** | `Booking`, `BookingItem`, `ConfirmTripSagaInput`, `ConfirmTripSagaResult`, `CompensationLog`, `SagaStep` |
 | **Dev 2 (Alexy)** | `services/api-gateway` + `apps/client` | **Facade** | `ApiResponse<T>`, `TripPlanRequest`, `TripPlanResponse`, `TripCheckoutRequest`, `TripCheckoutResponse`, `OnboardingProfileInput` |
-| **Dev 3 (Kesly)** | `services/provider-service` + Mocks | **Adapter** | `IProveedorExterno`, `DisponibilidadQuery/Resultado`, `ReservaDatos/ConfirmacionResultado`, `CheckAvailabilityRequest/Response`, `MockSimulationQuery` |
+| **Dev 3 (Kesly)** | `services/provider-service` + Mocks, `services/payment-service` | **Adapter** (proveedores y pagos) | `IProveedorExterno`, `DisponibilidadQuery/Resultado`, `ReservaDatos/ConfirmacionResultado`, `CheckAvailabilityRequest/Response`, `MockSimulationQuery`, `PremiumPlanInfo`, `SubscriptionDTO`, `CreateSubscriptionResponse`, `ActivationFailureCode` |
 | **Dev 4 (Santiago)** | `services/trip-service` + `services/ai-recommendation` | **Mediator** | `Trip`, `Event`, `Itinerary`, `DayPlan`, `TripMediatorIncidentInput/Result`, `AlternativeOption`, `AIPlanRecommendationResult` |
 
 ---
