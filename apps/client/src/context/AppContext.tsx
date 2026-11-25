@@ -7,7 +7,7 @@ import {
 } from '@wayvo/contracts';
 import { subscribeToTelemetry, TelemetryLogEntry, WayvoApi } from '../services/api';
 
-export type AppView = 'LANDING' | 'MY_TRIPS' | 'ONBOARDING' | 'PROPOSAL' | 'CHECKOUT' | 'ACTIVE_TRIP';
+export type AppView = 'LANDING' | 'MY_TRIPS' | 'ONBOARDING' | 'PROPOSAL' | 'CHECKOUT' | 'ACTIVE_TRIP' | 'SUBSCRIPTION';
 export type AppMode = 'USER' | 'DEV';
 
 interface AppContextType {

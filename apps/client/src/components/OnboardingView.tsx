@@ -1,14 +1,23 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { WayvoApi } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { ApiError, WayvoApi } from '../services/api';
+import { PlanLimitBanner } from './PlanLimitBanner';
+import { UpgradeModal, UpgradeReason } from './UpgradeModal';
 import {
   TripPlanRequest,
   BudgetCategory,
   TravelStyle,
+  AiPlanDenialCode,
 } from '@wayvo/contracts';
 
 export const OnboardingView: React.FC = () => {
   const { setCurrentView, setPlanResult, appMode, setIsDevInspectorOpen, userId } = useApp();
+  const { isPremium, entitlements, refreshUser } = useAuth();
+
+  // Límites de la cuenta FREE. El servidor es quien los hace cumplir; aquí solo se avisa antes de gastar el intento.
+  const outOfPlans = !isPremium && entitlements?.aiPlans.remaining === 0;
+  const [upgradeReason, setUpgradeReason] = useState<UpgradeReason | null>(null);
 
   // Wizard Step State (1: Conoce al Viajero, 2: Datos del Viaje, 3: Presupuesto Inteligente)
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
@@ -153,9 +162,19 @@ export const OnboardingView: React.FC = () => {
       }
     } catch (err: any) {
       clearInterval(timer);
-      alert(`Error al generar el plan con IA: ${err.message}`);
+      const isPlanLimit =
+        err instanceof ApiError &&
+        err.status === 403 &&
+        (err.code === AiPlanDenialCode.LIMIT_REACHED || err.code === AiPlanDenialCode.LUXURY_REQUIRES_PREMIUM);
+      if (isPlanLimit) {
+        setUpgradeReason({ code: err.code as string, entitlements: err.details });
+      } else {
+        alert(`Error al generar el plan con IA: ${err.message}`);
+      }
     } finally {
       setIsSubmitting(false);
+      // Actualiza el contador de planes (se descuenta al generar y se devuelve si falla).
+      refreshUser();
     }
   };
 
@@ -696,6 +715,8 @@ export const OnboardingView: React.FC = () => {
                 </span>
               </div>
 
+              <PlanLimitBanner />
+
               {/* Segmented Tier Controller (Stitch Inspired) */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-1.5 bg-surface-container rounded-xl">
                 <button
@@ -730,13 +751,24 @@ export const OnboardingView: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setBudgetTier('LUJO')}
-                  className={`py-3 px-3 rounded-lg text-xs transition-all text-center flex flex-col items-center justify-center gap-1 ${
+                  onClick={() =>
+                    isPremium
+                      ? setBudgetTier('LUJO')
+                      : setUpgradeReason({ code: AiPlanDenialCode.LUXURY_REQUIRES_PREMIUM, entitlements: entitlements ?? undefined })
+                  }
+                  title={isPremium ? undefined : 'El presupuesto Lujo es solo para cuentas PREMIUM'}
+                  className={`relative py-3 px-3 rounded-lg text-xs transition-all text-center flex flex-col items-center justify-center gap-1 ${
                     budgetTier === 'LUJO'
                       ? 'bg-surface-container-lowest text-primary shadow-sm font-bold'
                       : 'text-on-surface-variant hover:text-primary'
-                  }`}
+                  } ${isPremium ? '' : 'opacity-70'}`}
                 >
+                  {!isPremium && (
+                    <span className="absolute top-1.5 right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[9px] font-bold">
+                      <span className="material-symbols-outlined text-[11px]">lock</span>
+                      PREMIUM
+                    </span>
+                  )}
                   <span className="font-semibold">Lujo Boutique</span>
                   <span className="text-[11px] font-sans text-secondary">
                     Resorts 5★ & Exclusividad
@@ -847,7 +879,8 @@ export const OnboardingView: React.FC = () => {
 
                 <button
                   type="button"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || outOfPlans}
+                  title={outOfPlans ? 'Ya usaste tus planes de IA de este mes' : undefined}
                   onClick={() => handleSubmit()}
                   className="flex-1 py-3.5 px-6 rounded-full bg-primary-container hover:bg-primary text-on-primary font-semibold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
@@ -999,6 +1032,17 @@ export const OnboardingView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {upgradeReason && (
+        <UpgradeModal
+          reason={upgradeReason}
+          onClose={() => setUpgradeReason(null)}
+          onUpgrade={() => {
+            setUpgradeReason(null);
+            setCurrentView('SUBSCRIPTION');
+          }}
+        />
+      )}
     </div>
   );
 };

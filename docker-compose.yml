@@ -290,6 +290,8 @@ services:
     container_name: wayvo-client
     environment:
       VITE_API_URL: http://localhost:3000
+      # Clave PUBLICABLE de Stripe (pk_test_...), solo con PAYMENTS_MODE=real. Con el simulador no hace falta.
+      VITE_STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
     ports:
       - "5173:5173"
     depends_on:

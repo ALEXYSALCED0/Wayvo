@@ -20,6 +20,10 @@ import type {
   AuthUserDTO,
   LoginRequest,
   RegisterRequest,
+  PremiumPlanInfo,
+  MySubscriptionDTO,
+  CreateSubscriptionResponse,
+  SubscriptionDTO,
 } from '@wayvo/contracts';
 import { session } from './session';
 
@@ -67,6 +71,20 @@ function maskSecrets(value: unknown): unknown {
   );
 }
 
+// Error de la API con lo que el cliente necesita para reaccionar: el código (p. ej. AI_PLAN_LIMIT_REACHED)
+// y los detalles (p. ej. cuántos planes lleva usados). El mensaje sigue siendo el de siempre.
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string,
+    public readonly details?: any,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const correlationId = `gw-client-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
   const startTime = performance.now();
@@ -110,7 +128,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
     if (!response.ok && !body.data) {
       const errMessage = body.error?.message || `HTTP ${response.status}: ${response.statusText}`;
-      throw new Error(errMessage);
+      throw new ApiError(errMessage, response.status, body.error?.code, (body.error as any)?.details);
     }
 
     return (body.data !== undefined ? body.data : (body as unknown as T)) as T;
@@ -144,6 +162,31 @@ export const AuthApi = {
   me: async (): Promise<AuthUserDTO> => {
     return request<AuthUserDTO>('/api/v1/auth/me');
   },
+};
+
+// Suscripción PREMIUM (payment-service a través del API Gateway)
+export const PaymentsApi = {
+  getPlan: async (): Promise<PremiumPlanInfo> => request<PremiumPlanInfo>('/api/v1/payments/plan'),
+
+  getMySubscription: async (): Promise<MySubscriptionDTO> =>
+    request<MySubscriptionDTO>('/api/v1/payments/subscriptions/me'),
+
+  // El correo y el nombre salen del token en el servidor: no se mandan.
+  createSubscription: async (): Promise<CreateSubscriptionResponse> =>
+    request<CreateSubscriptionResponse>('/api/v1/payments/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
+  // Saga de activación: confirma el pago y pasa la cuenta a PREMIUM (o compensa si algo falla).
+  activateSubscription: async (subscriptionId: string): Promise<{ status: string; subscription: SubscriptionDTO }> =>
+    request(`/api/v1/payments/subscriptions/${subscriptionId}/activate`, { method: 'POST' }),
+
+  cancelSubscription: async (subscriptionId: string): Promise<{ subscription: SubscriptionDTO; refunded: boolean }> =>
+    request(`/api/v1/payments/subscriptions/${subscriptionId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
 };
 
 export const WayvoApi = {

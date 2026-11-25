@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
-import type { AuthSession, AuthUserDTO, LoginRequest, RegisterRequest } from '@wayvo/contracts';
-import { UserRole } from '@wayvo/contracts';
+import type { AccountEntitlements, AuthSession, AuthUserDTO, LoginRequest, RegisterRequest } from '@wayvo/contracts';
+import { AccountPlan, UserRole } from '@wayvo/contracts';
 import { AuthApi } from '../services/api';
 import { session } from '../services/session';
 
@@ -11,6 +11,11 @@ interface AuthContextType {
   status: AuthStatus;
   user: AuthUserDTO | null;
   isAdmin: boolean;
+  // Plan de la cuenta y cuánto lleva usado este mes (viene de /auth/me).
+  isPremium: boolean;
+  entitlements: AccountEntitlements | null;
+  // Vuelve a pedir /auth/me: se llama después de generar un plan o de cambiar de plan.
+  refreshUser: () => Promise<void>;
   login: (payload: LoginRequest) => Promise<void>;
   register: (payload: RegisterRequest) => Promise<void>;
   logout: () => void;
@@ -45,6 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => logout());
   }, [logout]);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      setUser(await AuthApi.me());
+    } catch {
+      // Si falla (red, 401) no se toca la sesión actual: el 401 ya cierra la sesión por su lado.
+    }
+  }, []);
+
   // Si en cualquier momento el gateway responde 401 (token expirado), se cierra la sesión.
   useEffect(() => session.onUnauthorized(logout), [logout]);
 
@@ -52,6 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status,
     user,
     isAdmin: user?.role === UserRole.ADMIN,
+    isPremium: user?.plan === AccountPlan.PREMIUM,
+    entitlements: user?.entitlements ?? null,
+    refreshUser,
     login: async (payload) => startSession(await AuthApi.login(payload)),
     register: async (payload) => startSession(await AuthApi.register(payload)),
     logout,

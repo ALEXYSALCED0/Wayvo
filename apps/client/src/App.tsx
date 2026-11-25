@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthView } from './components/AuthView';
@@ -11,9 +11,16 @@ import { CheckoutView } from './components/CheckoutView';
 import { ActiveTripView } from './components/ActiveTripView';
 import { DevInspectorHUD } from './components/DevInspectorHUD';
 import { AIChatDrawer } from './components/AIChatDrawer';
+import { PENDING_SUBSCRIPTION_KEY, SubscriptionView } from './components/SubscriptionView';
 
 function AppContent() {
-  const { currentView, isChatOpen, setIsChatOpen, appMode, isDevInspectorOpen, setIsDevInspectorOpen } = useApp();
+  const { currentView, setCurrentView, isChatOpen, setIsChatOpen, appMode, isDevInspectorOpen, setIsDevInspectorOpen } = useApp();
+
+  // Volvemos de la verificación del banco (3D Secure) con un pago a medias: la pantalla de
+  // suscripción lo termina de activar.
+  useEffect(() => {
+    if (sessionStorage.getItem(PENDING_SUBSCRIPTION_KEY)) setCurrentView('SUBSCRIPTION');
+  }, [setCurrentView]);
 
   return (
     <div className="min-h-screen flex flex-col bg-surface font-sans text-on-surface antialiased relative">
@@ -26,6 +33,7 @@ function AppContent() {
         {currentView === 'PROPOSAL' && <ProposalView />}
         {currentView === 'CHECKOUT' && <CheckoutView />}
         {currentView === 'ACTIVE_TRIP' && <ActiveTripView />}
+        {currentView === 'SUBSCRIPTION' && <SubscriptionView />}
       </main>
 
       {/* Footer */}
