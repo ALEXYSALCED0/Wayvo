@@ -1,6 +1,6 @@
 # WAYVO - Plataforma Inteligente de Viajes
 
-> **Plataforma multiusuario de microservicios con Clean Architecture, 4 patrones (Saga, Facade, Adapter, Mediator), motor multiagente LangGraph en Python y autenticación JWT.**
+> **Plataforma multiusuario de microservicios con Clean Architecture, 4 patrones (Saga, Facade, Adapter, Mediator), motor multiagente LangGraph en Python, autenticación JWT y suscripción con Stripe.**
 
 ---
 
@@ -9,15 +9,16 @@
 2. [Equipo](#equipo)
 3. [Patrones implementados](#patrones-implementados)
 4. [Multiusuario y seguridad](#multiusuario-y-seguridad)
-5. [Documentación de arquitectura (C4)](#documentación-de-arquitectura-c4)
-6. [Microservicios, puertos y bases de datos](#microservicios-puertos-y-bases-de-datos)
-7. [Clean Architecture](#clean-architecture)
-8. [Catálogo de endpoints](#catálogo-de-endpoints)
-9. [Configuración (.env)](#configuración-env)
-10. [Ejecución con Docker Compose](#ejecución-con-docker-compose)
-11. [Pruebas automatizadas](#pruebas-automatizadas)
-12. [Guion de demostración](#guion-de-demostración)
-13. [Manejo centralizado de errores y trazabilidad (Req. 8.18)](#manejo-centralizado-de-errores-y-trazabilidad-req-818)
+5. [Pagos y planes de cuenta (Stripe)](#pagos-y-planes-de-cuenta-stripe)
+6. [Documentación de arquitectura (C4)](#documentación-de-arquitectura-c4)
+7. [Microservicios, puertos y bases de datos](#microservicios-puertos-y-bases-de-datos)
+8. [Clean Architecture](#clean-architecture)
+9. [Catálogo de endpoints](#catálogo-de-endpoints)
+10. [Configuración (.env)](#configuración-env)
+11. [Ejecución con Docker Compose](#ejecución-con-docker-compose)
+12. [Pruebas automatizadas](#pruebas-automatizadas)
+13. [Guion de demostración](#guion-de-demostración)
+14. [Manejo centralizado de errores y trazabilidad (Req. 8.18)](#manejo-centralizado-de-errores-y-trazabilidad-req-818)
 
 ---
 
@@ -32,7 +33,7 @@
 - **Itinerario vivo:** el viajero reporta imprevistos y recibe alternativas coordinadas por el patrón **Mediator**.
 - **Integración con terceros:** APIs de vuelos y hoteles normalizadas con el patrón **Adapter**.
 - **Punto único de entrada:** API Gateway con el patrón **Facade**, autenticación y manejo centralizado de errores.
-- **Pagos con Stripe:** *en desarrollo* (ver [estado de la entrega final](#estado-de-la-entrega-final)).
+- **Suscripción con Stripe:** un único plan de pago (USD 4.95 al mes). La cuenta **FREE** genera hasta 5 planes de IA por mes y no accede al presupuesto Lujo; **PREMIUM** no tiene límite y accede a todos los presupuestos. Planificar y calcular el presupuesto es gratis y reservar no requiere pago en Wayvo (ver [Pagos y planes de cuenta](#pagos-y-planes-de-cuenta-stripe)).
 
 ---
 
@@ -43,7 +44,7 @@
 | Integrante | Responsabilidades |
 | :--- | :--- |
 | **Santiago Vengoechea** | `trip-service` (Mediator), `ai-recommendation` (LangGraph). Multiusuario: `auth-service`, autenticación JWT en el gateway, aislamiento de datos por usuario y login en el cliente. Persistencia de `trip-service` en PostgreSQL y reserva atómica de cupos. |
-| **Kesly Rodríguez** | `provider-service` (Adapter). Pasarela de pagos con Stripe (*en desarrollo*). |
+| **Kesly Rodríguez** | `provider-service` (Adapter). `payment-service`: suscripción PREMIUM con Stripe (Adapter de pagos y Saga de activación), liberación de cupos y límites de plan. |
 
 ### Primera entrega (créditos)
 
@@ -61,7 +62,9 @@
 | Multiusuario (registro, login, JWT, aislamiento por usuario, roles) | ✅ Implementado |
 | Concurrencia en reservas (cupos atómicos) | ✅ Implementado |
 | Persistencia de `trip-service` en PostgreSQL | ✅ Implementado |
-| Pasarela de pagos con Stripe | 🚧 En desarrollo |
+| Pasarela de pagos con Stripe (suscripción PREMIUM) | ✅ Implementado |
+| Planes FREE / PREMIUM con límites aplicados en el servidor | ✅ Implementado |
+| Liberación de cupos al compensar la Saga | ✅ Implementado |
 
 ---
 
@@ -69,9 +72,11 @@
 
 | Patrón | Tipo | Servicio | Archivos clave | Responsabilidad |
 | :--- | :--- | :--- | :--- | :--- |
-| **Saga** | Arquitectónico | `booking-service` | [`saga-orchestrator.ts`](services/booking-service/src/application/saga/saga-orchestrator.ts), [`compensation-log.ts`](services/booking-service/src/domain/entities/compensation-log.ts) | Orquesta crear viaje → crear reserva → reservar con proveedores → confirmar. Si algo falla, compensa en orden inverso y registra `CompensationLog`. |
+| **Saga** | Arquitectónico | `booking-service` | [`saga-orchestrator.ts`](services/booking-service/src/application/saga/saga-orchestrator.ts), [`compensation-log.ts`](services/booking-service/src/domain/entities/compensation-log.ts) | Orquesta crear viaje → crear reserva → reservar con proveedores → confirmar. Si algo falla, compensa en orden inverso (incluida la **liberación de cupos** en `provider-service`) y registra `CompensationLog`. |
 | **Facade** | Estructural (GoF) | `api-gateway` | [`trip.facade.ts`](services/api-gateway/src/application/facades/trip.facade.ts), [`trip-facade.controller.ts`](services/api-gateway/src/adapters/http/controllers/trip-facade.controller.ts) | Endpoints de alto nivel (`/trips/plan`, `/trips/checkout`) que ocultan la IA y la Saga al cliente. |
 | **Adapter** | Estructural (GoF) | `provider-service` | [`proveedor-externo.port.ts`](services/provider-service/src/application/ports/proveedor-externo.port.ts), [`transporte.adapter.ts`](services/provider-service/src/adapters/external/transporte.adapter.ts), [`alojamiento.adapter.ts`](services/provider-service/src/adapters/external/alojamiento.adapter.ts) | Adapta SerpAPI (vuelos) y Hotels API al puerto `IProveedorExterno`. |
+| **Adapter** (pagos) | Estructural (GoF) | `payment-service` | [`payment-gateway.port.ts`](services/payment-service/src/application/ports/payment-gateway.port.ts), [`stripe.adapter.ts`](services/payment-service/src/adapters/payment/stripe.adapter.ts), [`stripe-api.ts`](services/payment-service/src/adapters/payment/stripe-api.ts) | Adapta Stripe al puerto `IPaymentGateway`. El *Adaptee* `StripeApi` tiene dos implementaciones: Stripe real y un simulador (`PAYMENTS_MODE`). |
+| **Saga de activación** | Arquitectónico | `payment-service` | [`activate-subscription.use-case.ts`](services/payment-service/src/application/use-cases/activate-subscription.use-case.ts), [`cancel-subscription.use-case.ts`](services/payment-service/src/application/use-cases/cancel-subscription.use-case.ts) | Confirma el pago y pasa la cuenta a PREMIUM. Si se cobró pero la cuenta no se pudo actualizar, compensa cancelando la suscripción y reembolsando. |
 | **Mediator** | Comportamiento (GoF) | `trip-service` | [`IMediator.ts`](services/trip-service/src/application/mediator/IMediator.ts), [`TripMediator.ts`](services/trip-service/src/application/mediator/TripMediator.ts) | Coordina `EventService`, `AlternativeService` y `TripService` ante incidencias, sin que se conozcan entre sí. |
 
 El motor de IA está en [`graph.py`](services/ai-recommendation/application/graph.py) (`StateGraph` de LangGraph).
@@ -96,14 +101,41 @@ Archivos clave: [`auth.middleware.ts`](services/api-gateway/src/adapters/http/mi
 
 ---
 
+## Pagos y planes de cuenta (Stripe)
+
+Wayvo tiene **un solo pago: la suscripción mensual PREMIUM (USD 4.95)**, este plan queda registrado en el estado de la cuenta (`auth-service`).
+
+| | FREE | PREMIUM |
+| :--- | :--- | :--- |
+| Planes generados por IA | **5 por mes calendario** (zona `America/Bogota`) | Ilimitados |
+| Presupuestos | Económico, Estándar y Personalizado | Todos, incluido **Lujo** |
+| Costo | $0 | USD 4.95 / mes |
+
+```text
+Cliente (Payment Element) ──► API Gateway ──► payment-service ──► Stripe
+                                   │                 │
+                                   │                 └─ PUT plan (token interno) ─► auth-service
+                                   └─ cuota de planes de IA ─────────────────────► auth-service
+Stripe ── webhook (firma) ──► API Gateway ──► payment-service ──► auth-service
+```
+
+- **Adapter de pagos:** el dominio solo conoce `IPaymentGateway`; `StripePaymentAdapter` traduce entre los estados de Wayvo (`INCOMPLETE`, `ACTIVE`, `PAST_DUE`, `CANCELED`) y los de Stripe. Con `PAYMENTS_MODE=mock` se usa un simulador (sin claves ni cobros); con `real`, Stripe en modo de prueba.
+- **Saga de activación:** `POST /subscriptions/:id/activate` confirma el pago y cambia el plan de la cuenta. Si se cobró pero la cuenta falla, **compensa** cancelando la suscripción y reembolsando. Respuestas: `200` activada, `402` pago no completado, `409` compensada, `500` compensación fallida (reembolso manual).
+- **Webhooks:** `customer.subscription.updated` y `customer.subscription.deleted` mantienen la cuenta al día en renovaciones, cobros fallidos y cancelaciones hechas desde Stripe. La firma (HMAC-SHA256) se valida sobre el cuerpo exacto, por eso el gateway lo reenvía sin reescribirlo.
+- **Límites en el servidor:** `auth-service` es dueño de las reglas (`PlanPolicy`) y del contador mensual (`ai_plan_usage`, una fila por usuario y mes, con `UPDATE` atómico). El gateway pregunta antes de generar un plan en `POST /trips/plan` y en `POST /ai/plan`: responde **403** (`AI_PLAN_LIMIT_REACHED` o `LUXURY_BUDGET_REQUIRES_PREMIUM`), devuelve el plan si la generación falla y **falla cerrado** (503) si no puede comprobar la cuenta.
+- **Seguridad:** el navegador nunca cambia su propio plan; solo `payment-service`, con el token interno `x-internal-token`. El gateway bloquea `/api/v1/internal/*` (**403**). Los datos de tarjeta los recibe Stripe directamente (Payment Element); la clave secreta vive solo en el servidor.
+
+Archivos clave: [`payment-service`](services/payment-service/src), [`plan-policy.ts`](services/auth-service/src/domain/policies/plan-policy.ts), [`consume-ai-plan.use-case.ts`](services/auth-service/src/application/use-cases/consume-ai-plan.use-case.ts), [`ai-plan-quota.middleware.ts`](services/api-gateway/src/adapters/http/middlewares/ai-plan-quota.middleware.ts), [`SubscriptionView.tsx`](apps/client/src/components/SubscriptionView.tsx).
+
+---
+
 ## Documentación de arquitectura (C4)
 
 | Documento | Contenido |
 | :--- | :--- |
-| [C4 Nivel 1: Contexto](docs/c4/c4-level1-context.md) | Actores (viajero, administrador), sistemas externos (SerpAPI, Hotels API, LLM, Stripe) y flujos de valor. |
-| [C4 Nivel 2: Contenedores](docs/c4/c4-level2-containers.md) | Contenedores, puertos, bases de datos (Database-per-Service), autenticación en el gateway y concurrencia. |
-| [C4 Nivel 3: Componentes](docs/c4/c4-level3-components.md) | Capas de Clean Architecture y secuencias de `auth-service`, Saga, Adapter y Mediator. |
-| [Guía de sustentación](docs/defense/guia-sustentacion-desarrolladores.md) | Justificación de cada patrón para la defensa técnica. |
+| [C4 Nivel 1: Contexto](docs/c4/c4-level1-context.md) | Actores (viajero, administrador), sistemas externos (SerpAPI, Hotels API, LLM, Stripe) y flujos de valor (incluido el manejo de suscripciones). |
+| [C4 Nivel 2: Contenedores](docs/c4/c4-level2-containers.md) | Contenedores, puertos, bases de datos (Database-per-Service), autenticación en el gateway, concurrencia y planes de cuenta. |
+| [C4 Nivel 3: Componentes](docs/c4/c4-level3-components.md) | Capas de Clean Architecture y secuencias de `auth-service`, Saga, Adapter, `payment-service` y Mediator. |
 
 ---
 
@@ -118,6 +150,7 @@ wayvo/
 │   ├── auth-service/         # Node + TS [3004] -> usuarios, login, JWT
 │   ├── booking-service/      # Node + TS [3001] -> Saga
 │   ├── provider-service/     # Node + TS [3002] -> Adapter
+│   ├── payment-service/      # Node + TS [3005] -> Adapter de pagos (Stripe) + Saga de activación
 │   ├── trip-service/         # Node + TS [3003] -> Mediator
 │   └── ai-recommendation/    # Python + FastAPI + LangGraph [8000]
 ├── shared/
@@ -133,6 +166,7 @@ wayvo/
 | `auth-service` | Node.js + TypeScript + Prisma | `3004` | PostgreSQL `auth_db` (`5436`) |
 | `booking-service` | Node.js + TypeScript + Prisma | `3001` | PostgreSQL `booking_db` (`5433`) |
 | `provider-service` | Node.js + TypeScript + Prisma | `3002` | PostgreSQL `provider_db` (`5434`) |
+| `payment-service` | Node.js + TypeScript + Prisma | `3005` | PostgreSQL `payment_db` (`5437`) |
 | `trip-service` | Node.js + TypeScript + Prisma | `3003` | PostgreSQL `trip_db` (`5435`) |
 | `ai-recommendation` | Python + FastAPI + LangGraph | `8000` | — |
 
@@ -161,12 +195,12 @@ Todas las rutas pasan por el gateway (`http://localhost:3000`) y requieren `Auth
 | :--- | :--- | :--- |
 | `POST` | `/api/v1/auth/register` | **Pública.** Crea la cuenta y devuelve `{ token, expiresAt, user }`. |
 | `POST` | `/api/v1/auth/login` | **Pública.** Devuelve `{ token, expiresAt, user }`. |
-| `GET` | `/api/v1/auth/me` | Usuario del token. |
+| `GET` | `/api/v1/auth/me` | Usuario del token, con su `plan` (FREE / PREMIUM) y `entitlements` (planes de IA usados, límite y fecha de renovación). |
 
 ### Facade (`api-gateway`)
 | Método | Ruta | Descripción |
 | :--- | :--- | :--- |
-| `POST` | `/api/v1/trips/plan` | Genera el plan con el motor multiagente (el `userId` sale del token). |
+| `POST` | `/api/v1/trips/plan` | Genera el plan con el motor multiagente (el `userId` sale del token). Cuenta FREE: máx. 5 por mes y sin presupuesto Lujo (**403** `AI_PLAN_LIMIT_REACHED` / `LUXURY_BUDGET_REQUIRES_PREMIUM`). |
 | `POST` | `/api/v1/trips/checkout` | Confirma el viaje ejecutando la Saga. `201` confirmado, `409` compensado. |
 | `GET` | `/health`, `/health/services` | **Públicas.** Estado del gateway y de los servicios. |
 
@@ -195,12 +229,26 @@ Todas las rutas pasan por el gateway (`http://localhost:3000`) y requieren `Auth
 | `GET` | `/api/v1/providers` | Catálogo de proveedores verificados. |
 | `POST` | `/api/v1/providers/check-availability` | Disponibilidad vía adapters. |
 | `POST` | `/api/v1/providers/confirm` | Reserva atómica de cupos + confirmación externa. |
+| `POST` | `/api/v1/providers/release` | Libera cupos de una reserva (`{ bookingId, items[] }`). Lo usa la compensación de la Saga. |
 | `GET` | `/api/v1/mock/simulate-failure?mode=unavailable\|slow\|error\|normal` | **Solo ADMIN.** Simulador de fallos. |
+
+### Pagos (`payment-service`) - suscripción PREMIUM
+| Método | Ruta | Descripción |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/payments/plan` | Información del plan PREMIUM (USD 4.95 / mes). |
+| `GET` | `/api/v1/payments/subscriptions/me` | Mi suscripción y mi plan efectivo. |
+| `POST` | `/api/v1/payments/subscriptions` | Crea la suscripción y devuelve el `clientSecret` para el Payment Element de Stripe (`null` con el simulador). |
+| `POST` | `/api/v1/payments/subscriptions/:id/activate` | Saga de activación: `200` PREMIUM activado, `402` pago no completado, `409` compensada, `500` compensación fallida. |
+| `POST` | `/api/v1/payments/subscriptions/:id/cancel` | Cancela la suscripción; la cuenta vuelve a FREE. |
+| `POST` | `/api/v1/payments/webhook` | **Pública (se valida con la firma de Stripe).** Renovaciones, cobros fallidos y cancelaciones. |
+| `GET` | `/api/v1/mock/simulate-payment?mode=declined\|error\|slow\|normal&activation=ok\|fail` | **Solo ADMIN, solo con `PAYMENTS_MODE=mock`.** Simulador de fallos de pago y de activación. |
+
+> Las rutas `/api/v1/internal/*` de `auth-service` (cambiar el plan de una cuenta, descontar o devolver un plan de IA) son solo entre servicios: el gateway las bloquea con **403**.
 
 ### IA (`ai-recommendation`)
 | Método | Ruta | Descripción |
 | :--- | :--- | :--- |
-| `POST` | `/api/v1/ai/plan` | Ejecuta el grafo LangGraph (normalmente vía `/trips/plan`). |
+| `POST` | `/api/v1/ai/plan` | Ejecuta el grafo LangGraph (normalmente vía `/trips/plan`). También pasa por la cuota de planes de la cuenta. |
 | `POST` | `/api/v1/ai/chat` | Chat libre con el asistente de viajes. |
 | `POST` | `/api/v1/ai/incidents/resolve` | Alternativas contextuales ante un imprevisto (`incident_agent`). |
 
@@ -222,6 +270,12 @@ Todas las rutas pasan por el gateway (`http://localhost:3000`) y requieren `Auth
 | `ADMIN_EMAILS` | No | Correos (separados por coma) que reciben rol `ADMIN` al registrarse. |
 | `EXTERNAL_PROVIDERS_MODE` | Sí | `real` (SerpAPI + Hotels API, requiere sus claves) o `mock` (simulador, sin claves). |
 | `SERPAPI_API_KEY`, `HOTELS_API_KEY` | Si `real` | Claves de las APIs de vuelos y hoteles. |
+| `PAYMENTS_MODE` | Sí | `mock` (simulador de pagos, sin claves ni cobros) o `real` (Stripe en modo de prueba). |
+| `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID` | Si `real` | Clave secreta `sk_test_...` y precio recurrente mensual de USD 4.95 (`price_...`). Solo en el servidor. |
+| `STRIPE_PUBLISHABLE_KEY` | Si `real` | Clave publicable `pk_test_...`; el navegador la usa para mostrar el formulario de pago. |
+| `STRIPE_WEBHOOK_SECRET` | Recomendada | Secreto `whsec_...` del webhook (con el Stripe CLI: `stripe listen --events customer.subscription.updated,customer.subscription.deleted --forward-to localhost:3000/api/v1/payments/webhook`). Sin él los webhooks se rechazan. |
+| `INTERNAL_SERVICE_TOKEN` | Producción | Token compartido por `auth-service`, `payment-service` y el gateway para las rutas internas. Vacío = token de desarrollo (en producción el servicio no arranca así). |
+| `FREE_AI_PLANS_PER_MONTH`, `USAGE_TIMEZONE` | No | Planes de IA por mes de una cuenta FREE (5 por defecto) y zona horaria del mes calendario (`America/Bogota`). |
 | `DEMO_AUTO_REFILL_CAPACITY` | No | `true` (por defecto) recarga cupos agotados; `false` muestra el rechazo real por falta de cupo. |
 
 ---
@@ -238,13 +292,13 @@ docker compose up --build -d
 ```
 Abre **http://localhost:5173**, crea una cuenta y empieza a planificar.
 
-Contenedores esperados (`docker compose ps`): `wayvo-client`, `wayvo-api-gateway`, `wayvo-auth-service`, `wayvo-booking-service`, `wayvo-provider-service`, `wayvo-trip-service`, `wayvo-ai-recommendation`, `wayvo-auth-db`, `wayvo-booking-db`, `wayvo-provider-db`, `wayvo-trip-db`.
+Contenedores esperados (`docker compose ps`): `wayvo-client`, `wayvo-api-gateway`, `wayvo-auth-service`, `wayvo-booking-service`, `wayvo-provider-service`, `wayvo-payment-service`, `wayvo-trip-service`, `wayvo-ai-recommendation`, `wayvo-auth-db`, `wayvo-booking-db`, `wayvo-provider-db`, `wayvo-payment-db`, `wayvo-trip-db`.
 
 Las migraciones de Prisma se aplican solas al arrancar cada servicio.
 
 ### Desarrollo local (sin Docker para los servicios)
 ```powershell
-docker compose up -d auth-db booking-db provider-db trip-db
+docker compose up -d auth-db booking-db provider-db payment-db trip-db
 npm install
 npm run build:contracts
 ```
@@ -254,6 +308,7 @@ npm run dev:gateway   # 3000
 npm run dev:auth      # 3004
 npm run dev:booking   # 3001
 npm run dev:provider  # 3002
+npm run dev:payment   # 3005
 npm run dev:trip      # 3003
 npm run dev:client    # 5173
 ```
@@ -268,11 +323,14 @@ npm --prefix services/auth-service test
 npm --prefix services/api-gateway test
 npm --prefix services/booking-service test
 npm --prefix services/provider-service test
+npm --prefix services/payment-service test
 npm --prefix services/trip-service test
 cd services/ai-recommendation; python -m pytest    # requiere su entorno virtual
 ```
 
-Los tests contra PostgreSQL real se activan con `TEST_DATABASE_URL` (ver el encabezado de cada archivo `*prisma*.test.ts`). Incluyen, entre otros, la prueba de concurrencia: 20 reservas simultáneas sobre 3 cupos deben dejar exactamente 3 ganadoras.
+Los tests contra PostgreSQL real se activan con `TEST_DATABASE_URL` (ver el encabezado de cada archivo `*prisma*.test.ts`). Incluyen, entre otros, la prueba de concurrencia: 20 reservas simultáneas sobre 3 cupos deben dejar exactamente 3 ganadoras, y la del contador de planes de IA: 12 peticiones simultáneas con límite 5 dejan exactamente 5 aprobadas.
+
+`payment-service` se prueba sin Stripe real: el simulador cubre el flujo feliz, el pago rechazado, la compensación cuando la cuenta falla y la firma del webhook.
 
 ---
 
@@ -301,6 +359,14 @@ Alternativa sin modo caos: `DEMO_AUTO_REFILL_CAPACITY=false` en `.env` y una ofe
 ### 4. Incidencia en ruta (Mediator)
 En un viaje activo, reporta un imprevisto (ej. "Perdí el tren") → el `TripMediator` registra la incidencia, propone alternativas y, al elegir una, reemplaza el evento en el itinerario.
 
+### 5. Suscripción PREMIUM y límites de plan
+1. Con una cuenta nueva (FREE), la barra superior muestra **FREE · 5/5**. En el paso de presupuesto, **Lujo Boutique** tiene candado: al pulsarlo se ofrece pasar a PREMIUM.
+2. Genera planes de IA: el contador baja (4/5, 3/5...). Con 0/5 el botón se desactiva y el gateway responde **403** `AI_PLAN_LIMIT_REACHED`. Para verlo rápido: `FREE_AI_PLANS_PER_MONTH=1` en `.env`.
+3. Pulsa el chip del plan → **Suscribirme por $4.95/mes**. Con `PAYMENTS_MODE=mock` se confirma un pago simulado; con `real`, usa la tarjeta de prueba `4242 4242 4242 4242`.
+4. Al activarse, la cuenta pasa a **PREMIUM**: planes ilimitados y Lujo desbloqueado (`GET /api/v1/auth/me` muestra `plan: PREMIUM`).
+5. **Compensación de la Saga de activación** (usuario ADMIN, `PAYMENTS_MODE=mock`): `GET /api/v1/mock/simulate-payment?activation=fail` y activa una suscripción nueva → **409** `SAGA_COMPENSATED`: se cobró, la cuenta falló, se canceló la suscripción y se devolvió el dinero; la cuenta sigue FREE. Con `?mode=declined` el pago rechazado responde **402** sin cobrar. Restaurar con `?mode=normal&activation=ok`.
+6. **Cancelar suscripción** desde la misma pantalla: la cuenta vuelve a FREE de inmediato.
+
 ---
 
 ## Manejo centralizado de errores y trazabilidad (Req. 8.18)
@@ -318,6 +384,6 @@ Toda falla se devuelve con el mismo formato desde el middleware centralizado ([`
 }
 ```
 
-Códigos frecuentes: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400), `SAGA_COMPENSATED` (409), `DOWNSTREAM_SERVICE_UNAVAILABLE` (503).
+Códigos frecuentes: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `AI_PLAN_LIMIT_REACHED` y `LUXURY_BUDGET_REQUIRES_PREMIUM` (403), `NOT_FOUND` (404), `VALIDATION_ERROR` (400), `PAYMENT_NOT_COMPLETED` (402), `SAGA_COMPENSATED` (409), `DOWNSTREAM_SERVICE_UNAVAILABLE` (503).
 
 Cada petición lleva un `x-correlation-id` que viaja por todos los servicios, aparece en los logs y en `CompensationLog`, y se puede seguir desde el Inspector Dev del cliente.
